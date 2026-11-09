@@ -9,7 +9,7 @@ function alertMessage(message,isError=false){const el=$('#toast');el.textContent
 function download(blob,filename){const link=document.createElement('a'),url=URL.createObjectURL(blob);link.href=url;link.download=filename;document.body.append(link);link.click();link.remove();setTimeout(()=>URL.revokeObjectURL(url),30000);}
 function mark(){backupDirty=true;saveSeq++;saving=false;saveError='';clearTimeout(saveTimer);saveTimer=setTimeout(persist,3800);badge();}
 async function persist(){
- const seq=saveSeq,snapshot=JSON.parse(JSON.stringify(work));saving=true;badge();
+ saveTimer=null;const seq=saveSeq,snapshot=JSON.parse(JSON.stringify(work));saving=true;badge();
  try{await S.write(snapshot);if(saveSeq===seq){saving=false;lastSaved=new Date().toLocaleTimeString('vi-VN');saveError='';}}
  catch(e){try{S.fallbackWrite(snapshot);if(saveSeq===seq){lastSaved=new Date().toLocaleTimeString('vi-VN');saveError='';saving=false;}}
  catch(x){saveError=x.message||'Không thể tự lưu';saving=false;}}
@@ -187,7 +187,7 @@ async function actions(event){
  case 'commit-sources':await commitPending();break;
  case 'backup':await backup();break;
  case 'backup-session':await backup(true);break;
- case 'print':if(!s)return;document.documentElement.style.setProperty('--paper-size',s.settings.paperSize);document.documentElement.style.setProperty('--paper-orientation',s.settings.orientation);root.print();break;
+ case 'print':if(!s)return;{let style=$('#studio-print-sheet');if(!style){style=document.createElement('style');style.id='studio-print-sheet';document.head.append(style);}style.textContent='@page { size: '+s.settings.paperSize+' '+s.settings.orientation+'; margin: 0; }';root.print();}break;
  case 'xlsx':if(!s)return;{const r=K.buildReport(work,s),data=await K.exportXlsx(work,s,r);download(data,'KTXH_'+new Date().toISOString().slice(0,10)+'.xlsx');alertMessage('Đã xuất Excel cùng nguồn, công thức và truy vết.');}break;
  }
  }catch(e){alertMessage(e.message,true);}
