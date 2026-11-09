@@ -1,14 +1,17 @@
-# Nhật ký phản biện — WebApp KTXH Offline
+# NHẬT KÝ QUYẾT ĐỊNH — KTXH Offline
 
-**Đặc tả quy phạm hiện hành:** [MASTER V2.2](../specs/KTXH_OFFLINE_MASTER_SPEC_V2_2_CURRENT.md) cùng [Kế hoạch PH1](../plans/PHASE_1_RESULT_TEMPLATE.md) và [Kế hoạch PH2](../plans/PHASE_2_EXTENSIBILITY.md). V1/V2.0/V2.1 giữ nguyên làm lịch sử.
+**Tài liệu thi công hiện hành:** [MASTER V2.2](../specs/KTXH_OFFLINE_MASTER_SPEC_V2_2_CURRENT.md), [PH1](../plans/PHASE_1_RESULT_TEMPLATE.md), [PH2](../plans/PHASE_2_EXTENSIBILITY.md). 66 test T01–T66. Không dùng bản cũ làm yêu cầu hiện hành.
 
-| Round | Ngày | Hồ sơ | Kết luận chính | Trạng thái |
-|---|---|---|---|---|
-| R01 | 09/11/2026 | `REVIEW_R01_20261109.md` | Nhập P/Q giải ngân; ghép tên địa phương; cảnh báo; xuất Excel | `INTEGRATED` |
-| R02 | 09/11/2026 | `REVIEW_R02_20261109.md` | GPMB 3 dự án thiếu I; 296 ô trống DISB; trạng thái sheet ẩn | `INTEGRATED` |
-| R03 | 09/11/2026 | `REVIEW_R03_20261109.md` | Mọi phép tính có CalculationTrace, công thức, included/excluded và lý do | `INTEGRATED` |
-| R04 | 09/11/2026 | `REVIEW_R04_20261109.md` | ZERO mẫu số cấp đơn vị vẫn tham gia benchmark SUM/SUM; chỉ tiêu REV_LAND_RATE_P | `INTEGRATED` |
-| R05 | 09/11/2026 | `REVIEW_R05_20261109.md` | Đưa đúng 4 workbook nguồn gốc vào GitHub Private có SHA-256, README và kiểm tra | `INTEGRATED` |
-| **R06** | **09/11/2026** | **`REVIEW_R06_20261109.md`** | **GPMB chỉ tính theo diện tích; M nguồn dùng QC I/D; ghi tên địa phương thiếu từng nguồn; tách PH1/PH2; T59–T66** | `INTEGRATED_V2.2 / APP_NOT_IMPLEMENTED` |
+| Vòng | Nội dung đã đưa vào kế hoạch hiện hành |
+|---|---|
+| R01 | Ghi chú P/Q giải ngân; ghép chính xác tên địa phương; cảnh báo và xuất Excel. |
+| R02 | Phân biệt ô trống và số 0; 3 dự án GPMB thiếu I; sheet ẩn; kiểm tra dữ liệu thành phần. |
+| R03 | Mọi phép tính đều có CalculationTrace, công thức, thành phần được tính/bỏ qua và lý do. |
+| R04 | Dòng có mẫu số 0 vẫn tham gia benchmark SUM/SUM khi dữ liệu hợp lệ; đủ 6 tỷ lệ thu NSNN. |
+| R05 | Đưa đúng 4 workbook gốc vào repo Private, lưu SHA-256 và cách kiểm tra. |
+| [R06](REVIEW_R06_20261109.md) | Chỉ tính GPMB theo diện tích; kiểm tra M/I/D; nêu tên địa phương thiếu; tách kế hoạch PH1/PH2. |
+| R07 — dọn repository | Gỡ 17 tệp cũ/đã hợp nhất/đã thay thế; sửa liên kết và README nguồn, chỉ giữ tài liệu đang có hiệu lực. |
 
-**Quy tắc phản biện tiếp:** dùng mã R07 trở đi, nêu điều khoản MASTER V2.2, bằng chứng file/sheet/cell/SHA, tác động PH1/PH2 và test, hướng khắc phục và quyết định. Không viết đè review cũ. Nếu AI phát hiện thay đổi quy tắc nghiệp vụ, lập change request; không âm thầm sửa công thức. Đã được chủ dự án cho phép lưu **đúng 4 workbook** gốc tại `data/reference/` trên repo Private, không tự đưa thêm tệp khác vào GitHub.
+**Lưu lịch sử không gây rối:** Các đặc tả V1/V2.0/V2.1, amendment, review R01–R05 và kết quả audit cũ đã được loại khỏi nhánh `main`, nhưng **không xóa lịch sử Git**. Có thể truy cập tại [commit trước khi dọn](https://github.com/cavoixanh638/KTXD-report/tree/875e10a02eb056879525fb6ae54d0719880b9484). Tất cả quyết định nghiệp vụ đã hợp nhất trong MASTER V2.2; các số liệu kiểm chứng trọng yếu vẫn còn tại [REFERENCE_COVERAGE](../data_checks/REFERENCE_COVERAGE_20261109.json) và các script nguồn trong `tools/`.
+
+**Phản biện tiếp:** Dùng mã R08 trở đi; dẫn điều khoản V2.2, file/sheet/ô/SHA, ảnh hưởng PH1/PH2 và test, quyết định, lý do. Không thay đổi nguồn Excel hoặc tuyên bố runtime PASS nếu chưa có bằng chứng.

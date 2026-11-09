@@ -3,7 +3,7 @@
   "repository": "cavoixanh638/KTXD-report",
   "specVersion": "2.2 CURRENT",
   "masterSpec": "docs/specs/KTXH_OFFLINE_MASTER_SPEC_V2_2_CURRENT.md",
-  "masterSha256": "c02ca6d8a11f1390c64792fd4357fa75ead2689afe587b37a1f0f0ce14cdfe16",
+  "masterSha256": "b19b54119fab30ec3b5c2bdd62e31a823b7665fe2b8b32617e40d3b0433b8767",
   "masterLines": 814,
   "subplans": [
     {
@@ -94,8 +94,10 @@
   "sourceAudit": "docs/data_checks/REFERENCE_COVERAGE_20261109.json",
   "sourceAuditStatus": "PASS_SOURCE_ONLY_NOT_RUNTIME",
   "review": "docs/reviews/REVIEW_R06_20261109.md",
-  "historySpecs": [
-    "docs/specs/KTXH_OFFLINE_MASTER_SPEC_V2_1_FINAL.md",
-    "docs/specs/KTXH_OFFLINE_MASTER_SPEC_V2_FINAL.md"
-  ]
+  "archivedHistory": {
+    "state": "OLD_DOCS_REMOVED_FROM_MAIN_BUT_AVAILABLE_IN_GIT_HISTORY",
+    "preCleanupCommit": "875e10a02eb056879525fb6ae54d0719880b9484",
+    "removedFiles": 17,
+    "note": "Use masterSpec and subplans only; historical versions are not active."
+  }
 }

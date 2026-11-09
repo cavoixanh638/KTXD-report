@@ -3,7 +3,7 @@
 **Mã tài liệu:** KTXH-OFFLINE-MASTER-SPEC-2.2  
 **Ngày lập:** 09/11/2026  
 **Lần hiệu chỉnh:** R06 (09/11/2026), chốt GPMB chỉ theo diện tích, coverage ghi tên địa phương thiếu dữ liệu, chia triển khai thành hai kế hoạch con (PH1/PH2).  
-**Nguồn lịch sử:** V1, V2.0 và V2.1 được giữ nguyên để đối chiếu; bốn Excel nguồn giữ nguyên SHA tại `data/reference/`.  
+**Nguồn lịch sử:** V1, V2.0, V2.1 và các tài liệu phản biện R01–R05 đã được hợp nhất vào bản hiện hành; các bản cũ được gỡ khỏi cây tệp `main` để tránh nhầm và vẫn có thể truy xuất qua lịch sử Git. Bốn Excel nguồn giữ nguyên SHA tại `data/reference/`.  
 **Trạng thái:** MASTER V2.2 HIỆN HÀNH, kèm hai kế hoạch con PH1 và PH2. **Chưa lập trình và chưa nghiệm thu ứng dụng.**  
 **Ngôn ngữ giao diện:** Tiếng Việt.  
 **Nền tảng:** Chrome/Edge trên Windows, chạy offline, không cần đăng nhập, không có backend hoặc truyền dữ liệu ra Internet.
@@ -27,7 +27,7 @@
 12. Mỗi kết quả phải gắn **trạng thái chất lượng**: đầy đủ, thiếu thành phần, ngoài phạm vi, mẫu số bằng 0, có giả định hay lỗi. Không âm thầm loại bản ghi hoặc chuyển ô trống thành số 0. Khi áp dụng phép cộng nguồn có ô trống, chỉ cho phép tái tạo phép cộng với diễn giải đầy đủ quy tắc và cờ dữ liệu thiếu.
 13. Nguồn dữ liệu, danh sách địa phương, công thức và lựa chọn người dùng phải có phiên bản/historic/audit. Tùy chỉnh được nội dung báo cáo nhưng không được xóa dấu vết, cố ý che phạm vi hoặc vô hiệu hóa tính minh bạch của phép tính trong phần xuất chính thức.
 
-**Quan hệ với lịch sử:** V1, V2.0, V2.1, R01–R05 và các amendment là hồ sơ lịch sử. Kể từ R06, dùng **MASTER V2.2 + hai kế hoạch con PH1/PH2**; nếu mâu thuẫn, MASTER V2.2 có ưu tiên cao nhất, tiếp đến kế hoạch con phù hợp phạm vi. Đề xuất thay nghiệp vụ phải có review/issue và chứng cứ; tuyệt đối không sửa lại nguồn để làm test PASS. **Đây là kế hoạch, chưa có app runtime.**
+**Quan hệ với lịch sử:** V1, V2.0, V2.1, R01–R05 và các amendment không còn ở nhánh `main`, nhưng vẫn được bảo toàn trong lịch sử commit Git. Kể từ R06, dùng **MASTER V2.2 + hai kế hoạch con PH1/PH2**; nếu mâu thuẫn, MASTER V2.2 có ưu tiên cao nhất, tiếp đến kế hoạch con phù hợp phạm vi. Đề xuất thay nghiệp vụ phải có review/issue và chứng cứ; tuyệt đối không sửa lại nguồn để làm test PASS. **Đây là kế hoạch, chưa có app runtime.**
 
 ## 2. Bốn tệp Excel nghiệp vụ đầu vào
 

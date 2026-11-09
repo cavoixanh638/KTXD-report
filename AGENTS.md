@@ -6,7 +6,7 @@
 2. Đọc **[`Kế hoạch con 1`](docs/plans/PHASE_1_RESULT_TEMPLATE.md)**, triển khai đúng nội dung PH1 và nghiệm thu trước. PH1 phải cho người dùng dùng được bảng 14 dòng thực tế, không phải mockup.
 3. Đọc **[`Kế hoạch con 2`](docs/plans/PHASE_2_EXTENSIBILITY.md)** để giữ ranh giới kiến trúc, nhưng **chỉ bắt đầu PH2 sau khi PH1 đã đạt gate có bằng chứng**.
 4. Đọc bốn nguồn Excel gốc tại `data/reference/` và `data/reference/MANIFEST.json`; xác minh SHA; xem [audit nguồn](docs/data_checks/REFERENCE_COVERAGE_20261109.json). Không tự suy đoán nguồn không có vì đã được commit repo Private.
-5. V1/V2.0/V2.1, R01–R05, amendments và các pha P0–P7 cũ chỉ là lịch sử. Nếu xung đột, MASTER V2.2 thắng. Ghi review/issue khi đề xuất đổi nghiệp vụ.
+5. V1/V2.0/V2.1, review R01–R05 và amendments đã gỡ khỏi cây tệp hiện hành, chỉ còn trong lịch sử Git. P0–P7 cũ đã thay bằng PH1/PH2. **Chỉ MASTER V2.2 và hai kế hoạch con là tài liệu thi công**; tạo review/issue mới nếu muốn sửa quy tắc nghiệp vụ.
 
 ## CÁC QUY TẮC KHÔNG THỂ ĐỔI
 

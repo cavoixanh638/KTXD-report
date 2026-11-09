@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Replicate review R01 observations from user-supplied XLSX (NOT committed to GitHub).
+"""Replicate review R01 observations from the four approved XLSX sources committed to this Private repo.
 
 Dependencies: openpyxl.
 Usage:

@@ -34,6 +34,6 @@ Trước khi chạy kiểm thử dùng `python tools/verify_reference_files.py` 
 - [Trạng thái thực hiện PH1/PH2](docs/status/PROJECT_STATUS.md)
 - [Danh mục phiên bản/kiểm thử](docs/status/SPEC_V2_2_MANIFEST.json)
 - [Nhật ký phản biện](docs/reviews/REVIEW_LEDGER.md) và [R06](docs/reviews/REVIEW_R06_20261109.md)
-- [V2.1 lịch sử](docs/specs/KTXH_OFFLINE_MASTER_SPEC_V2_1_FINAL.md), [V2.0 lịch sử](docs/specs/KTXH_OFFLINE_MASTER_SPEC_V2_FINAL.md). **Không dùng V2.1 làm kế hoạch hiện hành.**
+- Bản V1, V2.0, V2.1, các amendment và review R01–R05 **đã gỡ khỏi nhánh `main` để tránh nhầm với V2.2**. Khi thật sự cần tra cứu, xem [lịch sử trước khi dọn](https://github.com/cavoixanh638/KTXD-report/tree/875e10a02eb056879525fb6ae54d0719880b9484). Không dùng các bản lịch sử làm yêu cầu thi công.
 
 **Chưa có webapp chạy được và chưa có bài test runtime PASS.** Các script kiểm toán nguồn chỉ xác nhận dữ liệu mẫu, không phải bằng chứng triển khai ứng dụng.

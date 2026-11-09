@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
-"""Read-only verification of selected numeric acceptance fixtures for Master Spec V2.
+"""Read-only verification of selected numeric acceptance fixtures for MASTER V2.2 (facts unchanged from V2).
 
 Usage: python tools/verify_final_spec_baseline.py --disb file.xlsx --rev file.xlsx --gpmb file.xlsx
-No workbook is edited. Private workbooks must never be committed to GitHub.
+No workbook is edited. Only the four user-authorized reference XLSX files are committed to the Private repo; do not add others.
 """
 import argparse
 import hashlib

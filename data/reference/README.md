@@ -11,7 +11,7 @@
 
 ## Hướng dẫn cho AI
 
-1. Đọc `docs/specs/KTXH_OFFLINE_MASTER_SPEC_V2_1_FINAL.md`, mục 2 và các adapter; giữ nguyên cả tệp Excel trong thư mục này.
+1. Đọc [Master V2.2](../../docs/specs/KTXH_OFFLINE_MASTER_SPEC_V2_2_CURRENT.md), mục 2 và các adapter; giữ nguyên cả tệp Excel trong thư mục này.
 2. Chạy `python tools/verify_reference_files.py` từ thư mục gốc. **Phải PASS 4/4**, kiểm tra toàn bộ byte và ZIP/container của XLSX.
 3. Nạp qua `data/reference/<tên file gốc>`; không đổi tên, chuyển đổi `.csv` hoặc lưu lại bằng thư viện Excel. Xác nhận SHA-256 trong `MANIFEST.json` trước khi chạy kiểm thử.
 4. Trường hợp tệp nguồn mới xuất hiện: lưu ngoài repo, lập manifest/version mới và được duyệt trước khi đưa vào GitHub. Không tự cập nhật fixture đang có.
