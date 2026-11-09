@@ -2,8 +2,8 @@
   "project": "KTXH-Offline-Report",
   "spec_version": "2.1 FINAL",
   "spec_file": "docs/specs/KTXH_OFFLINE_MASTER_SPEC_V2_1_FINAL.md",
-  "spec_sha256": "cc2761d326aaa7c6b13d3a3bdaa725e1d52c6c5c1e5c2a273eb396f73e08c535",
-  "spec_lines": 769,
+  "spec_sha256": "779163446b4c1f7b3f13c803c7c8eadfcc971bef260824d32f7a4091677ebd8f",
+  "spec_lines": 775,
   "test_ids": [
     "T01",
     "T02",

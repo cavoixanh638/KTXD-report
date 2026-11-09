@@ -260,6 +260,12 @@ interface CalculationTrace {
   exclusions: Array<{ recordId: string; affectedOperand: string;
                        reasonCode: ExclusionReason; explanation: string;
                        sourceCell?: string; sourceValue?: string|null }>;
+  // R04: ZERO mẫu số ở cấp dòng là bản ghi ĐƯỢC TÍNH trong benchmark.
+  // Đây là metadata của included, không được ghi sang exclusions.
+  zeroDenominatorContributors?: Array<{ recordId: string;
+                        numeratorFieldId: string; denominatorFieldId: string;
+                        numeratorExactDecimal: string; denominatorExactDecimal: '0';
+                        numeratorSource: SourceCellRef; denominatorSource: SourceCellRef }>;
   steps: Array<{ operation: string; inputs: string[]; output: string|null;
                  inputUnit?: string; outputUnit?: string; reason: string }>;
   quality: { status: CalculationQuality; warningIds: string[];

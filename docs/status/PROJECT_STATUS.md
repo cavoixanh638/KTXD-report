@@ -23,3 +23,5 @@
 Sau từng pha ghi: branch/HEAD SHA (nếu repo), tệp thay đổi, bản nguồn SHA dùng test, công thức/trace thay đổi, test thực chạy PASS/FAIL, bug còn mở và người xác nhận. Không kế thừa PASS của SHA khác. Không báo triển khai xong khi chưa có chứng cứ runtime.
 
 - **R04:** Đã kiểm toán nguồn REV trên 113 địa phương; 5 dòng D=0,R>0 = 269.290 triệu và 6 dòng G=0,R>0 = 304.790 triệu; tỷ lệ tổng/tổng đúng 136,12% và 202,71%. Bổ sung REV_LAND_RATE_P, §6A.3a và T53–T58. Kiểm chứng nguồn ≠ PASS runtime; app vẫn NOT_IMPLEMENTED.
+
+- **Publish R04:** đặc tả V2.1, review R04, mã audit và manifest ban đầu đã được commit `e01efafbca3b787aee18797418271717b309cae0` trên `main`, và kiểm tra đọc lại nội dung qua GitHub. Mọi điều chỉnh tiếp theo giữ lịch sử commit; chưa kiểm thử webapp.
