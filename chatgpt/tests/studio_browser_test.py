@@ -22,9 +22,11 @@ with sync_playwright() as p:
  page.on('request',lambda r:external.append(r.url) if r.url.startswith(('http:','https:','ws:','wss:')) else None)
  page.goto((HERE.parent/'dist/index.html').resolve().as_uri(),wait_until='load')
  assert page.url.startswith('file://')
+ assert page.locator('.workflow-task').count()==4
+ assert page.locator('#studio-rail:visible').count()==0
  page.locator('[data-action="new"]').first.click()
  assert page.locator('.locality-item input:checked').count()==0
- page.locator('[data-action="nav"][data-tab="sources"]').click()
+ page.locator('[data-action="sources"]').click()
  page.locator('#source-files').set_input_files([str(files[x]) for x in ['GPMB_20261026','REV_10M_2026','DISB_20261015']])
  page.wait_for_function("document.querySelectorAll('[data-pending-date]').length===3",timeout=90000)
  # Both explicit A1 dates must auto-fill date and evidence; REV is deliberately manual.
@@ -56,17 +58,26 @@ with sync_playwright() as p:
  assert page.locator('[data-pending-date]').count()==0
  assert page.locator('[data-action="commit-sources"]').count()==0
  assert page.locator('.source-review').last.locator('.source-item').count()==3
- page.locator('[data-action="nav"][data-tab="report"]').click()
+ page.locator('[data-action="report"]').first.click()
+ assert page.locator('.source-status.ok').count()==3
+ assert page.locator('.workflow-task').count()==4
  assert page.locator('.locality-item').count()==114
  for name in ['Xã Hồng Châu','Xã Khúc Thừa Dụ','Xã Vĩnh Lại','Xã Chí Minh','Xã Đại Sơn']:
   row=page.locator('.locality-item').filter(has_text=name)
   assert row.count()==1,(name,row.count())
   row.locator('input').check()
  assert page.locator('.doc-cell').count()>=14*5
+ page.locator('#locality-search').fill('hong')
+ assert page.locator('#locality-search').input_value()=='hong'
+ page.locator('#locality-search').fill('')
  assert page.locator('.paper-sheet').count()>=1
- page.locator('#studio-mode').select_option('vertical')
+ page.locator('[data-action="settings"]').first.click()
+ page.locator('[data-setting="tableMode"]').select_option('vertical')
+ page.locator('[data-action="report"]').last.click()
  assert page.locator('.doc-table.vertical').count()>0
- page.locator('#studio-mode').select_option('horizontal')
+ page.locator('[data-action="settings"]').first.click()
+ page.locator('[data-setting="tableMode"]').select_option('horizontal')
+ page.locator('[data-action="report"]').last.click()
  assert page.locator('.doc-table.vertical').count()==0
  page.locator('.doc-cell').first.click()
  assert page.locator('#inspector').is_visible()
@@ -75,28 +86,35 @@ with sync_playwright() as p:
  page.screenshot(path=str(OUT/'studio_five_horizontal.png'),full_page=True)
  page.pdf(path=str(OUT/'studio_five_horizontal.pdf'),format='A4',landscape=True,print_background=True)
  assert (OUT/'studio_five_horizontal.pdf').stat().st_size>8000
- page.locator('#studio-mode').select_option('vertical')
+ page.locator('[data-action="settings"]').first.click()
+ page.locator('[data-setting="tableMode"]').select_option('vertical')
+ page.locator('[data-action="save-default-design"]').first.click()
+ assert 'Đã có mẫu mặc định' in page.locator('.settings-actions').inner_text()
+ page.locator('[data-action="report"]').last.click()
  page.screenshot(path=str(OUT/'studio_five_vertical.png'),full_page=True)
  with page.expect_download(timeout=60000) as dl:
-  page.get_by_role('button',name='Xuất Excel').click()
+  page.locator('[data-action="xlsx"]').click()
  dl.value.save_as(OUT/'studio_five_vertical.xlsx')
  wb=load_workbook(OUT/'studio_five_vertical.xlsx',read_only=True,data_only=True)
  assert len(wb.sheetnames)==8,wb.sheetnames
  assert wb['Báo cáo']['A4'].value=='Địa phương'
  assert wb['Báo cáo']['B5'].data_type=='n'
  wb.close()
- page.locator('[data-action="nav"][data-tab="sessions"]').click()
+ page.locator('[data-action="sessions"]').click()
  page.locator('[data-action="copy-session"]').first.click()
  assert page.locator('.locality-item input:checked').count()==5
- page.locator('[data-action="nav"][data-tab="sessions"]').click()
+ page.locator('[data-action="sessions"]').click()
  assert page.locator('.session-card').count()==2
  page.locator('[data-action="new"]').first.click()
  assert page.locator('.locality-item input:checked').count()==0
+ page.locator('[data-action="settings"]').first.click()
+ assert page.locator('[data-setting="tableMode"]').input_value()=='vertical','New session must inherit saved design'
+ page.locator('[data-action="report"]').last.click()
  page.screenshot(path=str(OUT/'studio_empty_new_session.png'),full_page=True)
  page.wait_for_function("document.querySelector('#studio-save')?.textContent?.includes('Đã tự lưu')",timeout=20000)
  page.reload(wait_until='load')
  page.wait_for_function("document.querySelectorAll('.studio-top').length>0")
- page.locator('[data-action="nav"][data-tab="sessions"]').click()
+ page.locator('[data-action="sessions"]').click()
  assert page.locator('.session-card').count()==3,'Autosaved workspace must preserve 3 sessions on reload'
  assert not errors,errors
  assert not external,external
