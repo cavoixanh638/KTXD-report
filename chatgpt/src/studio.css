@@ -97,8 +97,11 @@ body{background:var(--studio-bg)}
  html,body,.layout,.app-main,.studio-main,.studio-wrap,.studio-body,.studio-right{padding:0!important;margin:0!important;background:white!important;display:block!important;overflow:visible!important;max-height:none!important;min-height:0!important}
  .studio-top,.studio-rail,.studio-left,.studio-tools,.studio-note,.studio-foot-status,.studio-control-sheet,.studio-view-hint,.toast,.inspector,.overlay{display:none!important}
  .studio-pages{display:block!important;transform:none!important;padding:0!important;margin:0!important}
- .studio-zoom{transform:none!important}
+ .studio-zoom{transform:none!important;zoom:1!important}
  .paper-sheet{page-break-after:always;break-after:page;box-shadow:none!important;margin:0!important;border:0!important;overflow:hidden!important;print-color-adjust:exact;-webkit-print-color-adjust:exact}
  .paper-sheet:last-child{page-break-after:auto;break-after:auto}
  .doc-edit-title,.doc-edit,.doc-cell{text-decoration:none!important}
 }
+
+/* Context inspector must stay above the sticky document toolbar. */
+#overlay{z-index:90!important}#inspector{z-index:91!important}#inspector .inspector-head button[data-action="close-inspect"]{position:absolute;right:18px;top:18px;border:0;background:#eaf0f5;border-radius:5px;padding:5px 12px;cursor:pointer}
