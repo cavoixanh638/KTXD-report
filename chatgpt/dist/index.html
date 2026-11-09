@@ -867,10 +867,22 @@ function sessionPage(){
 }
 function sourcesPage(){
  const pendingItems=pending.map((p,i)=>{
- const status=p.error?'<span class="warning">'+esc(p.error)+'</span>':'<b>'+esc(p.type)+' · '+esc(p.sheet)+' · '+p.count+' địa phương'+(p.projects?' / '+p.projects+' dự án':'')+'</b>';
- return '<div class="source-item">'+esc(p.file.name)+'<p>'+status+'</p>'+(p.error?'':'<label>Ngày chốt đã xác minh <input data-pending-date="'+i+'" type="date" value="'+esc(p.date||'')+'"></label><label>Căn cứ xác nhận ngày <input data-pending-reason="'+i+'" placeholder="Xác nhận từ tiêu đề hoặc chứng cứ" value="'+esc(p.reason||'')+'"></label>')+'</div>';
+  const existing=p.alreadyPresent;
+  const status=p.error?'<span class="warning">'+esc(p.error)+'</span>':'<b>'+esc(p.type)+' · '+esc(p.sheet)+' · '+p.count+' địa phương'+(p.projects?' / '+p.projects+' dự án':'')+'</b>';
+  const note=existing?'<p class="notice">Nguồn này đã có trong hồ sơ (cùng SHA-256). Không cần nhập lại hoặc xác nhận lại ngày.</p>':
+    p.error?'':('<p class="help">'+(p.dateAutomatic?
+      'Ngày chốt được nhận diện từ tiêu đề sheet. Bạn kiểm tra lại trước khi nhập.':
+      'Chưa xác định chắc chắn ngày chốt từ tiêu đề sheet. Hãy nhập ngày đã được xác minh và giải thích căn cứ; không suy luận từ tên file.')+'</p>');
+  const controls=p.error||existing?'':('<label>Ngày chốt dữ liệu <input data-pending-date="'+i+'" type="date" value="'+esc(p.date||'')+'"></label>'+
+    '<label>Căn cứ xác nhận ngày <input data-pending-reason="'+i+'" placeholder="Nêu tiêu đề, văn bản hoặc xác nhận của người dùng" value="'+esc(p.reason||'')+'" style="min-width:290px"></label>'+
+    (p.dateEvidence?'<p class="help">Chứng cứ trong file: '+esc(p.dateEvidence)+'</p>':'')+
+    (p.type==='REV'?'<p class="notice">Nguồn thu có kỳ “10 tháng” nhưng ngày chốt chưa rõ; ngày 19/10 hoặc 31/10 không tự được xác nhận.</p>':''));
+  return '<div class="source-item">'+esc(p.file.name)+'<p>'+status+'</p>'+note+controls+
+    (p.validationError?'<p class="warning" role="alert">'+esc(p.validationError)+'</p>':'')+'</div>';
  }).join('');
- return '<div class="studio-control-sheet"><h1>Nhập ba file nguồn Excel</h1><p>Thả một hoặc cả ba tệp theo thứ tự bất kỳ. Ứng dụng tự nhận dạng qua cấu trúc workbook, không dựa vào tên tệp.</p><div class="studio-dropzone" id="studio-dropzone" data-action="select-files">Kéo thả 1–3 file Excel vào đây hoặc <b>bấm để chọn</b><input type="file" id="source-files" multiple accept=".xlsx" hidden></div><div class="source-review">'+pendingItems+'</div>'+(pending.some(x=>!x.error)?'<button class="primary" data-action="commit-sources">Xác nhận và nhập các nguồn hợp lệ</button>':'')+
+ const newCount=pending.filter(x=>!x.error&&!x.alreadyPresent).length;
+ return '<div class="studio-control-sheet"><h1>Nhập ba file nguồn Excel</h1><p>Chọn một hoặc cả ba tệp theo thứ tự bất kỳ. Ứng dụng tự nhận dạng bằng cấu trúc workbook và tự đưa căn cứ ngày chốt khi tiêu đề rõ ràng.</p><div class="studio-dropzone" id="studio-dropzone" data-action="select-files">Kéo thả 1–3 file Excel vào đây hoặc <b>bấm để chọn</b><input type="file" id="source-files" multiple accept=".xlsx" hidden></div><div class="source-review">'+pendingItems+'</div>'+
+ (newCount?'<button class="primary" data-action="commit-sources">Nhập các nguồn hợp lệ ('+newCount+' tệp đang chọn)</button>':'')+
  '<h2>Những nguồn đang sử dụng</h2><div class="source-review">'+(work.datasets.map(d=>'<div class="source-item"><b>'+esc(d.type)+' · '+esc(d.fileName)+'</b><p>'+esc(d.sheetName)+' · '+d.localities.length+' địa phương · ngày chốt '+esc(d.asOfDate)+'</p><small>SHA-256: '+esc(d.hash)+'</small></div>').join('')||'<p>Chưa nhập nguồn.</p>')+'</div></div>';
 }
 function settingsPage(){
@@ -898,47 +910,96 @@ function render(){
  badge();if(tab==='report'&&current())fitPaper();
 }
 function fitPaper(){/* CSS zoom applies only on screen and not printed content. */}
+// Only evidence stated in the selected visible sheet's A1 may prefill a day.
+// A file name, period label, another sheet or the current date are not a day source.
+function dateFromTitle(text){
+ const found=new Set();
+ for(const match of String(text||'').matchAll(/(?:^|[^\d])([0-3]?\d)[./-]([01]?\d)[./-]((?:19|20)\d{2})(?!\d)/g)){
+  const day=Number(match[1]),month=Number(match[2]),year=Number(match[3]);
+  const d=new Date(Date.UTC(year,month-1,day));
+  if(d.getUTCFullYear()===year&&d.getUTCMonth()===month-1&&d.getUTCDate()===day){
+   found.add(String(year).padStart(4,'0')+'-'+String(month).padStart(2,'0')+'-'+String(day).padStart(2,'0'));
+  }
+ }
+ return found.size===1?[...found][0]:null;
+}
+function dateOnlyReason(text){return /^\s*\d{1,4}\s*[./-]\s*\d{1,2}\s*[./-]\s*\d{1,4}\s*$/.test(text||'');}
 async function identifyFiles(files){
  pending=[];navigate('sources');
- for(const file of files){const entry={file,type:null,error:null,date:'',reason:'',sheet:'',count:0,projects:0};
- try{
-  if(!/\.xlsx$/i.test(file.name))throw Error('Chỉ hỗ trợ .xlsx');
-  const book=await K.openBook(await file.arrayBuffer()),matches=[];
-  for(const [type,profile] of Object.entries(K.kinds)){
-   for(const sh of book.sheets.filter(x=>x.state==='visible'&&x.name===profile.sheet)){
-    const rows=await K.sheetRows(book,sh);
-    const first=type==='GPMB'?rows.get(3)?.B?.text:rows.get(profile.rows[0])?.B?.text;
-    if(!/^(xã|phường|đặc khu)\s+/iu.test(K.normName(first)))continue;
-    if(type==='DISB'&&!K.isDecimal(rows.get(13)?.F?.text))continue;
-    if(type==='REV'&&!K.isDecimal(rows.get(11)?.C?.text))continue;
-    matches.push({type,sheet:sh.name});
+ for(const file of files){
+  const entry={file,type:null,error:null,date:'',reason:'',dateAutomatic:false,dateEvidence:'',validationError:'',alreadyPresent:false,sheet:'',count:0,projects:0};
+  try{
+   if(!/\.xlsx$/i.test(file.name))throw Error('Chỉ hỗ trợ .xlsx');
+   const bytes=await file.arrayBuffer(),book=await K.openBook(bytes),matches=[];
+   for(const [type,profile] of Object.entries(K.kinds)){
+    for(const sh of book.sheets.filter(x=>x.state==='visible'&&x.name===profile.sheet)){
+     const rows=await K.sheetRows(book,sh);
+     const first=type==='GPMB'?rows.get(3)?.B?.text:rows.get(profile.rows[0])?.B?.text;
+     if(!/^(xã|phường|đặc khu)\s+/iu.test(K.normName(first)))continue;
+     if(type==='DISB'&&!K.isDecimal(rows.get(13)?.F?.text))continue;
+     if(type==='REV'&&!K.isDecimal(rows.get(11)?.C?.text))continue;
+     matches.push({type,sheet:sh.name,rows});
+    }
    }
-  }
-  if(matches.length!==1)throw Error(matches.length?'Nhiều cấu trúc có thể khớp, cần xác minh thủ công':'Không nhận diện được profile nguồn; chưa nhập');
-  entry.type=matches[0].type;entry.sheet=matches[0].sheet;entry.date=K.kinds[entry.type].date||'';
-  entry.count={DISB:114,REV:113,GPMB:108}[entry.type];entry.projects=entry.type==='GPMB'?422:0;
-  if(pending.some(x=>x.type===entry.type&&!x.error))throw Error('Có hai tệp cùng loại '+entry.type+'; chỉ được chọn một cho lượt nhập');
- }catch(e){entry.error=e.message;}
- pending.push(entry);render();
+   if(matches.length!==1)throw Error(matches.length?'Nhiều cấu trúc có thể khớp, cần xác minh thủ công':'Không nhận diện được profile nguồn; chưa nhập');
+   const match=matches[0];entry.type=match.type;entry.sheet=match.sheet;
+   entry.count={DISB:114,REV:113,GPMB:108}[entry.type];entry.projects=entry.type==='GPMB'?422:0;
+   if(pending.some(x=>x.type===entry.type&&!x.error))throw Error('Có hai tệp cùng loại '+entry.type+'; chỉ được chọn một cho lượt nhập');
+   const hash=await K.sha256(bytes);
+   entry.alreadyPresent=work.datasets.some(ds=>ds.type===entry.type&&ds.hash===hash);
+   if(!entry.alreadyPresent){
+    const title=K.normName(match.rows.get(1)?.A?.text||'');
+    const fromTitle=dateFromTitle(title);
+    entry.dateEvidence=title?match.sheet+'!A1: '+title:'Không có ngày chốt rõ trong ô A1';
+    // Only fixed profiles DISB/GPMB use their title's explicit, unique date.
+    // REV "10 tháng" does not establish an as-of date, even if another date occurs.
+    if(entry.type!=='REV'&&fromTitle&&fromTitle===K.kinds[entry.type].date){
+     entry.date=fromTitle;
+     entry.reason='Xác nhận theo '+entry.dateEvidence;
+     entry.dateAutomatic=true;
+    }
+   }
+  }catch(e){entry.error=e.message;}
+  pending.push(entry);render();
  }
 }
 async function commitPending(){
- const elements=pending.filter(x=>!x.error);
- const seen=new Set();
- const inserts=[];
- for(const item of elements){
-  const index=pending.indexOf(item),date=$('[data-pending-date="'+index+'"]')?.value||'',reason=$('[data-pending-reason="'+index+'"]')?.value||'';
-  if(!date)throw Error('Chưa xác nhận ngày chốt cho '+item.file.name);
-  if(!reason.trim())throw Error('Phải ghi căn cứ xác nhận ngày chốt cho '+item.file.name);
-  if(seen.has(item.type))throw Error('Hai file cùng một loại trong lượt nhập');seen.add(item.type);
-  const ds=await K.importFile(item.file,item.type,date,reason);if(!work.datasets.some(x=>x.id===ds.id))inserts.push(ds);
+ // Preserve edits before any asynchronous work, even when another file is invalid.
+ const successful=new Set(),inserts=[],failures=[];
+ for(const [i,item] of pending.entries()){
+  if(item.error||item.alreadyPresent){if(item.alreadyPresent)successful.add(item);continue;}
+  item.date=$('[data-pending-date="'+i+'"]')?.value||item.date||'';
+  item.reason=$('[data-pending-reason="'+i+'"]')?.value?.trim()||'';
+  item.validationError='';
+  if(!item.date){
+   item.validationError='Chưa có ngày chốt. Cần xác minh rồi nhập ngày, không tự lấy từ tên file.';
+  }else if(!item.reason){
+   item.validationError='Cần căn cứ xác nhận ngày chốt. Với nguồn thu, ghi rõ văn bản hoặc người xác nhận.';
+  }else if(dateOnlyReason(item.reason)){
+   item.validationError='Căn cứ phải là lời giải thích hoặc nguồn xác nhận, không chỉ là một ngày.';
+  }
+  if(item.validationError){failures.push(item.file.name);continue;}
+  try{
+   const ds=await K.importFile(item.file,item.type,item.date,item.reason);
+   if(!work.datasets.some(x=>x.id===ds.id)&&!inserts.some(x=>x.id===ds.id))inserts.push(ds);
+   successful.add(item);
+  }catch(e){item.validationError=e.message;failures.push(item.file.name);}
  }
  for(const ds of inserts){
   work.datasets.push(ds);
   for(const s of work.sessions)if(!s.bindings[ds.type])s.bindings[ds.type]=ds.id;
   work.audit.push({action:'Nhập '+ds.type,hash:ds.hash,when:new Date().toISOString()});
  }
- pending=[];mark();render();alertMessage('Nhập '+inserts.length+' bộ dữ liệu đã nhận dạng và xác nhận nguồn.');
+ pending=pending.filter(item=>!successful.has(item));
+ if(inserts.length)mark();
+ render();
+ if(failures.length&&inserts.length){
+  alertMessage('Đã nhập '+inserts.length+' nguồn hợp lệ; còn '+failures.length+' tệp cần xác minh ngày/căn cứ. Các nguồn đã nhập không bị mất.',true);
+ }else if(failures.length){
+  alertMessage('Chưa thể nhập '+failures.length+' tệp. Xem lỗi ngay dưới từng nguồn; dữ liệu đã nhập trước đó vẫn giữ nguyên.',true);
+ }else{
+  alertMessage('Đã nhập '+inserts.length+' nguồn mới. Các nguồn có cùng SHA-256 đã được bỏ qua.');
+ }
 }
 async function backup(single=false){
  const s=current();if(single&&!s)throw Error('Chưa chọn phiên');
