@@ -32,3 +32,11 @@
 
 - `SPEC_V2_1_FINAL_READY / APP_NOT_IMPLEMENTED`.
 - GitHub connector xác thực tài khoản `cavoixanh638`; repository chính: `cavoixanh638/KTXD-report` (Private). Tên sản phẩm là KTXH Offline. Không được tự nhận đã commit hoặc đưa file lên GitHub khi chưa ghi và đọc lại thành công.
+
+## Các tệp Excel được bàn giao (R05, 09/11/2026)
+
+- 4 tệp gốc cố định tại `data/reference/`: `DISB_20261015`, `REV_10M_2026`, `GPMB_20261026`, `RESULT_REFERENCE`. Xem tên file gốc và SHA ở `data/reference/MANIFEST.json`.
+- **Đã được người dùng cho phép** lưu chính xác bốn tệp lên GitHub Private để mọi AI có thể đọc, chạy kiểm thử, đối chiếu; không được trả lời rằng không có nguồn dữ liệu.
+- BẮT BUỘC chạy `python tools/verify_reference_files.py`: phải `PASS 4/4` trước khi xác định fixture dùng cho T01–T58. Không tự sửa, tái lưu hoặc đổi tên các tệp gốc.
+- Ngoài bốn tệp được cấp phép, không tự tải dữ liệu hành chính, bản sao lưu phiên làm việc hay báo cáo mới lên GitHub, và không công bố Public.
+- Trạng thái `SOURCE_FIXTURE_AVAILABLE` KHÔNG đồng nghĩa có ứng dụng đã viết hoặc đã chạy các bài kiểm thử runtime.

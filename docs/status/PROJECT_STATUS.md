@@ -25,3 +25,7 @@ Sau từng pha ghi: branch/HEAD SHA (nếu repo), tệp thay đổi, bản ngu�
 - **R04:** Đã kiểm toán nguồn REV trên 113 địa phương; 5 dòng D=0,R>0 = 269.290 triệu và 6 dòng G=0,R>0 = 304.790 triệu; tỷ lệ tổng/tổng đúng 136,12% và 202,71%. Bổ sung REV_LAND_RATE_P, §6A.3a và T53–T58. Kiểm chứng nguồn ≠ PASS runtime; app vẫn NOT_IMPLEMENTED.
 
 - **Publish R04:** đặc tả V2.1, review R04, mã audit và manifest ban đầu đã được commit `e01efafbca3b787aee18797418271717b309cae0` trên `main`, và kiểm tra đọc lại nội dung qua GitHub. Mọi điều chỉnh tiếp theo giữ lịch sử commit; chưa kiểm thử webapp.
+
+## R05 — Bàn giao 4 tệp nguồn thực tế
+
+Ngày 09/11/2026, theo yêu cầu rõ ràng của chủ dự án, đã đưa 4 tệp Excel gốc (DISB/REV/GPMB/RESULT_REFERENCE) vào `data/reference/` trong GitHub Private. SHA-256 và Git blob SHA-1 ở `data/reference/MANIFEST.json`, chương trình kiểm tra `tools/verify_reference_files.py`. Bốn tệp này dùng để chạy kiểm thử; các bản nguồn khác chưa được phép upload. **P0–P7 và runtime tests vẫn chưa được thực hiện.**

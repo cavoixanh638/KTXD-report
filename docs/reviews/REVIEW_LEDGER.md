@@ -9,4 +9,6 @@
 | R03 | 2026-11-09 | `REVIEW_R03_20261109.md` | Hợp nhất một master spec V2; mọi phép tính bắt buộc có formula/operands/skip reasons/traces; T41–T52 | `MERGED_V2 / APP_NOT_IMPLEMENTED` |
 | R04 | 2026-11-09 | `REVIEW_R04_20261109.md` | Giữ A>0, B=0 trong tỷ lệ tổng/tổng; bổ sung mã REV_LAND_RATE_P; T53–T58 | `VERIFIED / INTEGRATED_V2.1` |
 
-**Phản biện tiếp:** đặt mã R04, R05... không viết đè lịch sử. Ghi điều khoản V2.1, nguồn bằng chứng/cell/SHA, tính đúng/sai, đề xuất, ảnh hưởng test và quyết định. Không tải workbook thật lên GitHub.
+| R05 | 2026-11-09 | `REVIEW_R05_20261109.md` | Khắc phục thiếu 4 file Excel nguồn, lưu bản gốc có SHA và hướng dẫn tại `data/reference/` theo yêu cầu chủ dự án | `SOURCE_FIXTURES_COMMITTED / APP_NOT_IMPLEMENTED` |
+
+**Phản biện tiếp:** đặt mã R04, R05... không viết đè lịch sử. Ghi điều khoản V2.1, nguồn bằng chứng/cell/SHA, tính đúng/sai, đề xuất, ảnh hưởng test và quyết định. Ngoại lệ có phép: 4 workbook nguồn nằm tại `data/reference/` trong repo Private. Không thêm file khác nếu chưa được phép.

@@ -27,10 +27,23 @@ Bản V2.1 (gồm 18 mục, T01–T58) hợp nhất kế hoạch ban đầu và 
 - [Trạng thái/checkpoint](docs/status/PROJECT_STATUS.md) — tiến độ P0–P7.
 - [Review ledger](docs/reviews/REVIEW_LEDGER.md), [R01](docs/reviews/REVIEW_R01_20261109.md), [R02](docs/reviews/REVIEW_R02_20261109.md), [R03 — hợp nhất V2](docs/reviews/REVIEW_R03_20261109.md), [R04 — ZERO mẫu số và REV_LAND_RATE_P](docs/reviews/REVIEW_R04_20261109.md).
 - [V1 (lịch sử)](docs/specs/KTXH_OFFLINE_SPEC_V1.md), [đề xuất R01 (lịch sử)](docs/specs/SPEC_AMENDMENT_PROPOSED_R01.md), [đề xuất R02 (lịch sử)](docs/specs/SPEC_AMENDMENT_PROPOSED_R02.md).
-- [Audit R01](tools/audit_review_round1.py), [Audit R02](tools/audit_review_round2.py), [Audit R04](tools/audit_review_round4.py); nguồn Excel phải ở máy người thực thi, không đưa vào repo.
+- [Audit R01](tools/audit_review_round1.py), [Audit R02](tools/audit_review_round2.py), [Audit R04](tools/audit_review_round4.py); 4 tệp nguồn chuẩn nằm trong [data/reference](data/reference/README.md), kiểm tra SHA trước khi chạy; không đưa các tệp khác lên repo.
+
+## Dữ liệu kiểm thử có thể dùng ngay
+
+**Bốn file Excel tham chiếu đã được đưa lên GitHub Private**, không còn cần xin lại bản gốc qua chat:
+
+- [Báo cáo giải ngân 15.10 sửa(1).xlsx](data/reference/Báo%20cáo%20giải%20ngân%2015.10%20sửa(1).xlsx) — `DISB_20261015`
+- [Bc thu 10 thang-19.10-BC (1)(1).xlsx](data/reference/Bc%20thu%2010%20thang-19.10-BC%20(1)(1).xlsx) — `REV_10M_2026`
+- [PL01_Tổng hợp DA_26.12.26(1).xlsx](data/reference/PL01_Tổng%20hợp%20DA_26.12.26(1).xlsx) — `GPMB_20261026`
+- [Kết quả Tổng hợp chỉ tiêu KTXH 11 xã.xlsx](data/reference/Kết%20quả%20Tổng%20hợp%20chỉ%20tiêu%20KTXH%2011%20xã.xlsx) — `RESULT_REFERENCE`
+
+- [Danh mục gốc và SHA-256](data/reference/MANIFEST.json) / [hướng dẫn](data/reference/README.md).
+- `python tools/verify_reference_files.py` phải kiểm tra đủ **4/4 PASS** trước khi chạy T01–T58.
+- Dữ liệu chỉ được dùng theo phạm vi, ngày chốt và đơn vị của từng file; giữ nguyên byte gốc. **Không upload thêm tệp khác** nếu chưa được phép.
 
 ## Bảo mật và trạng thái GitHub
 
-Repository chính đang kết nối: **`cavoixanh638/KTXD-report` (Private)**, mới được tạo trong lúc kiểm tra. Đây là tên repository thực tế, khác tên `KTXH-Offline-Report` dự kiến trước đó; **KTXH Offline Report** là tên sản phẩm. Không upload dữ liệu Excel gốc hoặc bản sao lưu có dữ liệu thực nếu không được cho phép. Trạng thái commit cập nhật tại [PROJECT_STATUS](docs/status/PROJECT_STATUS.md).
+Repository chính đang kết nối: **`cavoixanh638/KTXD-report` (Private)**, mới được tạo trong lúc kiểm tra. Đây là tên repository thực tế, khác tên `KTXH-Offline-Report` dự kiến trước đó; **KTXH Offline Report** là tên sản phẩm. Chủ dự án đã cho phép commit chính xác **4 tệp Excel gốc** tại `data/reference/` để AI có thể tái lập; không thêm dữ liệu khác và không đổi repo sang Public. Trạng thái commit cập nhật tại [PROJECT_STATUS](docs/status/PROJECT_STATUS.md).
 
 **Phiên bản V2.0 lưu đối chiếu:** [Master V2.0 (historical)](docs/specs/KTXH_OFFLINE_MASTER_SPEC_V2_FINAL.md). Chỉ V2.1 có hiệu lực triển khai.

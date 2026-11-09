@@ -23,3 +23,9 @@ Thumbs.db
 !.env.example
 *.pem
 *.key
+
+# Allow exact four user-authorized reference workbooks (Private repo only)
+!data/reference/Báo cáo giải ngân 15.10 sửa(1).xlsx
+!data/reference/Bc thu 10 thang-19.10-BC (1)(1).xlsx
+!data/reference/PL01_Tổng hợp DA_26.12.26(1).xlsx
+!data/reference/Kết quả Tổng hợp chỉ tiêu KTXH 11 xã.xlsx

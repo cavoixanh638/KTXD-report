@@ -1,0 +1,131 @@
+{
+  "schema_version": "1.0",
+  "repository": "cavoixanh638/KTXD-report",
+  "visibility": "private",
+  "authorization": "2026-11-09: user explicitly requested all four original Excel files be committed to the project repository so other AI workers can inspect and test against them",
+  "scope": "Four exact source workbooks as originally supplied; not transformed or sanitized",
+  "must_not_publish_publicly": true,
+  "files": [
+    {
+      "id": "DISB_20261015",
+      "path": "data/reference/Báo cáo giải ngân 15.10 sửa(1).xlsx",
+      "size_bytes": 969249,
+      "sha256": "3ba33b3efd579499500d956c2580a170e84dd38b8d700fdfaaf9a361ea7cb38c",
+      "git_blob_sha1": "3526b7c08cfe5a3d5fe9d94b67a13091b3b41112",
+      "sheets": [
+        {
+          "name": "DA trọng đểm NQ 174",
+          "state": "hidden",
+          "rows": 1000,
+          "cols": 26
+        },
+        {
+          "name": "Vốn NSĐP_DA đường sắt",
+          "state": "hidden",
+          "rows": 1000,
+          "cols": 26
+        },
+        {
+          "name": "Vốn NSTW_DA đường sắt",
+          "state": "hidden",
+          "rows": 1000,
+          "cols": 26
+        },
+        {
+          "name": "Kịch bản update 30,6",
+          "state": "hidden",
+          "rows": 386,
+          "cols": 68
+        },
+        {
+          "name": "PL01_Các DA TP",
+          "state": "hidden",
+          "rows": 1622,
+          "cols": 28
+        },
+        {
+          "name": "Tổng hợp",
+          "state": "visible",
+          "rows": 230,
+          "cols": 25
+        },
+        {
+          "name": "THBC NSTW",
+          "state": "hidden",
+          "rows": 142,
+          "cols": 16
+        },
+        {
+          "name": "GTGC tiền đất",
+          "state": "hidden",
+          "rows": 1000,
+          "cols": 26
+        }
+      ]
+    },
+    {
+      "id": "REV_10M_2026",
+      "path": "data/reference/Bc thu 10 thang-19.10-BC (1)(1).xlsx",
+      "size_bytes": 112675,
+      "sha256": "b41227d1444c581e6f3b65d761fad8918b65aedfbd8114443e6dee9d4938356f",
+      "git_blob_sha1": "c7b636cdb86f4b38769dcfea3e1270689b472460",
+      "sheets": [
+        {
+          "name": "10T-19.10",
+          "state": "visible",
+          "rows": 125,
+          "cols": 30
+        },
+        {
+          "name": "Sheet1",
+          "state": "hidden",
+          "rows": 120,
+          "cols": 24
+        },
+        {
+          "name": "bc",
+          "state": "veryHidden",
+          "rows": 129,
+          "cols": 20
+        },
+        {
+          "name": "TMS",
+          "state": "veryHidden",
+          "rows": 123,
+          "cols": 7
+        }
+      ]
+    },
+    {
+      "id": "GPMB_20261026",
+      "path": "data/reference/PL01_Tổng hợp DA_26.12.26(1).xlsx",
+      "size_bytes": 85912,
+      "sha256": "d393c3c1f3f9c99c95cc3d0035eab3386ff3cab8e63e623eaa9c925103ef9e0f",
+      "git_blob_sha1": "3317b675efb709cdd90189242b8e8f50be8aeca6",
+      "sheets": [
+        {
+          "name": "Tổng hợp theo địa bàn",
+          "state": "visible",
+          "rows": 532,
+          "cols": 16
+        }
+      ]
+    },
+    {
+      "id": "RESULT_REFERENCE",
+      "path": "data/reference/Kết quả Tổng hợp chỉ tiêu KTXH 11 xã.xlsx",
+      "size_bytes": 13859,
+      "sha256": "bd19d2d910619d36dab5e3332ad9c8a491e3652b631e65b81e62bb23e6a4ec51",
+      "git_blob_sha1": "f99747bb0be7224deeb94e9a770c5ba39b923c51",
+      "sheets": [
+        {
+          "name": "Sheet1",
+          "state": "visible",
+          "rows": 16,
+          "cols": 13
+        }
+      ]
+    }
+  ],
+  "verification": "Compare sha256 and Git blob SHA-1 for each exact binary; do not infer equality from workbook name."
+}

@@ -40,11 +40,13 @@ Các tệp chính đã có trong cuộc trao đổi:
 | `GPMB_20261026` | `PL01_Tổng hợp DA_26.12.26(1).xlsx` | `Tổng hợp theo địa bàn` | m², đồng, tổ chức, hộ | 108 địa bàn, 422 dòng dự án | 26/10/2026 (tiêu đề A1; tên tệp không phù hợp hoàn toàn) |
 | `RESULT_REFERENCE` | `Kết quả Tổng hợp chỉ tiêu KTXH 11 xã.xlsx` | `Sheet1` | Tỷ đồng, m², tỷ lệ và văn bản | 11 xã | Trộn nhiều thời điểm | MẪU TRÌNH BÀY, KHÔNG LÀ NGUỒN SỰ THẬT CHO CÔNG THỨC |
 
+**Vị trí 4 tệp Excel gốc trên GitHub:** [`data/reference/`](../../data/reference/README.md), danh sách và SHA-256 tại [`data/reference/MANIFEST.json`](../../data/reference/MANIFEST.json). Bốn tệp được chủ dự án yêu cầu commit lên **repository Private** để AI khác có thể triển khai và kiểm thử tự chủ (R05, 09/11/2026). Người thực thi phải chạy `python tools/verify_reference_files.py` và đối chiếu **4/4 SHA-256 PASS** trước khi dùng fixtures. Không tải thêm dữ liệu hành chính hoặc bản sao lưu phiên làm việc lên GitHub nếu chưa có yêu cầu rõ ràng. Khi kiểm thử dùng **đường dẫn thật** `data/reference/<tên file gốc>` và đối chiếu đúng SHA, không phỏng đoán đường dẫn theo tên rút gọn.
+
 Nguồn thu có 113/114 địa phương so với nguồn giải ngân, thiếu Đặc khu Bạch Long Vĩ. Nguồn GPMB có danh mục tại 108 địa bàn, không được suy luận sáu địa bàn còn lại là 0% hoặc 100%. Giải ngân tổng thành phố (`Tổng hợp!7`) gồm đơn vị ngoài khối địa phương; giải ngân khối địa phương nằm ở `Tổng hợp!12`.
 
 ### 2.1 Khóa kiểm chứng bộ nguồn tham chiếu
 
-Các SHA-256 dưới đây là của đúng những tệp được dùng để kiểm thử (không cần và không được tự động đưa tệp dữ liệu hành chính thật lên repo):
+Các SHA-256 dưới đây là của đúng những tệp được dùng để kiểm thử (4 tệp nguồn tham chiếu cụ thể đã được người dùng yêu cầu lưu trong repo Private tại `data/reference/`; cấm tự động thêm các tệp hành chính khác):
 
 | Hồ sơ | SHA-256 |
 |---|---|
@@ -731,7 +733,7 @@ Mỗi pha cần commit/checkpoint độc lập; không làm lại phần đã PA
 - Reader XLSX: profile adapter đọc cached values và source formula/metadata khi sẵn có; không chạy VBA/macro hoặc liên kết ngoài. UI escape toàn bộ chuỗi từ Excel; khi xuất ngăn formula injection từ chuỗi bắt đầu `=`, `+`, `-`, `@` theo ngữ cảnh.
 - Writer XLSX: P0 thử **ExcelJS browser bundle** hoặc **xlsx-js-style** (hay giải pháp tương đương có bằng chứng). Không coi SheetJS Community Edition là đáp ứng hoàn toàn định dạng nâng cao; không phủ nhận khả năng width của nó. Chọn thư viện theo thử nghiệm font Times New Roman, border, merge, background, numeric `%`, print layout, file:// và size/performance.
 - Decimal engine dùng Decimal chính xác; không dùng `Number` nhị phân làm giá trị cuối cho đồng/triệu/tỷ khi vượt sai số, không biến 0 và null thành cùng một giá trị.
-- Không telemetry, không gửi dữ liệu lên GitHub/cloud, không ghi raw XLSX thật vào repo; chỉ có manifest SHA và fixture tổng hợp/được phép. Không gọi external network, không thực thi công thức tùy chỉnh bằng eval.
+- Không telemetry, không gửi dữ liệu ra dịch vụ ngoài khi ứng dụng chạy offline. Ngoại lệ GitHub **Private** đã được chủ dự án phê duyệt: đúng 4 tệp XLSX tham chiếu cố định tại `data/reference/`; tuyệt đối không tự động commit thêm raw XLSX, dữ liệu nguồn khác, bản sao lưu cá nhân hay thông tin nội bộ mới. Không gọi external network, không thực thi công thức tùy chỉnh bằng eval.
 - Cơ chế lưu trong trình duyệt chỉ là cache hỗ trợ; lưu/nhập `.kxh.json` hoặc `.kxhpack` có checksum và version là chức năng chính để chống mất nhiều phiên.
 
 ### 16.2 Quy tắc làm việc trên GitHub cho AI/Codex
