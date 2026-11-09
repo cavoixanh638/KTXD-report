@@ -87,5 +87,5 @@ async function actionClick(e){const t=e.target.closest('[data-action]');if(!t)re
  } }catch(ex){status(ex.message,true);}
 }
 function start(){work=load();const elem=$('#main');if(!elem)return;document.addEventListener('click',actionClick);document.addEventListener('change',fieldChanged);document.addEventListener('input',e=>{if(e.target.id==='locality-search')applyFilter();});$('#overlay').addEventListener('click',()=>{$('#overlay').hidden=true;$('#inspector').hidden=true;});window.addEventListener('beforeunload',e=>{if(backupDirty&&work.sessions.length){e.preventDefault();e.returnValue='';}});render();}
-if(typeof document!=='undefined')document.addEventListener('DOMContentLoaded',start);
+/* Legacy UI retained for rollback; Document Studio now owns bootstrap. */
 })(typeof globalThis!=='undefined'?globalThis:this);
