@@ -1,0 +1,40 @@
+name: KTXH Document Studio - PH1 integration QA
+on:
+  push:
+    branches: ["ai/ktxh-document-studio-20261109"]
+    paths: ["chatgpt/**", ".github/workflows/ktxh-document-studio.yml"]
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  smoke:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Verify original workbook hashes
+        run: python tools/verify_reference_files.py
+      - name: Build file URL self-contained bundle
+        run: node chatgpt/build.mjs
+      - name: Test calculation engine and layout
+        run: node --test chatgpt/tests/core.test.cjs chatgpt/tests/studio_layout.test.cjs
+      - name: Install browser QA tools
+        run: |
+          python -m pip install openpyxl playwright
+          python -m playwright install --with-deps chromium
+      - name: Offline Chrome and original three workbook smoke
+        run: python chatgpt/tests/studio_browser_test.py
+      - name: Store browser screenshots and XLSX
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ktxh-document-studio-qa
+          path: chatgpt/tests/tmp/studio/
+          if-no-files-found: warn
+          retention-days: 14
