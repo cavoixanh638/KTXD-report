@@ -26,7 +26,7 @@ with sync_playwright() as p:
  assert page.locator('#studio-rail:visible').count()==0
  page.locator('[data-action="new"]').first.click()
  assert page.locator('.locality-item input:checked').count()==0
- page.locator('[data-action="sources"]').click()
+ page.locator('[data-action="sources"]').first.click()
  page.locator('#source-files').set_input_files([str(files[x]) for x in ['GPMB_20261026','REV_10M_2026','DISB_20261015']])
  page.wait_for_function("document.querySelectorAll('[data-pending-date]').length===3",timeout=90000)
  # Both explicit A1 dates must auto-fill date and evidence; REV is deliberately manual.
