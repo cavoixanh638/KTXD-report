@@ -15,7 +15,12 @@ export function renderReportGridHtml(params: {
   if (selectedLocalities.length === 0) {
     return `<div class="empty-session-banner">
       <h3>Phiên báo cáo "${escapeHtmlUi(session.name)}" hiện có 0 địa phương được chọn</h3>
-      <p>Theo quy tắc chuẩn MASTER V2.2, phiên mới khởi tạo với danh sách địa phương rỗng (không chọn sẵn 11 xã mẫu). Hãy chuyển sang thẻ <strong>"3. Chọn địa phương"</strong> để chọn 1, 5, 7, 11 hoặc số lượng xã/phường/đặc khu bất kỳ.</p>
+      <p>Theo quy tắc chuẩn MASTER V2.2, phiên mới khởi tạo với danh sách địa phương rỗng (không chọn sẵn 11 xã mẫu). Hãy bấm nút chọn nhanh bên dưới hoặc chuyển sang thẻ <strong>"3. Chọn địa phương"</strong> để chọn 1, 5, 7, 11 hoặc số lượng xã/phường/đặc khu bất kỳ.</p>
+      <div class="empty-session-actions">
+        <button type="button" class="btn btn-primary" data-nav-tab="LOCALITIES">Chuyển tới Thẻ 3. Chọn địa phương (114 đơn vị)</button>
+        <button type="button" class="btn btn-secondary" id="btn-empty-preset-5-xa">Xem ngay mẫu 5 xã</button>
+        <button type="button" class="btn btn-secondary" id="btn-empty-preset-7-phuong">Xem ngay mẫu 7 phường</button>
+      </div>
     </div>`;
   }
 

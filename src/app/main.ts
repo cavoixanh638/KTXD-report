@@ -78,6 +78,53 @@ export class KtxhOfflineApp {
   constructor() {
     this.workspace = createEmptyWorkspace('Hồ sơ Báo cáo KTXH Offline (MASTER V2.2)');
     this.tryRestoreFromLocalStorageCache();
+    this.ensureInitialDatasetsAndEmptySession();
+  }
+
+  private ensureInitialDatasetsAndEmptySession(): void {
+    if (
+      this.workspace.datasets.length === 0 &&
+      typeof window !== 'undefined' &&
+      window.__EMBEDDED_REFERENCE_FIXTURES__
+    ) {
+      const fixtures = window.__EMBEDDED_REFERENCE_FIXTURES__;
+      const disbBytes = base64ToUint8Array(fixtures.DISB_B64);
+      const revBytes = base64ToUint8Array(fixtures.REV_B64);
+      const gpmbBytes = base64ToUint8Array(fixtures.GPMB_B64);
+
+      const { dataset: disbDs, localities } = importDisbursementWorkbook(
+        disbBytes,
+        'Báo cáo giải ngân 15.10 sửa(1).xlsx'
+      );
+      registerDatasetInWorkspace(this.workspace, disbDs, localities);
+
+      const { dataset: revDs } = importRevenueWorkbook(
+        revBytes,
+        'Bc thu 10 thang-19.10-BC (1)(1).xlsx',
+        {
+          confirmedAsOfDate: '2026-10-19',
+          asOfConfirmationReason: 'Xác nhận ngày chốt sơ bộ kỳ 10 tháng năm 2026',
+        }
+      );
+      registerDatasetInWorkspace(this.workspace, revDs);
+
+      const { dataset: gpmbDs } = importGpmbWorkbook(
+        gpmbBytes,
+        'PL01_Tổng hợp DA_26.12.26(1).xlsx'
+      );
+      registerDatasetInWorkspace(this.workspace, gpmbDs);
+
+      for (const s of this.workspace.sessions) {
+        if (!s.dataBindings.DISB) s.dataBindings.DISB = disbDs.id;
+        if (!s.dataBindings.REV) s.dataBindings.REV = revDs.id;
+        if (!s.dataBindings.GPMB) s.dataBindings.GPMB = gpmbDs.id;
+      }
+    }
+
+    if (this.workspace.sessions.length === 0) {
+      createReportSession(this.workspace, { name: 'Báo cáo KTXH phiên mới' });
+    }
+    this.saveToLocalStorageCache();
   }
 
   private saveToLocalStorageCache(): void {
@@ -156,11 +203,10 @@ export class KtxhOfflineApp {
     );
     registerDatasetInWorkspace(this.workspace, gpmbDs);
 
-    // Rebind existing sessions if any lacked bindings
     for (const s of this.workspace.sessions) {
-      if (!s.dataBindings.DISB) s.dataBindings.DISB = disbDs.id;
-      if (!s.dataBindings.REV) s.dataBindings.REV = revDs.id;
-      if (!s.dataBindings.GPMB) s.dataBindings.GPMB = gpmbDs.id;
+      s.dataBindings.DISB = disbDs.id;
+      s.dataBindings.REV = revDs.id;
+      s.dataBindings.GPMB = gpmbDs.id;
     }
 
     this.saveToLocalStorageCache();
@@ -273,7 +319,7 @@ export class KtxhOfflineApp {
     const navTabs: Array<{ id: KtxhOfflineApp['activeTab']; label: string }> = [
       { id: 'SESSIONS', label: '1. Quản lý phiên' },
       { id: 'IMPORT', label: '2. Nhập nguồn & QC' },
-      { id: 'LOCALITIES', label: '3. Chọn địa phương' },
+      { id: 'LOCALITIES', label: `3. Chọn địa phương (${activeSession?.selectedLocalityIds.length ?? 0}/114)` },
       { id: 'REPORT', label: '4. Bảng báo cáo 14 dòng' },
       { id: 'INSPECTOR', label: '5. Chi tiết ô & Trace' },
       { id: 'BENCHMARKS', label: '6. Mốc so sánh & Tùy chỉnh' },
@@ -289,7 +335,7 @@ export class KtxhOfflineApp {
       .join('');
 
     const backupBadge = this.workspace.unsavedChanges
-      ? `<span class="badge badge-WARNING" title="Dữ liệu mới chỉnh sửa chỉ lưu tạm trong bộ nhớ trình duyệt; hãy xuất file .kxh.json">Chưa sao lưu ra tệp (.kxh.json)</span>`
+      ? `<span class="badge badge-WARNING" title="Dữ liệu mới chỉnh sửa chỉ lưu tạm trong bộ nhớ trình duyệt; hãy xuất file .kxh.json">Chưa sao lưu (.kxh.json)</span>`
       : `<span class="badge badge-COMPLETE">Đã đồng bộ bản sao lưu</span>`;
 
     const statusBannerHtml = this.statusBannerMessage
@@ -301,7 +347,7 @@ export class KtxhOfflineApp {
 
     let mainViewHtml = '';
     if (this.activeTab === 'SESSIONS') {
-      mainViewHtml = this.renderSessionsPage();
+      mainViewHtml = this.renderSessionsPage(datasets);
     } else if (this.activeTab === 'IMPORT') {
       mainViewHtml = this.renderImportPage(datasets);
     } else if (this.activeTab === 'LOCALITIES') {
@@ -314,10 +360,10 @@ export class KtxhOfflineApp {
         Boolean(revNeedsDateConfirm)
       );
     } else if (this.activeTab === 'INSPECTOR') {
-      mainViewHtml = renderTraceInspectorHtml(
+      mainViewHtml = `<section class="page-section"><div class="card">${renderTraceInspectorHtml(
         this.activeTrace,
         this.activeTraceExtraMeta
-      );
+      )}</div></section>`;
     } else if (this.activeTab === 'BENCHMARKS') {
       mainViewHtml = this.renderBenchmarksAndSettingsPage(
         activeSession,
@@ -367,7 +413,29 @@ export class KtxhOfflineApp {
     this.bindDomEvents(evaluatedReport, datasets);
   }
 
-  private renderSessionsPage(): string {
+  private renderSessionsPage(datasets: {
+    REV?: Workspace['datasets'][number];
+    DISB?: Workspace['datasets'][number];
+    GPMB?: Workspace['datasets'][number];
+  }): string {
+    const kpiHtml = `<div class="kpi-summary-grid">
+      <div class="kpi-box">
+        <div class="kpi-box-title">1. Giải ngân Đầu tư công (DISB)</div>
+        <div class="kpi-box-value">${datasets.DISB ? `${datasets.DISB.unitCount}/114 địa phương` : 'Chưa nạp'}</div>
+        <div class="kpi-box-sub">Ngày chốt: <strong>${escapeHtmlUi(datasets.DISB?.asOfDate || '15/10/2026')}</strong> | Mốc chuẩn: <strong>67,10%</strong></div>
+      </div>
+      <div class="kpi-box">
+        <div class="kpi-box-title">2. Thu Ngân sách Nhà nước (REV)</div>
+        <div class="kpi-box-value">${datasets.REV ? `${datasets.REV.unitCount}/114 địa phương` : 'Chưa nạp'}</div>
+        <div class="kpi-box-sub">Ngày chốt: <strong>${escapeHtmlUi(datasets.REV?.asOfDate || '19/10/2026')}</strong> | Thiếu: <strong>Đặc khu Bạch Long Vĩ</strong></div>
+      </div>
+      <div class="kpi-box">
+        <div class="kpi-box-title">3. Giải phóng mặt bằng (GPMB)</div>
+        <div class="kpi-box-value">${datasets.GPMB ? `${datasets.GPMB.unitCount}/114 địa bàn (${datasets.GPMB.projectRowCount} DA)` : 'Chưa nạp'}</div>
+        <div class="kpi-box-sub">Ngày chốt: <strong>${escapeHtmlUi(datasets.GPMB?.asOfDate || '26/10/2026')}</strong> | Tỷ lệ diện tích: <strong>72,13%</strong></div>
+      </div>
+    </div>`;
+
     const sessionsListHtml =
       this.workspace.sessions.length === 0
         ? `<div class="card empty-state-card">
@@ -382,7 +450,7 @@ export class KtxhOfflineApp {
                 <th>Danh sách địa phương</th>
                 <th>Phiên bản (Rev)</th>
                 <th>Cập nhật lúc</th>
-                <th>Thao tác</th>
+                <th>Thao tác nhanh</th>
               </tr>
             </thead>
             <tbody>
@@ -407,9 +475,12 @@ export class KtxhOfflineApp {
                     <td>v${s.sessionRevision}</td>
                     <td>${escapeHtmlUi(s.updatedAt.slice(0, 19).replace('T', ' '))}</td>
                     <td class="actions-cell">
-                      <button type="button" class="btn btn-sm btn-primary" data-action="activate-session" data-session-id="${escapeHtmlUi(
+                      <button type="button" class="btn btn-sm btn-primary" data-action="open-session-localities" data-session-id="${escapeHtmlUi(
                         s.id
-                      )}">Mở phiên</button>
+                      )}">Chọn xã/phường</button>
+                      <button type="button" class="btn btn-sm btn-secondary" data-action="open-session-report" data-session-id="${escapeHtmlUi(
+                        s.id
+                      )}">Xem bảng 14 dòng</button>
                       <button type="button" class="btn btn-sm" data-action="clone-session" data-session-id="${escapeHtmlUi(
                         s.id
                       )}">Nhân bản</button>
@@ -425,11 +496,13 @@ export class KtxhOfflineApp {
 
     return `<section class="page-section">
       <div class="card">
-        <h2>Trang A — Quản lý Nhiều Phiên Báo cáo (Multi-Session Workspace)</h2>
+        <h2>Trang 1 — Quản lý Phiên Báo cáo &amp; Tổng quan Nguồn Dữ liệu</h2>
+        <p>Ba nguồn dữ liệu chuẩn đã sẵn sàng. Phiên mới khởi tạo với <strong>0 địa phương mặc định</strong> (Quy tắc R02). Hãy bấm <strong>"Chọn xã/phường"</strong> hoặc <strong>"Xem bảng 14 dòng"</strong> ở phiên bên dưới để bắt đầu.</p>
+        ${kpiHtml}
         <div class="toolbar-row">
           <input type="text" id="input-new-session-name" class="form-input" placeholder="Nhập tên phiên mới (VD: Báo cáo 5 xã khu vực A)..." value="Báo cáo KTXH phiên mới" />
           <button type="button" class="btn btn-primary" id="btn-create-session">+ Tạo phiên mới (0 địa phương mặc định)</button>
-          <button type="button" class="btn btn-secondary" id="btn-quick-load-3-sources">Nạp nhanh 3 nguồn Excel tham chiếu (data/reference)</button>
+          <button type="button" class="btn btn-secondary" id="btn-quick-load-3-sources">Nạp lại 3 nguồn Excel tham chiếu (data/reference)</button>
         </div>
       </div>
       <div class="card">
@@ -456,7 +529,7 @@ export class KtxhOfflineApp {
         if (!ds) {
           return `<tr>
             <td><strong>${type}</strong></td>
-            <td colspan="7"><span class="badge badge-MISSING">Chưa nạp nguồn ${type}</span></td>
+            <td colspan="6"><span class="badge badge-MISSING">Chưa nạp nguồn ${type}</span></td>
           </tr>`;
         }
         const sheetsDesc = ds.allSheetsMeta
@@ -468,7 +541,7 @@ export class KtxhOfflineApp {
           <td><code>${escapeHtmlUi(ds.workbookSha256.slice(0, 16))}...</code></td>
           <td><strong>${escapeHtmlUi(ds.sourceSheet)}</strong> (idx ${ds.sheetIndex}, ${escapeHtmlUi(
           ds.sheetVisibility
-        )})<br/><small class="muted">Tất cả sheet: ${escapeHtmlUi(sheetsDesc)}</small></td>
+        )})<br/><small class="muted">Các sheet: ${escapeHtmlUi(sheetsDesc)}</small></td>
           <td><strong>${ds.unitCount}</strong> địa phương${
           ds.projectRowCount ? ` (${ds.projectRowCount} dòng dự án)` : ''
         }</td>
@@ -530,7 +603,7 @@ export class KtxhOfflineApp {
 
     return `<section class="page-section">
       <div class="card">
-        <h2>Trang B — Nhập nguồn Excel, Xác minh Ngày chốt &amp; Kiểm toán Nguồn (PH1-01, PH1-03)</h2>
+        <h2>Trang 2 — Nhập nguồn Excel, Xác minh Ngày chốt &amp; Kiểm toán Nguồn (PH1-01, PH1-03)</h2>
         <div class="toolbar-row">
           <label class="btn btn-primary">
             Chọn tệp Excel (.xlsx) từ máy tính
@@ -556,11 +629,15 @@ export class KtxhOfflineApp {
         </table>
       </div>
 
-      <div class="card">
-        <h3>1. Bảng Kiểm toán Địa phương Thiếu Bản ghi Nguồn &amp; Dự án Thiếu Thành phần (R06 Coverage)</h3>
-        <p>Đối chiếu với danh mục tham chiếu ${
-          this.workspace.localities.length || 114
-        } địa phương từ DISB: Nguồn REV có <strong>${
+      <details class="audit-details" open>
+        <summary>
+          <span>1. Bảng Kiểm toán Địa phương Thiếu Bản ghi Nguồn &amp; Dự án Thiếu Thành phần (R06 Coverage)</span>
+          <span class="badge badge-WARNING">REV thiếu 1 | GPMB thiếu 6 địa phương + 3 dự án thiếu I</span>
+        </summary>
+        <div class="audit-details-body">
+          <p>Đối chiếu với danh mục tham chiếu ${
+            this.workspace.localities.length || 114
+          } địa phương từ DISB: Nguồn REV có <strong>${
       bySource.REV?.presentLocalityCount ?? 0
     }/114</strong> (thiếu <strong>${
       bySource.REV?.missingLocalities.map((m) => m.localityName).join(', ') ||
@@ -579,26 +656,31 @@ export class KtxhOfflineApp {
     }) trên <strong>${
       warnStats.disbNullCountsByCol.distinctRows
     }/114</strong> dòng địa phương (trạng thái <code>FIELD_MISSING</code>, cân đối ngang 114/114 đạt <code>PASS_WITH_MISSING_COMPONENTS</code>).</p>
-        <table class="data-table">
-          <thead>
-            <tr>
-              <th>Địa phương</th>
-              <th>Nguồn</th>
-              <th>Trạng thái</th>
-              <th>Trường / Chỉ tiêu</th>
-              <th>Lý do có thể khẳng định</th>
-              <th>Ngày chốt</th>
-            </tr>
-          </thead>
-          <tbody>${missingLocRowsHtml}</tbody>
-        </table>
-      </div>
+          <table class="data-table">
+            <thead>
+              <tr>
+                <th>Địa phương</th>
+                <th>Nguồn</th>
+                <th>Trạng thái</th>
+                <th>Trường / Chỉ tiêu</th>
+                <th>Lý do có thể khẳng định</th>
+                <th>Ngày chốt</th>
+              </tr>
+            </thead>
+            <tbody>${missingLocRowsHtml}</tbody>
+          </table>
+        </div>
+      </details>
 
-      <div class="card">
-        <h3>2. Kiểm toán Chất lượng GPMB &amp; 12 Dòng Dự án có Cột M Lệch 100*I/D &gt; 0,1 Điểm % (T29, T60)</h3>
-        <p>Thống kê toàn nguồn GPMB: <strong>${
-          warnStats.totalWarningEventsExcludingMissing
-        } lượt cảnh báo</strong> trên <strong>${
+      <details class="audit-details">
+        <summary>
+          <span>2. Kiểm toán Chất lượng GPMB &amp; 12 Dòng Dự án có Cột M Lệch 100*I/D &gt; 0,1 Điểm % (T29, T60)</span>
+          <span class="badge badge-INFO">12 dòng dự án lệch cột M | ${warnStats.totalWarningEventsExcludingMissing} lượt cảnh báo GPMB</span>
+        </summary>
+        <div class="audit-details-body">
+          <p>Thống kê toàn nguồn GPMB: <strong>${
+            warnStats.totalWarningEventsExcludingMissing
+          } lượt cảnh báo</strong> trên <strong>${
       warnStats.distinctProjectRowsExcludingMissing
     } dòng dự án riêng biệt</strong> (I&gt;D: ${
       warnStats.countsByRule['GPMB_I_GT_D'] || 0
@@ -615,20 +697,21 @@ export class KtxhOfflineApp {
     } ghi chú cột Q</strong> và <strong>${
       warnStats.disbMarkerPCount
     } marker cột P</strong>.</p>
-        <table class="data-table">
-          <thead>
-            <tr>
-              <th>Dự án / Dòng</th>
-              <th>Địa phương</th>
-              <th>Ô nguồn</th>
-              <th>M nguồn (%)</th>
-              <th>100*I/D tính lại (%)</th>
-              <th>Độ lệch (điểm %)</th>
-            </tr>
-          </thead>
-          <tbody>${mMismatchHtml}</tbody>
-        </table>
-      </div>
+          <table class="data-table">
+            <thead>
+              <tr>
+                <th>Dự án / Dòng</th>
+                <th>Địa phương</th>
+                <th>Ô nguồn</th>
+                <th>M nguồn (%)</th>
+                <th>100*I/D tính lại (%)</th>
+                <th>Độ lệch (điểm %)</th>
+              </tr>
+            </thead>
+            <tbody>${mMismatchHtml}</tbody>
+          </table>
+        </div>
+      </details>
     </section>`;
   }
 
@@ -677,7 +760,7 @@ export class KtxhOfflineApp {
 
     return `<section class="page-section">
       <div class="card">
-        <h2>Trang C — Chọn &amp; Sắp xếp Địa phương cho Phiên "${escapeHtmlUi(
+        <h2>Trang 3 — Chọn &amp; Sắp xếp Địa phương cho Phiên "${escapeHtmlUi(
           activeSession.name
         )}"</h2>
         <p>Tìm kiếm tiếng Việt có dấu hoặc không dấu (chỉ dùng cho tìm kiếm UI; ghép dữ liệu luôn dùng tên chuẩn NFC có dấu, phân biệt <em>Xã Cẩm Giang</em> và <em>Xã Cẩm Giàng</em>, <em>Phường Hưng Đạo</em> và <em>Phường Trần Hưng Đạo</em>).</p>
@@ -700,10 +783,11 @@ export class KtxhOfflineApp {
           <button type="button" class="btn btn-secondary" id="btn-preset-5-xa">Chọn mẫu 5 xã</button>
           <button type="button" class="btn btn-secondary" id="btn-preset-7-phuong">Chọn mẫu 7 phường</button>
           <button type="button" class="btn btn-danger" id="btn-clear-localities">Bỏ chọn tất cả (Về 0 địa phương)</button>
+          <button type="button" class="btn btn-primary" data-nav-tab="REPORT">Xem Bảng báo cáo 14 dòng &rarr;</button>
         </div>
 
         <div class="selected-localities-bar">
-          <h4>Đang chọn (${activeSession.selectedLocalityIds.length} địa phương — kéo/bấm mũi tên để đổi thứ tự cột):</h4>
+          <h4>Đang chọn (${activeSession.selectedLocalityIds.length} địa phương — bấm mũi tên để đổi thứ tự cột trên báo cáo):</h4>
           <div class="chips-container">${
             selectedChipsHtml || '<em>Chưa chọn địa phương nào (0 địa phương)</em>'
           }</div>
@@ -735,7 +819,7 @@ export class KtxhOfflineApp {
 
     const revBlockerBanner = revNeedsDateConfirm
       ? `<div class="status-banner status-warning">
-          <strong>Cảnh báo BLOCKER ngày chốt Thu NSNN:</strong> Nguồn Thu NSNN (<code>10T-19.10</code>) chưa được xác nhận ngày chốt thực tế. Hãy sang thẻ <strong>2. Nhập nguồn &amp; QC</strong> để xác nhận ngày chốt trước khi xuất chính thức!
+          <span><strong>Cảnh báo BLOCKER ngày chốt Thu NSNN:</strong> Nguồn Thu NSNN (<code>10T-19.10</code>) chưa được xác nhận ngày chốt thực tế. Hãy sang thẻ <strong>2. Nhập nguồn &amp; QC</strong> để xác nhận ngày chốt trước khi xuất chính thức!</span>
         </div>`
       : '';
 
@@ -753,38 +837,43 @@ export class KtxhOfflineApp {
 
     const sessionWarningsHtml =
       sessionWarnList.length > 0
-        ? `<div class="card">
-            <h3>Cảnh báo Chất lượng &amp; Ghi chú thuộc ${
-              activeSession.selectedLocalityIds.length
-            } địa phương đang chọn (${sessionWarnList.length} mục)</h3>
-            <table class="data-table">
-              <thead>
-                <tr>
-                  <th>Mức độ</th>
-                  <th>Mã quy tắc</th>
-                  <th>Địa phương</th>
-                  <th>Ô nguồn</th>
-                  <th>Giải trình</th>
-                </tr>
-              </thead>
-              <tbody>
-                ${sessionWarnList
-                  .slice(0, 30)
-                  .map(
-                    (w) => `<tr>
-                      <td><span class="badge badge-${escapeHtmlUi(w.severity)}">${escapeHtmlUi(
-                      w.severity
-                    )}</span></td>
-                      <td><code>${escapeHtmlUi(w.ruleId)}</code></td>
-                      <td><strong>${escapeHtmlUi(w.localityName)}</strong></td>
-                      <td><code>${escapeHtmlUi(w.sourceCell)}</code></td>
-                      <td>${escapeHtmlUi(w.explanation)}</td>
-                    </tr>`
-                  )
-                  .join('')}
-              </tbody>
-            </table>
-          </div>`
+        ? `<details class="audit-details">
+            <summary>
+              <span>Cảnh báo Chất lượng &amp; Ghi chú thuộc ${
+                activeSession.selectedLocalityIds.length
+              } địa phương đang chọn</span>
+              <span class="badge badge-WARNING">${sessionWarnList.length} mục cần lưu ý</span>
+            </summary>
+            <div class="audit-details-body">
+              <table class="data-table">
+                <thead>
+                  <tr>
+                    <th>Mức độ</th>
+                    <th>Mã quy tắc</th>
+                    <th>Địa phương</th>
+                    <th>Ô nguồn</th>
+                    <th>Giải trình</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  ${sessionWarnList
+                    .slice(0, 30)
+                    .map(
+                      (w) => `<tr>
+                        <td><span class="badge badge-${escapeHtmlUi(w.severity)}">${escapeHtmlUi(
+                        w.severity
+                      )}</span></td>
+                        <td><code>${escapeHtmlUi(w.ruleId)}</code></td>
+                        <td><strong>${escapeHtmlUi(w.localityName)}</strong></td>
+                        <td><code>${escapeHtmlUi(w.sourceCell)}</code></td>
+                        <td>${escapeHtmlUi(w.explanation)}</td>
+                      </tr>`
+                    )
+                    .join('')}
+                </tbody>
+              </table>
+            </div>
+          </details>`
         : '';
 
     return `<section class="page-section report-split-layout">
@@ -815,10 +904,11 @@ export class KtxhOfflineApp {
             <label>Chữ số thập phân:
               <input type="number" id="input-decimals" class="form-input-sm" min="0" max="6" value="${
                 activeSession.settings.decimals
-              }" style="width:60px"/>
+              }" style="width:64px"/>
             </label>
+            <button type="button" class="btn btn-sm btn-secondary" data-nav-tab="LOCALITIES">Chọn thêm/bớt xã (${activeSession.selectedLocalityIds.length})</button>
             <button type="button" class="btn btn-sm btn-primary" id="btn-export-xlsx-quick">Xuất Excel (.xlsx)</button>
-            <button type="button" class="btn btn-sm btn-secondary" id="btn-print-quick">In / Lưu PDF (A4/A3)</button>
+            <button type="button" class="btn btn-sm" id="btn-print-quick">In / Lưu PDF (A4/A3)</button>
           </div>
           ${gridHtml}
         </div>
@@ -866,7 +956,7 @@ export class KtxhOfflineApp {
 
     return `<section class="page-section">
       <div class="card">
-        <h2>Trang F — Mốc So sánh Chuẩn Chung &amp; Tùy chỉnh Bảng 14 Dòng (PH1-02, PH1-04)</h2>
+        <h2>Trang 6 — Mốc So sánh Chuẩn Chung &amp; Tùy chỉnh Bảng 14 Dòng (PH1-02, PH1-04)</h2>
         <p>Mọi tỷ lệ chuẩn chung đều tính bằng <strong>SUM(tử số) / SUM(mẫu số)</strong> trong cùng phạm vi, tuyệt đối không lấy AVERAGE tỷ lệ từng xã/phường. Các dòng có mẫu số = 0 hợp lệ vẫn tham gia vào tổng tử số của benchmark (Quy tắc P0 / R04).</p>
         <ul class="benchmark-summary-list">
           <li><strong>Giải ngân 114 địa phương (15/10/2026):</strong> <code>SUM(I13:I126)/SUM(F13:F126)</code> = <strong>${escapeHtmlUi(
@@ -947,7 +1037,7 @@ export class KtxhOfflineApp {
     void datasets;
     return `<section class="page-section">
       <div class="card">
-        <h2>Trang G — Xuất Báo cáo Chính thức (XLSX / PDF) &amp; Sao lưu Bộ Hồ sơ (.kxh.json)</h2>
+        <h2>Trang 7 — Xuất Báo cáo Chính thức (XLSX / PDF) &amp; Sao lưu Bộ Hồ sơ (.kxh.json)</h2>
         <div class="toolbar-row">
           <label>Khổ giấy in/PDF:
             <select id="select-paper-size" class="form-select-sm">
@@ -1097,6 +1187,30 @@ export class KtxhOfflineApp {
       });
     });
 
+    document.querySelectorAll('[data-action="open-session-localities"]').forEach((el) => {
+      el.addEventListener('click', () => {
+        const id = el.getAttribute('data-session-id');
+        if (id) {
+          this.workspace.activeSessionId = id;
+          this.activeTab = 'LOCALITIES';
+          this.saveToLocalStorageCache();
+          this.render();
+        }
+      });
+    });
+
+    document.querySelectorAll('[data-action="open-session-report"]').forEach((el) => {
+      el.addEventListener('click', () => {
+        const id = el.getAttribute('data-session-id');
+        if (id) {
+          this.workspace.activeSessionId = id;
+          this.activeTab = 'REPORT';
+          this.saveToLocalStorageCache();
+          this.render();
+        }
+      });
+    });
+
     document.querySelectorAll('[data-action="clone-session"]').forEach((el) => {
       el.addEventListener('click', () => {
         const id = el.getAttribute('data-session-id');
@@ -1188,7 +1302,7 @@ export class KtxhOfflineApp {
       });
     });
 
-    document.getElementById('btn-preset-5-xa')?.addEventListener('click', () => {
+    const applyPreset5Xa = () => {
       const activeSession = this.getActiveSession();
       if (!activeSession) return;
       const fiveXa = this.workspace.localities
@@ -1198,21 +1312,28 @@ export class KtxhOfflineApp {
       setSessionLocalities(this.workspace, activeSession.id, fiveXa);
       this.saveToLocalStorageCache();
       this.render();
-    });
+    };
 
+    const applyPreset7Phuong = () => {
+      const activeSession = this.getActiveSession();
+      if (!activeSession) return;
+      const sevenPhuong = this.workspace.localities
+        .filter((l) => l.type === 'PHUONG')
+        .slice(0, 7)
+        .map((l) => l.id);
+      setSessionLocalities(this.workspace, activeSession.id, sevenPhuong);
+      this.saveToLocalStorageCache();
+      this.render();
+    };
+
+    document.getElementById('btn-preset-5-xa')?.addEventListener('click', applyPreset5Xa);
+    document.getElementById('btn-empty-preset-5-xa')?.addEventListener('click', applyPreset5Xa);
     document
       .getElementById('btn-preset-7-phuong')
-      ?.addEventListener('click', () => {
-        const activeSession = this.getActiveSession();
-        if (!activeSession) return;
-        const sevenPhuong = this.workspace.localities
-          .filter((l) => l.type === 'PHUONG')
-          .slice(0, 7)
-          .map((l) => l.id);
-        setSessionLocalities(this.workspace, activeSession.id, sevenPhuong);
-        this.saveToLocalStorageCache();
-        this.render();
-      });
+      ?.addEventListener('click', applyPreset7Phuong);
+    document
+      .getElementById('btn-empty-preset-7-phuong')
+      ?.addEventListener('click', applyPreset7Phuong);
 
     document
       .getElementById('btn-clear-localities')
