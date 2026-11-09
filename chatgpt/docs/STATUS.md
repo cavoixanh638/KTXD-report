@@ -1,5 +1,20 @@
 # ChatGPT PH1 — Checkpoint triển khai và QA
 
+## CẬP NHẬT REAL WORKBOOK — 09/11/2026
+
+- **Mã nguồn được kiểm:** `08d3fb34692dd1728310fcaeed2c9b77e26069c6`; CI https://github.com/cavoixanh638/KTXD-report/actions/runs/42631690299: **PASS**, Chrome/Chromium chạy bằng `file://`, không có request ra ngoài.
+- **Nguồn:** 4/4 workbook nguyên gốc SHA-256 PASS, không sửa, không thêm bản sao nguồn vào repository. DISB 114, REV 113 (thiếu Bạch Long Vĩ), GPMB 108/422 (thiếu sáu địa phương; 3 dự án I trống); đúng 12 cảnh báo M/I/D.
+- **PH1-01/02/03:** Trên mẫu 11 xã lấy trực tiếp `RESULT_REFERENCE!Sheet1!C2:M2`, nhập 3 workbook gốc, bảng 14 dòng và so khớp các ô số với kiểm tra `Decimal` độc lập: **PASS trên phạm vi bài thử**. 10/10 unit test PASS.
+- **PH1-04/05:** Phiên khởi tạo 0 xã rồi chọn 11 xã; mở inspector truy vết: **PASS thử thực tế**; vẫn cần regression đa phiên 5/7 và rà soát trace 100% theo Master.
+- **PH1-06:** Xuất XLSX có tám sheet, các ô số là numeric, xuất PDF A3, màn hình offline: **PASS thử thực tế**. Còn lỗi trình bày PDF A3 bị ngắt trang riêng cho dòng 16; câu nhận xét tỷ lệ dùng dấu chấm thập phân và có thể xuống dòng xấu. Edge riêng chưa được xác minh.
+- **Rủi ro nghiệp vụ quan trọng:** Ngày chốt REV = 19/10/2026 trong bài thử là **giả định QA, CHƯA được xác nhận chính thức**. Tuyệt đối không dùng file này làm báo cáo hành chính chính thức nếu chưa xác minh ngày nguồn.
+- **Bằng chứng chi tiết:** [REFERENCE_11_RUN_20261109.md](REFERENCE_11_RUN_20261109.md); artifact XLSX/PDF/PNG/JSON trên CI: https://github.com/cavoixanh638/KTXD-report/actions/runs/42631690299/artifacts/13681106871 (14 ngày).
+- **Gate:** `PH1_PARTIAL_REAL_QA_PASS / NOT_FULLY_ACCEPTED`; PH2 vẫn `BLOCKED_BY_PH1`. Không ghi T01–T66 PASS hàng loạt; cần liệt kê Txx đã chạy sau khi hoàn thiện ma trận test.
+
+---
+
+## Snapshot trước kiểm thử nguồn thật (lịch sử)
+
 - **Repository:** `cavoixanh638/KTXD-report` (private).
 - **Branch riêng:** `chatgpt/ph1-20261109`.
 - **Đường dẫn sở hữu:** `chatgpt/**`. Không sửa `data/reference/**`, Master V2.2, PH2 hoặc thư mục của AI khác.
