@@ -1,0 +1,25 @@
+# Actual report data and backup archives (never upload without explicit approval)
+*.xlsx
+*.xls
+*.xlsm
+*.xlsb
+*.kxh.json
+*.db
+*.sqlite
+*.sqlite3
+
+# Local outputs
+node_modules/
+dist/
+coverage/
+.tmp/
+.cache/
+.DS_Store
+Thumbs.db
+
+# Secrets
+.env
+.env.*
+!.env.example
+*.pem
+*.key

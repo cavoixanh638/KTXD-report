@@ -1,0 +1,23 @@
+# Trạng thái triển khai — KTXH Offline Report
+
+- **Ngày:** 2026-11-09.
+- **Trạng thái chung:** `SPEC_V2_FINAL_READY / NOT_IMPLEMENTED`.
+- **Master spec:** `docs/specs/KTXH_OFFLINE_MASTER_SPEC_V2_FINAL.md` (18 mục, 52 bài kiểm thử T01–T52).
+- **Nguồn lịch sử:** V1, review R01–R03. Trước khi làm gì đọc Master V2.
+- **Ứng dụng chạy được:** Chưa có. **Các bài kiểm thử runtime T01–T52:** chưa chạy. Script kiểm toán nguồn R01/R02 chỉ xác minh số liệu tham chiếu, KHÔNG phải test ứng dụng.
+- **GitHub:** connector user `cavoixanh638` hoạt động. Đã tìm thấy repository **Private** mới `cavoixanh638/KTXD-report` (created 2026-11-09 11:03:18 UTC), có quyền push, ban đầu trống. Khác tên `KTXH-Offline-Report` dự kiến cũ (404). Trạng thái ghi tệp: `PREPARING_INITIAL_COMMIT`; chỉ đổi thành `VERIFIED` sau khi fetch được file và SHA.
+
+| Pha | Nội dung | Trạng thái |
+|---|---|---|
+| P0 | Chốt schema/fingerprint/unit/formula/trace/test fixtures, PoC Excel style | `NOT_STARTED` |
+| P1 | Offline `index.html` shell | `NOT_STARTED` |
+| P2 | Excel adapters REV/DISB/GPMB, P/Q, hidden sheet, date | `NOT_STARTED` |
+| P3 | Decimal, benchmark SUM/SUM, null policy, CalculationTrace | `NOT_STARTED` |
+| P4 | Workspace, nhiều phiên, backup và version binding | `NOT_STARTED` |
+| P5 | Báo cáo tùy chỉnh, UI trace và cảnh báo | `NOT_STARTED` |
+| P6 | Excel styled + audit, PDF, backup/restore | `NOT_STARTED` |
+| P7 | T01–T52, E2E offline Chrome/Edge, báo cáo nghiệm thu | `NOT_STARTED` |
+
+## Quy tắc checkpoint
+
+Sau từng pha ghi: branch/HEAD SHA (nếu repo), tệp thay đổi, bản nguồn SHA dùng test, công thức/trace thay đổi, test thực chạy PASS/FAIL, bug còn mở và người xác nhận. Không kế thừa PASS của SHA khác. Không báo triển khai xong khi chưa có chứng cứ runtime.
