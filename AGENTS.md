@@ -1,42 +1,31 @@
-# AGENTS.md — chỉ dẫn bắt buộc cho mọi AI triển khai KTXH Offline
+# AGENTS.md — Lệnh bàn giao cho mọi AI/Codex triển khai KTXH Offline
 
-## Ưu tiên tài liệu
+## THỨ TỰ ƯU TIÊN BẮT BUỘC
 
-1. Bắt buộc đọc **toàn bộ** `docs/specs/KTXH_OFFLINE_MASTER_SPEC_V2_1_FINAL.md` trước khi phân công hoặc chỉnh code. **V2.1 là nguồn yêu cầu DUY NHẤT để triển khai.**
-2. `KTXH_OFFLINE_SPEC_V1.md`, `KTXH_OFFLINE_MASTER_SPEC_V2_FINAL.md`, R01–R03 và các amendment cũ chỉ là tài liệu lịch sử. Nếu có xung đột, dùng V2.1; tạo issue / review mới để đề xuất sửa V2.1, không tự ghép hoặc tự chỉnh quy tắc nghiệp vụ.
-3. Bản V2.1 là kế hoạch, không phải sản phẩm chạy được. Không báo PASS cho mã nguồn hoặc runtime trước khi thực chạy kiểm thử.
+1. Đọc **toàn bộ** [`MASTER V2.2`](docs/specs/KTXH_OFFLINE_MASTER_SPEC_V2_2_CURRENT.md). Đây là tài liệu quy phạm duy nhất hiện hành.
+2. Đọc **[`Kế hoạch con 1`](docs/plans/PHASE_1_RESULT_TEMPLATE.md)**, triển khai đúng nội dung PH1 và nghiệm thu trước. PH1 phải cho người dùng dùng được bảng 14 dòng thực tế, không phải mockup.
+3. Đọc **[`Kế hoạch con 2`](docs/plans/PHASE_2_EXTENSIBILITY.md)** để giữ ranh giới kiến trúc, nhưng **chỉ bắt đầu PH2 sau khi PH1 đã đạt gate có bằng chứng**.
+4. Đọc bốn nguồn Excel gốc tại `data/reference/` và `data/reference/MANIFEST.json`; xác minh SHA; xem [audit nguồn](docs/data_checks/REFERENCE_COVERAGE_20261109.json). Không tự suy đoán nguồn không có vì đã được commit repo Private.
+5. V1/V2.0/V2.1, R01–R05, amendments và các pha P0–P7 cũ chỉ là lịch sử. Nếu xung đột, MASTER V2.2 thắng. Ghi review/issue khi đề xuất đổi nghiệp vụ.
 
-## Điều kiện bất biến
+## CÁC QUY TẮC KHÔNG THỂ ĐỔI
 
-- Chạy hoàn toàn offline từ `dist/index.html`, mở trực tiếp trên Chrome/Edge, không cần backend, CDN, API key hay đăng nhập.
-- Phiên mới **không chọn sẵn địa phương**. Có thể tạo nhiều phiên riêng biệt, ghim version dữ liệu, sao lưu/khôi phục độc lập.
-- Tỷ lệ benchmark = `SUM(numerator)/SUM(denominator)` trên cùng tập dữ liệu/phạm vi/ngày, không AVERAGE phần trăm địa phương. Với GPMB mặc định tỷ lệ theo diện tích, bình quân dự án chỉ là tham khảo khác phương pháp.
-- Phải phân biệt 114 địa phương giải ngân, 113 địa phương thu NSNN, 108 địa bàn GPMB và tổng thành phố. Không gọi nhầm phạm vi và không tự tạo 0 cho địa phương thiếu.
-- Thời điểm chốt **riêng mỗi file**, bắt xác nhận nếu không rõ; quy đổi chính xác đồng/triệu/tỷ và m²/ha.
-- **MỌI phép tính** (kể cả trung gian, tổng, chênh lệch, benchmark và nhận xét) có `CalculationTrace`: công thức, giá trị đầu vào, tử-mẫu, phương pháp, số bản ghi tham gia, bản ghi bỏ qua và **lý do từng dòng**, nguồn, ngày, đơn vị, null-policy, làm tròn và chất lượng; có thể mở từ ô và truy vết ở file xuất.
-- `ZERO` mẫu số của một địa phương chỉ làm phép chia **địa phương** không xác định; trong benchmark `SUM(A)/SUM(B)` vẫn tính cả A và B của dòng đó nếu hợp lệ, kể cả A>0,B=0. Ví dụ REV thu đất 113 địa phương: 136,12% năm và 202,71% kỳ; đọc §6A.3a và T53–T58.
-- Từ điển REV phải có đủ 6 tỷ lệ X:AC, bao gồm `REV_LAND_RATE_P = R/G` ở cột AB.
-- Giữ null khác 0. GPMB thiếu I tại 107/173/365 là MISSING, aggregate recorded 72,13% phải PARTIAL. DISB 296 thành phần trống chỉ được trung hòa **trong phép kiểm tra cân đối ngang**, vẫn MISSING ở source.
-- Nhận dạng đúng sheet visible/fingerprint: DISB `Tổng hợp` index 5, REV `10T-19.10`; không tự pick `SheetNames[0]` khi sheet đầu ẩn. P/Q DISB phải được nhập đầy đủ, Q có nhiều kịch bản không được tự thay I/F.
-- Không auto-join địa phương theo tìm kiếm không dấu; NFC + loại + tên có dấu + ngữ cảnh, alias phải có xác nhận.
-- Không đưa workbook Excel người dùng, dữ liệu hành chính nội bộ, sao lưu hoặc bí mật lên GitHub. Các script audit chỉ đọc bộ nguồn tại máy người chạy.
+- Offline 100%, `file://.../dist/index.html` dùng Chrome và Edge không cần server/internet/CDN/đăng nhập.
+- Phiên mới **0 địa phương mặc định**; chọn 1/N địa phương tùy ý; nhiều session cùng tồn tại, version và backup/restore độc lập.
+- **GPMB CHỈ THEO DIỆN TÍCH:** `SUM(I recorded)/SUM(D)` trên các dự án trong phạm vi. **Không tạo bất kỳ dòng, chế độ, phép tính hoặc lựa chọn “bình quân tỷ lệ dự án”** trong bảng báo cáo hay bản xuất. Cột M chỉ giữ raw và đánh dấu M khác `100*I/D` ở **dòng dự án**, ngưỡng >0,1 điểm %; tránh tính trên dòng tổng xã; thiếu I vẫn là MISSING.
+- **Nguồn thiếu phải có TÊN**: tham chiếu 114 DISB, thiếu REV **Đặc khu Bạch Long Vĩ**; thiếu GPMB **Phường Lưu Kiếm, Phường Ái Quốc, Xã Hùng Thắng, Xã Thái Tân, Xã Tân Minh, Đặc khu Bạch Long Vĩ**. Danh sách này chỉ áp dụng bộ Excel mẫu; dữ liệu mới phải tính lại. Không suy luận lý do kinh tế/hành chính khi chỉ thấy thiếu dòng.
+- Trạng thái `NO_LOCALITY_RECORD`, `FIELD_MISSING`, `PARTIAL_AGGREGATE`, `ZERO_VALID`, `ERROR`, `DATE_UNVERIFIED` tách biệt. Dòng DISB có null thành phần không có nghĩa thiếu toàn bộ địa phương.
+- **Benchmark mọi tỷ lệ = SUM(tử số)/SUM(mẫu số)** trong cùng phạm vi và kỳ; không AVERAGE tỷ lệ xã/phường; mẫu số 0 **cấp địa phương** không loại dòng khỏi SUM tổng nếu cả tử và mẫu đều numeric. Mốc thu 113 và GPMB 108 không được ghi nhãn 114, city-total là phạm vi khác.
+- Mọi phép tính (kể cả trung gian/nhận xét) có `CalculationTrace` chứa công thức, tử/mẫu, nguồn ô/SHA, tập included/excluded và từng lý do, đơn vị, ngày chốt, rounding, chất lượng. Không PASS nếu chỉ có số cuối.
+- Tệp nguồn nguyên vẹn, không thực thi macro/VBA, không `eval`, không external request; không upload thêm Excel mới lên repo ngoài 4 tệp được chủ dự án cho phép.
 
-## Quy trình P0–P7
+## THỨ TỰ THI CÔNG VÀ NGHIỆM THU
 
-- Lập checkpoint tại `docs/status/PROJECT_STATUS.md` sau từng pha, ghi commit SHA/branch (nếu có repo), file thay đổi, test chạy thật, bằng chứng PASS/FAIL và vấn đề còn mở.
-- Không kế thừa PASS của file/commit khác. Chỉ DONE khi T01–T58 PASS thực tế, webapp offline thực tế chạy trên Chrome/Edge, xuất XLSX có style và audit, PDF và backup/restore toàn bộ phiên.
-- Nếu nguồn khác SHA hoặc thay bố cục: chạy lại adapter-fingerprint/mapping và cập nhật fixture; không điều chỉnh code để hardcode số kỳ vọng.
-- Với phản biện mới, tạo `docs/reviews/REVIEW_R05_YYYYMMDD.md` hoặc vòng tiếp theo, có điều khoản V2.1, nguồn/cell, phương pháp kiểm, tác động và test mới. Không sửa/xóa review trước đó.
+- **PH1:** PH1-01…PH1-06 trong kế hoạch con 1. Đọc 3 nguồn, tạo **14 dòng tương ứng dòng 3–16 Sheet1** của tệp mẫu với dữ liệu thật, chọn xã bất kỳ, chỉnh hiển thị/cách tính đã chốt, kiểm tra missing và M, xem trace, in/XLSX, backup/restore. Các test chỉ thuộc PH2 ghi rõ `DEFERRED_BY_SCOPE`, tuyệt đối không ghi PASS giả.
+- **PH2:** PH2-01…PH2-06 theo kế hoạch con 2; mở rộng import động, template, AST công thức và chứng cứ QA. Sau PH2, toàn bộ T01–T66 phải PASS trên SHA hiện tại.
+- Sau mỗi gói cập nhật `docs/status/PROJECT_STATUS.md`: branch, HEAD SHA, dataset SHA, module/files thay đổi, test thực chạy PASS/FAIL/DEFERRED, điều kiện chưa đạt, cảnh báo còn mở; không kế thừa PASS từ SHA trước khi sửa code.
+- Không tự đánh dấu DONE khi chưa có commit, test kết quả và bằng chứng offline. Không thay số liệu nguồn để làm test PASS.
 
-## Trạng thái ban đầu
+## KHỞI TẠO
 
-- `SPEC_V2_1_FINAL_READY / APP_NOT_IMPLEMENTED`.
-- GitHub connector xác thực tài khoản `cavoixanh638`; repository chính: `cavoixanh638/KTXD-report` (Private). Tên sản phẩm là KTXH Offline. Không được tự nhận đã commit hoặc đưa file lên GitHub khi chưa ghi và đọc lại thành công.
-
-## Các tệp Excel được bàn giao (R05, 09/11/2026)
-
-- 4 tệp gốc cố định tại `data/reference/`: `DISB_20261015`, `REV_10M_2026`, `GPMB_20261026`, `RESULT_REFERENCE`. Xem tên file gốc và SHA ở `data/reference/MANIFEST.json`.
-- **Đã được người dùng cho phép** lưu chính xác bốn tệp lên GitHub Private để mọi AI có thể đọc, chạy kiểm thử, đối chiếu; không được trả lời rằng không có nguồn dữ liệu.
-- BẮT BUỘC chạy `python tools/verify_reference_files.py`: phải `PASS 4/4` trước khi xác định fixture dùng cho T01–T58. Không tự sửa, tái lưu hoặc đổi tên các tệp gốc.
-- Ngoài bốn tệp được cấp phép, không tự tải dữ liệu hành chính, bản sao lưu phiên làm việc hay báo cáo mới lên GitHub, và không công bố Public.
-- Trạng thái `SOURCE_FIXTURE_AVAILABLE` KHÔNG đồng nghĩa có ứng dụng đã viết hoặc đã chạy các bài kiểm thử runtime.
+Repository: `cavoixanh638/KTXD-report` (Private). Sản phẩm tên KTXH Offline. Hiện `MASTER_V2.2_PLAN_ONLY / PH1_NOT_STARTED / PH2_NOT_STARTED`. Bốn workbook đã có ở `data/reference/`; test source audit không tương đương test app runtime.

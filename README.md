@@ -1,49 +1,39 @@
-# KTXH Offline Report — WebApp báo cáo KTXH mở bằng trình duyệt
+# KTXH Offline Report — Báo cáo KTXH mở trực tiếp bằng trình duyệt
 
-**Trạng thái:** `SPEC_V2_1_FINAL_READY / APP_NOT_IMPLEMENTED`.
+**Tình trạng:** `MASTER_V2.2 / PHASE_1_NOT_STARTED / PHASE_2_NOT_STARTED / APP_NOT_IMPLEMENTED`.  
+**Repository:** `cavoixanh638/KTXD-report` (Private). Đây là nơi bàn giao, tên sản phẩm là KTXH Offline.
 
-Ứng dụng dự kiến chạy **100% offline từ `index.html` trên Chrome/Edge**, nhập báo cáo thu NSNN, giải ngân và GPMB từ Excel. Người dùng chọn **bất kỳ** xã/phường/đặc khu và số lượng theo nhu cầu, không chọn sẵn đơn vị nào, lưu nhiều phiên báo cáo độc lập, tùy chỉnh chỉ tiêu và xuất báo cáo Excel/PDF.
+## BẮT ĐẦU Ở ĐÂY — BA TÀI LIỆU CÓ HIỆU LỰC
 
-## Đặc tả cuối cùng — nguồn yêu cầu duy nhất
+1. **[MASTER SPEC V2.2 — yêu cầu chung và công thức](docs/specs/KTXH_OFFLINE_MASTER_SPEC_V2_2_CURRENT.md)**: chuẩn nghiệp vụ duy nhất, 66 mã kiểm thử T01–T66.
+2. **[KẾ HOẠCH CON 1 — bản báo cáo theo mẫu 14 dòng](docs/plans/PHASE_1_RESULT_TEMPLATE.md)**: ưu tiên thi công trước, hoàn thành app có thể dùng, hiển thị, tính, tùy chỉnh, lưu nhiều phiên, cảnh báo, giải trình phép tính, xuất Excel/PDF, sao lưu.
+3. **[KẾ HOẠCH CON 2 — mở rộng và tổng quát hóa](docs/plans/PHASE_2_EXTENSIBILITY.md)**: mở rộng nhập cấu trúc Excel mới, formula editor, báo cáo nhiều mẫu/kỳ và xuất nâng cao, **sau nghiệm thu PH1**.
 
-**[KTXH OFFLINE MASTER SPEC V2.1 (CURRENT)](docs/specs/KTXH_OFFLINE_MASTER_SPEC_V2_1_FINAL.md)**
+AI/Codex đọc ba tài liệu trên, [AGENTS.md](AGENTS.md), và bốn file Excel gốc tại `data/reference/` trước khi lập trình. **Không lập ứng dụng chỉ có giao diện mà thiếu tính toán thật**; không tự công bố DONE khi chưa có test chạy thực tế.
 
-Bản V2.1 (gồm 18 mục, T01–T58) hợp nhất kế hoạch ban đầu và các kết luận phản biện R01, R02; bổ sung **nguyên tắc mọi phép tính phải giải trình được** qua công thức, tử/mẫu, tập bản ghi được tính/bị bỏ, lý do, đơn vị, ngày chốt, nguồn ô, làm tròn và trạng thái dữ liệu. AI tiếp quản chỉ cần đọc V2.1 + `AGENTS.md`, không tự ghép các bản cũ. **Đặc biệt:** ZERO mẫu số ở cấp đơn vị vẫn được cộng vào benchmark tổng/tổng nếu tử/mẫu là số hợp lệ (R04).
+## QUYẾT ĐỊNH MỚI R06
 
-## Những yêu cầu không thể bỏ
+- **GPMB chỉ tính tỷ lệ theo diện tích**: `SUM(I)/SUM(D)`, dùng số đã ghi nhận và đánh cờ partial khi thiếu I. **Bỏ hoàn toàn** bình quân tỷ lệ dự án khỏi bảng chính, chỉ tiêu, tùy chọn, Excel/PDF. Cột M của **dòng dự án** vẫn được kiểm tra với `100*I/D`; 12 dòng nguồn lệch hơn 0,1 điểm phần trăm phải có cờ warning và truy vết.
+- **Nêu đích danh địa phương chưa có bản ghi theo từng nguồn**, không chỉ đếm N. So với danh mục 114 từ DISB: thu NSNN thiếu **Đặc khu Bạch Long Vĩ**; GPMB thiếu **Phường Lưu Kiếm, Phường Ái Quốc, Xã Hùng Thắng, Xã Thái Tân, Xã Tân Minh, Đặc khu Bạch Long Vĩ**. Xem [audit nguồn](docs/data_checks/REFERENCE_COVERAGE_20261109.json). Không suy luận không có dự án từ không có bản ghi.
+- Giữ đầy đủ các quy tắc cũ: benchmark tỷ lệ tổng/tổng thay vì AVERAGE; zero mẫu số cấp dòng vẫn tính vào tổng/tổng nếu numeric; 113/108 không đổi nhãn 114; đơn vị theo cột; ngày chốt độc lập; mọi ô tính có `CalculationTrace`, included/excluded/skip-reason.
+- Không chọn sẵn xã/phường khi mở phiên. Có thể tạo nhiều phiên, ví dụ phiên A gồm 5 xã, phiên B gồm 7 phường, lưu/restore độc lập.
 
-- Tỷ lệ chung/bình quân phải tính `SUM(tử số)/SUM(mẫu số)` cùng phạm vi; không lấy AVERAGE tỷ lệ địa phương.
-- ZERO mẫu số của địa phương không đồng nghĩa loại khỏi mốc gộp; có thể cá nhân không có tỷ lệ nhưng tổng nhóm vẫn có tỷ lệ. Thu đất năm 113 địa phương: 136,12%; kỳ: 202,71%; không tự loại 5/6 địa phương phát sinh ngoài dự toán/kế hoạch.
-- GPMB mặc định theo tổng diện tích, cho phép xem bình quân tỷ lệ dự án dưới nhãn khác phương pháp.
-- Minh bạch phạm vi số liệu: 114 địa phương giải ngân, 113 địa phương thu, 108 địa bàn GPMB hoặc thành phố (không coi tương đương).
-- Đơn vị theo cột: thu/giải ngân triệu đồng, GPMB kinh phí đồng, diện tích m²; ngày chốt từng file, không suy đoán.
-- Nhận dạng sheet visible/fingerprint, đọc P/Q ghi chú giải ngân, ghép địa phương đúng dấu; xử lý null khác zero, partial aggregate và cảnh báo.
-- Mỗi ô số, tổng, tỷ lệ, so sánh và nhận xét phải truy xuất được `CalculationTrace`; dữ liệu xuất có danh mục công thức, nhật ký phép tính và danh sách bản ghi bỏ qua.
-- Nhiều phiên độc lập, backups lưu file và khôi phục không mất dữ liệu, build không request Internet.
+## DỮ LIỆU ĐƯỢC BÀN GIAO TRỰC TIẾP
 
-## Dự án và lịch sử quyết định
+Bốn workbook **gốc không chỉnh sửa** trong [data/reference](data/reference/README.md):
 
-- [Chỉ dẫn AI/agent](AGENTS.md) — nguyên tắc triển khai và điều kiện nghiệm thu.
-- [Trạng thái/checkpoint](docs/status/PROJECT_STATUS.md) — tiến độ P0–P7.
-- [Review ledger](docs/reviews/REVIEW_LEDGER.md), [R01](docs/reviews/REVIEW_R01_20261109.md), [R02](docs/reviews/REVIEW_R02_20261109.md), [R03 — hợp nhất V2](docs/reviews/REVIEW_R03_20261109.md), [R04 — ZERO mẫu số và REV_LAND_RATE_P](docs/reviews/REVIEW_R04_20261109.md).
-- [V1 (lịch sử)](docs/specs/KTXH_OFFLINE_SPEC_V1.md), [đề xuất R01 (lịch sử)](docs/specs/SPEC_AMENDMENT_PROPOSED_R01.md), [đề xuất R02 (lịch sử)](docs/specs/SPEC_AMENDMENT_PROPOSED_R02.md).
-- [Audit R01](tools/audit_review_round1.py), [Audit R02](tools/audit_review_round2.py), [Audit R04](tools/audit_review_round4.py); 4 tệp nguồn chuẩn nằm trong [data/reference](data/reference/README.md), kiểm tra SHA trước khi chạy; không đưa các tệp khác lên repo.
+- [Báo cáo giải ngân 15.10 sửa(1).xlsx](data/reference/Báo%20cáo%20giải%20ngân%2015.10%20sửa(1).xlsx) — 114 địa phương.
+- [Bc thu 10 thang-19.10-BC (1)(1).xlsx](data/reference/Bc%20thu%2010%20thang-19.10-BC%20(1)(1).xlsx) — 113 địa phương.
+- [PL01_Tổng hợp DA_26.12.26(1).xlsx](data/reference/PL01_Tổng%20hợp%20DA_26.12.26(1).xlsx) — 108 địa bàn, 422 dự án.
+- [Kết quả Tổng hợp chỉ tiêu KTXH 11 xã.xlsx](data/reference/Kết%20quả%20Tổng%20hợp%20chỉ%20tiêu%20KTXH%2011%20xã.xlsx) — mẫu bố cục **không chọn sẵn 11 xã**.
 
-## Dữ liệu kiểm thử có thể dùng ngay
+Trước khi chạy kiểm thử dùng `python tools/verify_reference_files.py` (**4/4 SHA-256 PASS**) và `python tools/audit_phase_scope.py` (xác nhận 1/6 địa phương thiếu và 12 dòng M khác I/D). Không commit thêm nguồn hành chính mới, bản sao lưu có dữ liệu cá nhân hoặc bí mật lên GitHub; repo luôn Private.
 
-**Bốn file Excel tham chiếu đã được đưa lên GitHub Private**, không còn cần xin lại bản gốc qua chat:
+## TRẠNG THÁI VÀ NHẬT KÝ
 
-- [Báo cáo giải ngân 15.10 sửa(1).xlsx](data/reference/Báo%20cáo%20giải%20ngân%2015.10%20sửa(1).xlsx) — `DISB_20261015`
-- [Bc thu 10 thang-19.10-BC (1)(1).xlsx](data/reference/Bc%20thu%2010%20thang-19.10-BC%20(1)(1).xlsx) — `REV_10M_2026`
-- [PL01_Tổng hợp DA_26.12.26(1).xlsx](data/reference/PL01_Tổng%20hợp%20DA_26.12.26(1).xlsx) — `GPMB_20261026`
-- [Kết quả Tổng hợp chỉ tiêu KTXH 11 xã.xlsx](data/reference/Kết%20quả%20Tổng%20hợp%20chỉ%20tiêu%20KTXH%2011%20xã.xlsx) — `RESULT_REFERENCE`
+- [Trạng thái thực hiện PH1/PH2](docs/status/PROJECT_STATUS.md)
+- [Danh mục phiên bản/kiểm thử](docs/status/SPEC_V2_2_MANIFEST.json)
+- [Nhật ký phản biện](docs/reviews/REVIEW_LEDGER.md) và [R06](docs/reviews/REVIEW_R06_20261109.md)
+- [V2.1 lịch sử](docs/specs/KTXH_OFFLINE_MASTER_SPEC_V2_1_FINAL.md), [V2.0 lịch sử](docs/specs/KTXH_OFFLINE_MASTER_SPEC_V2_FINAL.md). **Không dùng V2.1 làm kế hoạch hiện hành.**
 
-- [Danh mục gốc và SHA-256](data/reference/MANIFEST.json) / [hướng dẫn](data/reference/README.md).
-- `python tools/verify_reference_files.py` phải kiểm tra đủ **4/4 PASS** trước khi chạy T01–T58.
-- Dữ liệu chỉ được dùng theo phạm vi, ngày chốt và đơn vị của từng file; giữ nguyên byte gốc. **Không upload thêm tệp khác** nếu chưa được phép.
-
-## Bảo mật và trạng thái GitHub
-
-Repository chính đang kết nối: **`cavoixanh638/KTXD-report` (Private)**, mới được tạo trong lúc kiểm tra. Đây là tên repository thực tế, khác tên `KTXH-Offline-Report` dự kiến trước đó; **KTXH Offline Report** là tên sản phẩm. Chủ dự án đã cho phép commit chính xác **4 tệp Excel gốc** tại `data/reference/` để AI có thể tái lập; không thêm dữ liệu khác và không đổi repo sang Public. Trạng thái commit cập nhật tại [PROJECT_STATUS](docs/status/PROJECT_STATUS.md).
-
-**Phiên bản V2.0 lưu đối chiếu:** [Master V2.0 (historical)](docs/specs/KTXH_OFFLINE_MASTER_SPEC_V2_FINAL.md). Chỉ V2.1 có hiệu lực triển khai.
+**Chưa có webapp chạy được và chưa có bài test runtime PASS.** Các script kiểm toán nguồn chỉ xác nhận dữ liệu mẫu, không phải bằng chứng triển khai ứng dụng.

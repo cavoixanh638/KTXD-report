@@ -1,31 +1,40 @@
-# Trạng thái triển khai — KTXH Offline Report
+# CHECKPOINT — WebApp KTXH Offline (MASTER V2.2)
 
-- **Ngày:** 2026-11-09.
-- **Trạng thái chung:** `SPEC_V2_1_FINAL_READY / NOT_IMPLEMENTED`.
-- **Master spec:** `docs/specs/KTXH_OFFLINE_MASTER_SPEC_V2_1_FINAL.md` (18 mục, 58 bài kiểm thử T01–T58).
-- **Nguồn lịch sử:** V1, V2.0, review R01–R04. Trước khi làm gì đọc Master V2.1.
-- **Ứng dụng chạy được:** Chưa có. **Các bài kiểm thử runtime T01–T58:** chưa chạy. Script kiểm toán nguồn R01/R02 chỉ xác minh số liệu tham chiếu, KHÔNG phải test ứng dụng.
-- **GitHub:** connector user `cavoixanh638` hoạt động. Đã tìm thấy repository **Private** mới `cavoixanh638/KTXD-report` (created 2026-11-09 11:03:18 UTC), có quyền push, ban đầu trống. Khác tên `KTXH-Offline-Report` dự kiến cũ (404). Trạng thái lưu hồ sơ: `GITHUB_VERIFIED`; initial commit `b2990b1981512a62bd9b7c26b4995a7d7202ba3a`, commit chứa đặc tả V2 và 20 tệp `04f6d6694274e951fb14bdc7687b7ffd120a5cf5`; đã fetch xác nhận README, AGENTS, Master Spec V2, R01–R03 và mã audit.
+- **Ngày cập nhật đặc tả:** 2026-11-09; repository: `cavoixanh638/KTXD-report` (Private); nhánh triển khai tham chiếu: `main`.
+- **Tài liệu có hiệu lực:** [`MASTER V2.2`](docs/specs/KTXH_OFFLINE_MASTER_SPEC_V2_2_CURRENT.md), [`PH1`](docs/plans/PHASE_1_RESULT_TEMPLATE.md), [`PH2`](docs/plans/PHASE_2_EXTENSIBILITY.md).
+- **Trạng thái tổng:** `PLANNED / NO_APPLICATION_BUILD / NO_RUNTIME_TESTS_PASSED`.
+- **Bốn file nguồn:** `data/reference/`, SHA trong `data/reference/MANIFEST.json`; người dùng đã cho phép commit đúng bốn file gốc. R06 đối chiếu nguồn: 114 DISB, 113 REV (thiếu Bạch Long Vĩ), 108 GPMB (thiếu 6 tên), 422 dự án và 12 M nguồn lệch I/D >0,1 điểm %; xem `docs/data_checks/REFERENCE_COVERAGE_20261109.json`. **Chỉ là source audit, chưa phải test runtime.**
 
-| Pha | Nội dung | Trạng thái |
-|---|---|---|
-| P0 | Chốt schema/fingerprint/unit/formula/trace/test fixtures, PoC Excel style | `NOT_STARTED` |
-| P1 | Offline `index.html` shell | `NOT_STARTED` |
-| P2 | Excel adapters REV/DISB/GPMB, P/Q, hidden sheet, date | `NOT_STARTED` |
-| P3 | Decimal, benchmark SUM/SUM, null policy, CalculationTrace | `NOT_STARTED` |
-| P4 | Workspace, nhiều phiên, backup và version binding | `NOT_STARTED` |
-| P5 | Báo cáo tùy chỉnh, UI trace và cảnh báo | `NOT_STARTED` |
-| P6 | Excel styled + audit, PDF, backup/restore | `NOT_STARTED` |
-| P7 | T01–T58, E2E offline Chrome/Edge, báo cáo nghiệm thu | `NOT_STARTED` |
+## KẾ HOẠCH CON 1 — ưu tiên thực hiện trước
 
-## Quy tắc checkpoint
+| Gói | Đầu ra | Trạng thái | Bằng chứng |
+|---|---|---|---|
+| PH1-01 | Nhập 3 file theo profile cố định, metadata/source version/ngày chốt | `NOT_STARTED` | Chưa có |
+| PH1-02 | 14 dòng chỉ tiêu theo `RESULT_REFERENCE`, công thức, Decimal và benchmark | `NOT_STARTED` | Chưa có |
+| PH1-03 | Source coverage có tên và cờ mismatch M/I/D | `NOT_STARTED` | Chưa có |
+| PH1-04 | Chọn địa phương + multi-session + tùy chỉnh | `NOT_STARTED` | Chưa có |
+| PH1-05 | CalculationTrace từ mọi ô | `NOT_STARTED` | Chưa có |
+| PH1-06 | Offline UI thật, XLSX/PDF/in, backup/restore, nghiệm thu PH1 | `NOT_STARTED` | Chưa có |
 
-Sau từng pha ghi: branch/HEAD SHA (nếu repo), tệp thay đổi, bản nguồn SHA dùng test, công thức/trace thay đổi, test thực chạy PASS/FAIL, bug còn mở và người xác nhận. Không kế thừa PASS của SHA khác. Không báo triển khai xong khi chưa có chứng cứ runtime.
+**Gate PH1:** chỉ chuyển PH2 khi các gói PH1 được nghiệm thu trên một commit SHA có bản chạy được; không dùng ảnh screenshot để tuyên bố tính đúng.
 
-- **R04:** Đã kiểm toán nguồn REV trên 113 địa phương; 5 dòng D=0,R>0 = 269.290 triệu và 6 dòng G=0,R>0 = 304.790 triệu; tỷ lệ tổng/tổng đúng 136,12% và 202,71%. Bổ sung REV_LAND_RATE_P, §6A.3a và T53–T58. Kiểm chứng nguồn ≠ PASS runtime; app vẫn NOT_IMPLEMENTED.
+## KẾ HOẠCH CON 2 — sau khi PH1 nghiệm thu
 
-- **Publish R04:** đặc tả V2.1, review R04, mã audit và manifest ban đầu đã được commit `e01efafbca3b787aee18797418271717b309cae0` trên `main`, và kiểm tra đọc lại nội dung qua GitHub. Mọi điều chỉnh tiếp theo giữ lịch sử commit; chưa kiểm thử webapp.
+| Gói | Đầu ra | Trạng thái | Bằng chứng |
+|---|---|---|---|
+| PH2-01 | Mapping wizard, file/layout mới, hidden sheet nâng cao | `BLOCKED_BY_PH1` | Chưa có |
+| PH2-02 | Công thức AST, template linh hoạt | `BLOCKED_BY_PH1` | Chưa có |
+| PH2-03 | Nhiều kỳ/phiên bản, so sánh có điều kiện | `BLOCKED_BY_PH1` | Chưa có |
+| PH2-04 | Bộ mẫu mở rộng, chọn hiển thị nâng cao | `BLOCKED_BY_PH1` | Chưa có |
+| PH2-05 | QC/trace nâng cao, kịch bản ghi chú Q | `BLOCKED_BY_PH1` | Chưa có |
+| PH2-06 | Xuất nâng cao, hồi quy tất cả T01–T66, nghiệm thu PH2 | `BLOCKED_BY_PH1` | Chưa có |
 
-## R05 — Bàn giao 4 tệp nguồn thực tế
+## QUY TẮC CẬP NHẬT CHECKPOINT
 
-Ngày 09/11/2026, theo yêu cầu rõ ràng của chủ dự án, đã đưa 4 tệp Excel gốc (DISB/REV/GPMB/RESULT_REFERENCE) vào `data/reference/` trong GitHub Private. SHA-256 và Git blob SHA-1 ở `data/reference/MANIFEST.json`, chương trình kiểm tra `tools/verify_reference_files.py`. Bốn tệp này dùng để chạy kiểm thử; các bản nguồn khác chưa được phép upload. **P0–P7 và runtime tests vẫn chưa được thực hiện.**
+Sau mỗi gói điền: branch/HEAD SHA thực kiểm, file sửa, fixture SHA, test IDs PASS/FAIL/DEFERRED có chứng cứ, lỗi còn mở, lý do khác biệt nguồn, người nghiệm thu, ảnh hưởng lên gói khác. Không nhận `DONE` chỉ do AI khẳng định hoặc do source audit PASS. Các phiên bản V2.1 và pha P0–P7 cũ **chỉ là lịch sử, đã được thay bằng hai kế hoạch PH1/PH2**.
+
+## LỊCH SỬ
+
+- R01–R04: phản biện phép tính/nguồn, trace, zero denominator và chỉ tiêu REV_LAND_RATE_P.
+- R05: bàn giao đủ bốn workbook thực tế vào repo Private.
+- **R06:** bỏ bình quân tỷ lệ GPMB trong report, thêm M/I/D source mismatch; ghi tên địa phương thiếu theo nguồn; chia 2 kế hoạch con và mở rộng test tới T66. **Các bài test runtime chưa chạy.**

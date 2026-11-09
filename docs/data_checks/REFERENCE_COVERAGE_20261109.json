@@ -1,0 +1,293 @@
+{
+  "document": "R06 audit fixture; no webapp runtime testing",
+  "sha256": {
+    "DISB_20261015": "3ba33b3efd579499500d956c2580a170e84dd38b8d700fdfaaf9a361ea7cb38c",
+    "REV_10M_2026": "b41227d1444c581e6f3b65d761fad8918b65aedfbd8114443e6dee9d4938356f",
+    "GPMB_20261026": "d393c3c1f3f9c99c95cc3d0035eab3386ff3cab8e63e623eaa9c925103ef9e0f"
+  },
+  "baselinePopulation": {
+    "source": "DISB_20261015",
+    "count": 114,
+    "location": "Tổng hợp!B13:B126",
+    "note": "Fixture population only; not a universal administrative list"
+  },
+  "coverage": {
+    "DISB_20261015": {
+      "present": 114,
+      "missingLocalities": []
+    },
+    "REV_10M_2026": {
+      "present": 113,
+      "missingLocalities": [
+        {
+          "name": "Đặc khu Bạch Long Vĩ",
+          "status": "NO_LOCALITY_RECORD",
+          "reason": "Không có tên địa phương trong các dòng địa phương của sheet nhập",
+          "referencePopulation": 114
+        }
+      ]
+    },
+    "GPMB_20261026": {
+      "present": 108,
+      "missingLocalities": [
+        {
+          "name": "Phường Lưu Kiếm",
+          "status": "NO_LOCALITY_RECORD",
+          "reason": "Không có dòng nhóm địa phương trong phụ lục GPMB",
+          "referencePopulation": 114
+        },
+        {
+          "name": "Phường Ái Quốc",
+          "status": "NO_LOCALITY_RECORD",
+          "reason": "Không có dòng nhóm địa phương trong phụ lục GPMB",
+          "referencePopulation": 114
+        },
+        {
+          "name": "Xã Hùng Thắng",
+          "status": "NO_LOCALITY_RECORD",
+          "reason": "Không có dòng nhóm địa phương trong phụ lục GPMB",
+          "referencePopulation": 114
+        },
+        {
+          "name": "Xã Thái Tân",
+          "status": "NO_LOCALITY_RECORD",
+          "reason": "Không có dòng nhóm địa phương trong phụ lục GPMB",
+          "referencePopulation": 114
+        },
+        {
+          "name": "Xã Tân Minh",
+          "status": "NO_LOCALITY_RECORD",
+          "reason": "Không có dòng nhóm địa phương trong phụ lục GPMB",
+          "referencePopulation": 114
+        },
+        {
+          "name": "Đặc khu Bạch Long Vĩ",
+          "status": "NO_LOCALITY_RECORD",
+          "reason": "Không có dòng nhóm địa phương trong phụ lục GPMB",
+          "referencePopulation": 114
+        }
+      ]
+    }
+  },
+  "missingProjectRows": [
+    {
+      "projectId": 85,
+      "row": 107,
+      "locality": "Phường Kinh Môn",
+      "declaredArea_m2": 5050,
+      "missingCells": [
+        "I107",
+        "M107"
+      ]
+    },
+    {
+      "projectId": 137,
+      "row": 173,
+      "locality": "Phường Tân Hưng",
+      "declaredArea_m2": 1190,
+      "missingCells": [
+        "I173",
+        "M173"
+      ]
+    },
+    {
+      "projectId": 292,
+      "row": 365,
+      "locality": "Xã Kiến Hưng",
+      "declaredArea_m2": 5219,
+      "missingCells": [
+        "I365",
+        "M365"
+      ]
+    }
+  ],
+  "gpmbReportedMCheck": {
+    "policy": "abs(M - 100*I/D) > 0.1 percentage point; project rows only",
+    "count": 12,
+    "mismatches": [
+      {
+        "projectId": 75,
+        "row": 95,
+        "locality": "Phường Hưng Đạo",
+        "sourceCells": {
+          "declared": "D95",
+          "recorded": "I95",
+          "reportedPercent": "M95"
+        },
+        "sourceM_percent": 101.89,
+        "recalculatedPercent": 116.7943907825763,
+        "differencePercentagePoints": -14.9043907825763
+      },
+      {
+        "projectId": 192,
+        "row": 239,
+        "locality": "Xã An Khánh",
+        "sourceCells": {
+          "declared": "D239",
+          "recorded": "I239",
+          "reportedPercent": "M239"
+        },
+        "sourceM_percent": 100,
+        "recalculatedPercent": 112.05434782608695,
+        "differencePercentagePoints": -12.054347826086953
+      },
+      {
+        "projectId": 202,
+        "row": 252,
+        "locality": "Xã An Quang",
+        "sourceCells": {
+          "declared": "D252",
+          "recorded": "I252",
+          "reportedPercent": "M252"
+        },
+        "sourceM_percent": 52.1,
+        "recalculatedPercent": 51.59634978731823,
+        "differencePercentagePoints": 0.5036502126817695
+      },
+      {
+        "projectId": 243,
+        "row": 303,
+        "locality": "Xã Đường An",
+        "sourceCells": {
+          "declared": "D303",
+          "recorded": "I303",
+          "reportedPercent": "M303"
+        },
+        "sourceM_percent": 100,
+        "recalculatedPercent": 176.80418795961612,
+        "differencePercentagePoints": -76.80418795961612
+      },
+      {
+        "projectId": 263,
+        "row": 327,
+        "locality": "Xã Hà Đông",
+        "sourceCells": {
+          "declared": "D327",
+          "recorded": "I327",
+          "reportedPercent": "M327"
+        },
+        "sourceM_percent": 98.62,
+        "recalculatedPercent": 103.9872663313661,
+        "differencePercentagePoints": -5.367266331366096
+      },
+      {
+        "projectId": 310,
+        "row": 386,
+        "locality": "Xã Kim Thành",
+        "sourceCells": {
+          "declared": "D386",
+          "recorded": "I386",
+          "reportedPercent": "M386"
+        },
+        "sourceM_percent": 90.3,
+        "recalculatedPercent": 98.8211320754717,
+        "differencePercentagePoints": -8.521132075471698
+      },
+      {
+        "projectId": 353,
+        "row": 440,
+        "locality": "Xã Ninh Giang",
+        "sourceCells": {
+          "declared": "D440",
+          "recorded": "I440",
+          "reportedPercent": "M440"
+        },
+        "sourceM_percent": 99.96,
+        "recalculatedPercent": 87.7171995701628,
+        "differencePercentagePoints": 12.242800429837189
+      },
+      {
+        "projectId": 354,
+        "row": 441,
+        "locality": "Xã Ninh Giang",
+        "sourceCells": {
+          "declared": "D441",
+          "recorded": "I441",
+          "reportedPercent": "M441"
+        },
+        "sourceM_percent": 99.83,
+        "recalculatedPercent": 96.80434085171082,
+        "differencePercentagePoints": 3.0256591482891793
+      },
+      {
+        "projectId": 380,
+        "row": 474,
+        "locality": "Xã Thượng Hồng",
+        "sourceCells": {
+          "declared": "D474",
+          "recorded": "I474",
+          "reportedPercent": "M474"
+        },
+        "sourceM_percent": 97.37,
+        "recalculatedPercent": 83.46119682734711,
+        "differencePercentagePoints": 13.908803172652895
+      },
+      {
+        "projectId": 389,
+        "row": 487,
+        "locality": "Xã Trường Tân",
+        "sourceCells": {
+          "declared": "D487",
+          "recorded": "I487",
+          "reportedPercent": "M487"
+        },
+        "sourceM_percent": 100,
+        "recalculatedPercent": 1133.8593974175035,
+        "differencePercentagePoints": -1033.8593974175035
+      },
+      {
+        "projectId": 418,
+        "row": 528,
+        "locality": "Đặc khu Cát Hải",
+        "sourceCells": {
+          "declared": "D528",
+          "recorded": "I528",
+          "reportedPercent": "M528"
+        },
+        "sourceM_percent": 53.2,
+        "recalculatedPercent": 37.42055040612199,
+        "differencePercentagePoints": 15.779449593878013
+      },
+      {
+        "projectId": 421,
+        "row": 531,
+        "locality": "Đặc khu Cát Hải",
+        "sourceCells": {
+          "declared": "D531",
+          "recorded": "I531",
+          "reportedPercent": "M531"
+        },
+        "sourceM_percent": 99.63,
+        "recalculatedPercent": 23.80712444340286,
+        "differencePercentagePoints": 75.82287555659714
+      }
+    ],
+    "notComparedCount": 3,
+    "notCompared": [
+      {
+        "projectId": 85,
+        "row": 107,
+        "locality": "Phường Kinh Môn",
+        "reason": "D_NOT_POSITIVE_OR_I_M_MISSING_OR_NONNUMERIC"
+      },
+      {
+        "projectId": 137,
+        "row": 173,
+        "locality": "Phường Tân Hưng",
+        "reason": "D_NOT_POSITIVE_OR_I_M_MISSING_OR_NONNUMERIC"
+      },
+      {
+        "projectId": 292,
+        "row": 365,
+        "locality": "Xã Kiến Hưng",
+        "reason": "D_NOT_POSITIVE_OR_I_M_MISSING_OR_NONNUMERIC"
+      }
+    ]
+  },
+  "claimBoundaries": [
+    "Source absent != no project",
+    "MISSING != ZERO",
+    "Area ratio uses I/D; no average-project-ratio report",
+    "This audit does not constitute webapp runtime PASS"
+  ]
+}
