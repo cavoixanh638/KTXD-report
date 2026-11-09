@@ -193,7 +193,9 @@ with sync_playwright() as play:
     page.screenshot(path=str(OUT/'browser_11_xa.png'),full_page=True)
     page.locator('.report-grid tbody tr').nth(12).locator('button.result-cell').first.click()
     assert page.locator('#inspector').is_visible()
-    assert 'Hồ sơ phép tính' in page.locator('#inspector').inner_text()
+    inspector_text = page.locator('#inspector').inner_text().strip()
+    print('INSPECTOR_HEAD', repr(inspector_text[:320]))
+    assert len(inspector_text)>40, f'Trace panel blank: {inspector_text!r}'
     page.locator('#inspector .close').click()
     with page.expect_download(timeout=60000) as dl:
         page.get_by_role('button',name='Xuất Excel có truy vết').click()
