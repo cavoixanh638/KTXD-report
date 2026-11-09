@@ -1025,8 +1025,11 @@ function inspector(ri,ci){
  $('#inspector').hidden=false;$('#overlay').hidden=false;
 }
 function render(){
+ // Keep expanded advanced groups open while editing several settings.
+ const expanded=tab==='settings'?[...document.querySelectorAll('.advanced-options')].map(x=>x.open):[];
  navbar();
  $('#main').innerHTML=tab==='report'?reportView():tab==='sessions'?sessionPage():tab==='sources'?sourcesPage():tab==='settings'?settingsPage():tab==='quality'?qualityPage():reportView();
+ if(tab==='settings'&&expanded.length)document.querySelectorAll('.advanced-options').forEach((x,i)=>{x.open=!!expanded[i]});
  badge();
  if(tab==='report'&&current()){
   const list=$('#locality-list');if(list)list.scrollTop=localityScroll;
