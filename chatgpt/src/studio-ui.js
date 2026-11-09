@@ -76,7 +76,7 @@ function reportView(){
  return tools()+helper+'<div class="studio-body"><div class="studio-left">'+localities()+'</div><div class="studio-right"><div class="studio-note">'+esc(info)+'. Bấm một ô số để xem dữ liệu và phép tính.</div><div class="studio-zoom" style="zoom:'+factor+'"><div class="studio-pages" id="print-area">'+html+'</div></div></div></div>';
 }
 function sessionPage(){
- return '<div class="studio-control-sheet"><div class="page-header"><div><h1>Quản lý phiên báo cáo</h1><p>Phiên mới bắt đầu với 0 địa phương. Dữ liệu và tùy chỉnh lưu độc lập theo từng phiên.</p></div><button class="primary" data-action="new">+ Phiên mới</button></div><div class="cards">'+(work.sessions.map(s=>'<article class="session-card '+(work.active===s.id?'active':'')+'"><h3>'+esc(s.name)+'</h3><small>'+new Date(s.updatedAt).toLocaleString('vi-VN')+' · '+s.selected.length+' địa phương</small><div class="actions"><button data-action="open-session" data-id="'+esc(s.id)+'">Mở phiên</button><button data-action="rename-session" data-id="'+esc(s.id)+'">Đổi tên</button><button data-action="copy-session" data-id="'+esc(s.id)+'">Nhân bản</button><button data-action="close-session" data-id="'+esc(s.id)+'">Đóng</button><button class="danger" data-action="delete-session" data-id="'+esc(s.id)+'">Xóa</button></div></article>').join('')||'<p>Chưa có phiên nào.</p>')+'</div><h2>Bản sao lưu</h2><p>Lưu tệp .kxh.json để không phụ thuộc bộ nhớ trình duyệt. Dữ liệu không gửi lên mạng.</p><div class="actions"><button data-action="backup">Lưu toàn bộ hồ sơ</button><button data-action="backup-session">Lưu riêng phiên</button><label class="file-button">Mở bộ hồ sơ <input id="restore-file" type="file" accept=".json,.kxh.json" hidden></label></div></div>';
+ return '<div class="studio-control-sheet"><div class="subpage-back"><button data-action="report">← Trở về báo cáo</button></div><div class="page-header"><div><h1>Quản lý phiên báo cáo</h1><p>Phiên mới bắt đầu với 0 địa phương. Dữ liệu và tùy chỉnh lưu độc lập theo từng phiên.</p></div><button class="primary" data-action="new">+ Phiên mới</button></div><div class="cards">'+(work.sessions.map(s=>'<article class="session-card '+(work.active===s.id?'active':'')+'"><h3>'+esc(s.name)+'</h3><small>'+new Date(s.updatedAt).toLocaleString('vi-VN')+' · '+s.selected.length+' địa phương</small><div class="actions"><button data-action="open-session" data-id="'+esc(s.id)+'">Mở phiên</button><button data-action="rename-session" data-id="'+esc(s.id)+'">Đổi tên</button><button data-action="copy-session" data-id="'+esc(s.id)+'">Nhân bản</button><button data-action="close-session" data-id="'+esc(s.id)+'">Đóng</button><button class="danger" data-action="delete-session" data-id="'+esc(s.id)+'">Xóa</button></div></article>').join('')||'<p>Chưa có phiên nào.</p>')+'</div><h2>Bản sao lưu</h2><p>Lưu tệp .kxh.json để không phụ thuộc bộ nhớ trình duyệt. Dữ liệu không gửi lên mạng.</p><div class="actions"><button data-action="backup">Lưu toàn bộ hồ sơ</button><button data-action="backup-session">Lưu riêng phiên</button><label class="file-button">Mở bộ hồ sơ <input id="restore-file" type="file" accept=".json,.kxh.json" hidden></label></div></div>';
 }
 function viDate(s){return /^\d{4}-\d{2}-\d{2}$/.test(s||'')?s.slice(8,10)+'/'+s.slice(5,7)+'/'+s.slice(0,4):'Chưa xác nhận';}
 function sourcesPage(){
@@ -95,21 +95,34 @@ function sourcesPage(){
     (p.validationError?'<p class="warning" role="alert">'+esc(p.validationError)+'</p>':'')+'</div>';
  }).join('');
  const newCount=pending.filter(x=>!x.error&&!x.alreadyPresent).length;
- return '<div class="studio-control-sheet"><h1>Nhập ba file nguồn Excel</h1><p>Chọn một hoặc cả ba tệp theo thứ tự bất kỳ. Ứng dụng tự nhận dạng bằng cấu trúc workbook và tự đưa căn cứ ngày chốt khi tiêu đề rõ ràng.</p><div class="studio-dropzone" id="studio-dropzone" data-action="select-files">Kéo thả 1–3 file Excel vào đây hoặc <b>bấm để chọn</b><input type="file" id="source-files" multiple accept=".xlsx" hidden></div><div class="source-review">'+pendingItems+'</div>'+
+ return '<div class="studio-control-sheet"><div class="subpage-back"><button data-action="report">← Trở về báo cáo</button></div><h1>Nhập ba file nguồn Excel</h1><p>Chọn một hoặc cả ba tệp theo thứ tự bất kỳ. Ứng dụng tự nhận dạng bằng cấu trúc workbook và tự đưa căn cứ ngày chốt khi tiêu đề rõ ràng.</p><div class="studio-dropzone" id="studio-dropzone" data-action="select-files">Kéo thả 1–3 file Excel vào đây hoặc <b>bấm để chọn</b><input type="file" id="source-files" multiple accept=".xlsx" hidden></div><div class="source-review">'+pendingItems+'</div>'+
  (newCount?'<button class="primary" data-action="commit-sources">Nhập các nguồn hợp lệ ('+newCount+' tệp đang chọn)</button>':'')+
  '<h2>Những nguồn đang sử dụng</h2><div class="source-review">'+(work.datasets.map(d=>'<div class="source-item"><b>'+esc(d.type)+' · '+esc(d.fileName)+'</b><p>'+esc(d.sheetName)+' · '+d.localities.length+' địa phương · ngày chốt '+esc(d.asOfDate)+'</p><small>SHA-256: '+esc(d.hash)+'</small></div>').join('')||'<p>Chưa nhập nguồn.</p>')+'</div></div>';
 }
 function settingsPage(){
- const s=current();if(!s)return '<div class="studio-control-sheet">Chưa tạo phiên.</div>';
- const st=s.settings;
- return '<div class="studio-control-sheet studio-setting-panel"><h1>Chỉnh sửa báo cáo</h1><p>Chỉ thay đổi tên hiển thị, không tác động công thức hoặc các nguồn.</p><section class="panel"><label>Tiêu đề báo cáo <input data-setting="title" value="'+esc(st.title)+'"></label><label>Tên đơn vị <input data-setting="agency" value="'+esc(st.agency||'')+'"></label><label>Phụ đề <input data-setting="subtitle" value="'+esc(st.subtitle||'')+'"></label><div class="field-grid">'+
- [['moneyUnit','Đơn vị tiền',[['billion','Tỷ đồng'],['million','Triệu đồng']]],['areaUnit','Diện tích',[['m2','m²'],['ha','ha']]],['paperSize','Khổ giấy',[['A4','A4'],['A3','A3']]],['orientation','Hướng giấy',[['landscape','Ngang'],['portrait','Dọc']]]].map(([key,label,values])=>'<label>'+label+'<select data-setting="'+key+'">'+values.map(([val,name])=>'<option value="'+val+'" '+(st[key]===val?'selected':'')+'>'+name+'</option>').join('')+'</select></label>').join('')+
- [['fontSize','Cỡ chữ (px)',10,18],['decimals','Chữ số thập phân',0,6],['threshold','Ngưỡng nhận xét (điểm %)',0,100]].map(([key,label,min,max])=>'<label>'+label+'<input type="number" min="'+min+'" max="'+max+'" data-setting="'+key+'" value="'+st[key]+'"></label>').join('')+'</div><h3>Danh mục 14 dòng chuẩn (sắp xếp, ẩn/hiện, đổi tên)</h3><div class="row-options">'+s.rows.map((r,i)=>'<div class="row-option"><input type="checkbox" data-toggle-row="'+esc(r.key)+'" '+(r.visible?'checked':'')+'><input data-row-label="'+esc(r.key)+'" value="'+esc(r.label)+'"><button data-action="move-row" data-index="'+i+'" data-dir="-1">↑</button><button data-action="move-row" data-index="'+i+'" data-dir="1">↓</button><button data-action="duplicate-row" data-index="'+i+'">+</button></div>').join('')+'</div><button data-action="report" class="primary">Trở lại báo cáo</button></section></div>';
+ const s=current();
+ if(!s)return '<div class="studio-control-sheet"><button data-action="report">← Báo cáo</button><h1>Thiết lập mẫu</h1><p>Hãy tạo phiên trước.</p></div>';
+ normalizeSettings(s);const st=s.settings;
+ const select=(key,label,values)=>'<label>'+label+'<select data-setting="'+key+'">'+values.map(([val,name])=>'<option value="'+val+'" '+(st[key]===val?'selected':'')+'>'+name+'</option>').join('')+'</select></label>';
+ return '<div class="studio-control-sheet studio-setting-panel"><div class="subpage-title"><button data-action="report">← Quay lại báo cáo</button><div><h1>Thiết lập mẫu báo cáo</h1><p>Thường chỉ cài một lần. Khi thấy phù hợp, chọn “Lưu làm mẫu mặc định” để mọi phiên mới kế thừa thiết kế.</p></div></div>'+
+ '<div class="settings-actions"><button class="primary" data-action="save-default-design">Lưu làm mẫu mặc định</button><span>'+(work.studioDefaults?'Đã có mẫu mặc định cho các phiên tạo mới.':'Chưa lưu mẫu mặc định.')+'</span></div>'+
+ '<section class="panel"><h2>Thông tin trình bày</h2><div class="field-grid"><label>Tiêu đề báo cáo<input data-setting="title" value="'+esc(st.title)+'"></label><label>Cơ quan ban hành<input data-setting="agency" value="'+esc(st.agency||'')+'"></label><label>Phụ đề<input data-setting="subtitle" value="'+esc(st.subtitle||'')+'"></label>'+
+ select('tableMode','Cách bố trí địa phương',[['auto','Tự tối ưu trang'],['horizontal','Địa phương ngang'],['vertical','Địa phương dọc']])+
+ select('paperSize','Khổ in',[['A4','A4'],['A3','A3']])+
+ select('orientation','Chiều giấy',[['landscape','Ngang'],['portrait','Dọc']])+'</div></section>'+
+ '<details class="advanced-options"><summary>Định dạng số, font và ngưỡng nhận xét (ít khi sửa)</summary><div class="advanced-content field-grid">'+
+ select('moneyUnit','Đơn vị tiền',[['billion','Tỷ đồng'],['million','Triệu đồng']])+
+ select('areaUnit','Diện tích',[['m2','m²'],['ha','ha']])+
+ [['fontSize','Cỡ chữ (px)',10,18],['decimals','Chữ số thập phân',0,6],['threshold','Ngưỡng nhận xét (điểm %)',0,100]].map(([key,label,min,max])=>'<label>'+label+'<input type="number" min="'+min+'" max="'+max+'" data-setting="'+key+'" value="'+st[key]+'"></label>').join('')+
+ '<label>Phóng to trên màn hình<select id="studio-zoom"><option value="fit" '+(zoom==='fit'?'selected':'')+'>Vừa trang</option>'+[100,125,150].map(x=>'<option value="'+x+'" '+(zoom==x?'selected':'')+'>'+x+'%</option>').join('')+'</select></label></div></details>'+
+ '<details class="advanced-options"><summary>Ẩn/hiện, đổi tên, sắp xếp và nhân bản chỉ tiêu</summary><div class="advanced-content"><div class="row-options">'+s.rows.map((r,i)=>'<div class="row-option"><input type="checkbox" data-toggle-row="'+esc(r.key)+'" '+(r.visible?'checked':'')+'><input data-row-label="'+esc(r.key)+'" value="'+esc(r.label)+'"><button data-action="move-row" data-index="'+i+'" data-dir="-1" title="Lên">↑</button><button data-action="move-row" data-index="'+i+'" data-dir="1" title="Xuống">↓</button><button data-action="duplicate-row" data-index="'+i+'" title="Nhân bản">+</button></div>').join('')+'</div></div></details>'+
+ '<details class="advanced-options"><summary>Kiểm tra chất lượng, nguồn thiếu và truy vết dữ liệu</summary><div class="advanced-content"><p>Các cảnh báo nguồn thiếu và sai khác GPMB không bị tắt khi thay đổi mẫu.</p><button data-action="quality">Xem bảng kiểm tra dữ liệu của phiên</button></div></details>'+
+ '<div class="settings-bottom"><button class="primary" data-action="save-default-design">Lưu thiết kế làm mặc định</button><button data-action="report">Quay lại báo cáo</button></div></div>';
 }
 function qualityPage(){
  const s=current();if(!s)return '<div class="studio-control-sheet">Chưa tạo phiên.</div>';
  const cov=K.coverage(work,s,true),issues=['REV','DISB','GPMB'].flatMap(t=>(K.bound(work,s,t)?.issues||[]).filter(x=>s.selected.includes(K.localityId(x.locality))));
- return '<div class="studio-control-sheet"><h1>Kiểm tra dữ liệu nguồn</h1><p>Cảnh báo chỉ phản ánh địa phương được chọn. Không có bản ghi không đồng nghĩa không phát sinh.</p><h2>Nguồn thiếu / từng địa phương ('+cov.length+')</h2><div class="table-wrap"><table><thead><tr><th>Địa phương</th><th>Nguồn</th><th>Trạng thái</th><th>Ô</th><th>Nguyên nhân</th></tr></thead><tbody>'+cov.map(x=>'<tr><td>'+esc(x.name)+'</td><td>'+esc(x.type)+'</td><td>'+esc(x.status)+'</td><td>'+esc(x.sourceCell)+'</td><td>'+esc(x.reason)+'</td></tr>').join('')+'</tbody></table></div><h2>Các cảnh báo ('+issues.length+')</h2><div class="table-wrap"><table><tbody>'+issues.map(x=>'<tr><td>'+esc(x.locality)+'</td><td>'+esc(x.rule)+'</td><td>'+esc(x.sourceCell)+'</td><td>'+esc(x.explanation)+'</td></tr>').join('')+'</tbody></table></div></div>';
+ return '<div class="studio-control-sheet"><div class="subpage-back"><button data-action="settings">← Trở về thiết lập mẫu</button></div><h1>Kiểm tra dữ liệu nguồn</h1><p>Cảnh báo chỉ phản ánh địa phương được chọn. Không có bản ghi không đồng nghĩa không phát sinh.</p><h2>Nguồn thiếu / từng địa phương ('+cov.length+')</h2><div class="table-wrap"><table><thead><tr><th>Địa phương</th><th>Nguồn</th><th>Trạng thái</th><th>Ô</th><th>Nguyên nhân</th></tr></thead><tbody>'+cov.map(x=>'<tr><td>'+esc(x.name)+'</td><td>'+esc(x.type)+'</td><td>'+esc(x.status)+'</td><td>'+esc(x.sourceCell)+'</td><td>'+esc(x.reason)+'</td></tr>').join('')+'</tbody></table></div><h2>Các cảnh báo ('+issues.length+')</h2><div class="table-wrap"><table><tbody>'+issues.map(x=>'<tr><td>'+esc(x.locality)+'</td><td>'+esc(x.rule)+'</td><td>'+esc(x.sourceCell)+'</td><td>'+esc(x.explanation)+'</td></tr>').join('')+'</tbody></table></div></div>';
 }
 function inspector(ri,ci){
  if(!report)return;const o=report.rows[ri]?.cells[ci];if(!o)return;selectedTrace=o.trace;
@@ -120,8 +133,13 @@ function inspector(ri,ci){
  $('#inspector').hidden=false;$('#overlay').hidden=false;
 }
 function render(){
- navbar();const main=$('#main');main.innerHTML=tab==='report'?reportView():tab==='sessions'?sessionPage():tab==='sources'?sourcesPage():tab==='settings'?settingsPage():tab==='quality'?qualityPage():tab==='localities'?'<div class="studio-control-sheet"><h1>Chọn địa phương</h1>'+localities()+'</div>':tab==='export'?'<div class="studio-control-sheet"><h1>Xuất và in báo cáo</h1><p>Trang báo cáo WYSIWYG là nguồn xuất PDF. Dữ liệu Excel gồm cả nhật ký tính và phụ lục truy vết.</p><button data-action="xlsx">Xuất Excel</button> <button data-action="print">In / Save PDF</button> <button data-action="backup">Sao lưu toàn bộ</button></div>':'';
- badge();if(tab==='report'&&current())fitPaper();
+ navbar();
+ $('#main').innerHTML=tab==='report'?reportView():tab==='sessions'?sessionPage():tab==='sources'?sourcesPage():tab==='settings'?settingsPage():tab==='quality'?qualityPage():reportView();
+ badge();
+ if(tab==='report'&&current()){
+  const list=$('#locality-list');if(list)list.scrollTop=localityScroll;
+  filterLoc();
+ }
 }
 function fitPaper(){/* CSS zoom applies only on screen and not printed content. */}
 // Only evidence stated in the selected visible sheet's A1 may prefill a day.
@@ -238,10 +256,15 @@ async function actions(event){
  try{
  switch(action){
  case 'nav':navigate(b.dataset.tab);break;
+ case 'sources':navigate('sources');break;
+ case 'quality':navigate('quality');break;
+ case 'show-localities':{document.body.classList.remove('studio-localities-hidden');navigate('report');const field=$('#locality-search');if(field)field.focus();break;}
+ case 'toggle-localities':document.body.classList.toggle('studio-localities-hidden');break;
  case 'sessions':navigate('sessions');break;
  case 'settings':navigate('settings');break;
  case 'report':navigate('report');break;
- case 'new':{const v=K.newSession(work,'Báo cáo '+(work.sessions.length+1));normalizeSettings(v);work.sessions.push(v);work.active=v.id;mark();navigate('report');break;}
+ case 'new':{const v=K.newSession(work,'Báo cáo '+(work.sessions.length+1));if(work.studioDefaults){v.settings=JSON.parse(JSON.stringify(work.studioDefaults.settings));v.rows=JSON.parse(JSON.stringify(work.studioDefaults.rows));}normalizeSettings(v);work.sessions.push(v);work.active=v.id;document.body.classList.remove('studio-localities-hidden');mark();navigate('report');break;}
+ case 'save-default-design':if(s){work.studioDefaults={settings:JSON.parse(JSON.stringify(s.settings)),rows:JSON.parse(JSON.stringify(s.rows)),savedAt:new Date().toISOString()};mark();render();alertMessage('Đã lưu thiết kế hiện tại làm mẫu mặc định cho các phiên mới.');}break;
  case 'open-session':work.active=b.dataset.id;mark();navigate('report');break;
  case 'rename-session':{const v=work.sessions.find(x=>x.id===b.dataset.id),name=prompt('Đổi tên phiên',v.name);if(name?.trim()){v.name=name.trim();changed(v,'Đổi tên phiên');}break;}
  case 'close-session':if(work.active===b.dataset.id){work.active=null;mark();navigate('sessions');}break;
@@ -249,8 +272,8 @@ async function actions(event){
  case 'delete-session':{const v=work.sessions.find(x=>x.id===b.dataset.id);if(confirm('Xóa phiên '+v.name+'? Không thể hoàn tác nếu chưa sao lưu.')){work.sessions=work.sessions.filter(x=>x.id!==v.id);if(work.active===v.id)work.active=null;mark();render();}break;}
  case 'toggle-rail':document.body.classList.toggle('studio-rail-compact');break;
  case 'toggle-wide':document.body.classList.toggle('studio-wide');break;
- case 'select-visible':{if(!s)return;document.querySelectorAll('.locality-item:not([hidden]) input').forEach(x=>{if(!s.selected.includes(x.dataset.loc))s.selected.push(x.dataset.loc);});changed(s,'Chọn địa phương trong bộ lọc');break;}
- case 'clear-localities':if(s&&confirm('Bỏ chọn tất cả địa phương?')){s.selected=[];changed(s,'Bỏ chọn danh sách');}break;
+ case 'select-visible':{if(!s)return;localityScroll=$('#locality-list')?.scrollTop||0;document.querySelectorAll('.locality-item:not([hidden]) input').forEach(x=>{if(!s.selected.includes(x.dataset.loc))s.selected.push(x.dataset.loc);});changed(s,'Chọn địa phương trong bộ lọc');break;}
+ case 'clear-localities':if(s&&confirm('Bỏ chọn tất cả địa phương?')){localityScroll=$('#locality-list')?.scrollTop||0;s.selected=[];changed(s,'Bỏ chọn danh sách');}break;
  case 'inspect':inspector(Number(b.dataset.row),Number(b.dataset.col));break;
  case 'close-inspect':$('#inspector').hidden=true;$('#overlay').hidden=true;break;
  case 'edit-title':if(s){const name=prompt('Tiêu đề báo cáo',s.settings.title);if(name?.trim()){s.settings.title=name.trim();changed(s,'Đổi tiêu đề');}}break;
@@ -273,10 +296,10 @@ function fieldChanged(e){
  if(el.id==='source-files'){identifyFiles(el.files||[]);return}
  if(el.dataset.pendingDate!==undefined){const t=$('[data-date-vi="'+el.dataset.pendingDate+'"]');if(t)t.textContent='Ngày/tháng/năm: '+viDate(el.value);return;}
  if(el.id==='restore-file'){restore(el.files?.[0]).catch(ex=>alertMessage(ex.message,true));return}
- if(el.id==='locality-type'){filterLoc();return}
+ if(el.id==='locality-type'){localityKind=el.value;localityScroll=0;filterLoc();return}
  if(el.id==='studio-zoom'){zoom=el.value;render();return}
  if(el.id==='studio-mode'&&s){s.settings.tableMode=el.value;changed(s,'Đổi chiều bảng');return}
- if(el.dataset.loc&&s){const id=el.dataset.loc;if(el.checked&&!s.selected.includes(id))s.selected.push(id);else if(!el.checked)s.selected=s.selected.filter(x=>x!==id);changed(s,'Chọn địa phương');return}
+ if(el.dataset.loc&&s){localityScroll=$('#locality-list')?.scrollTop||0;const id=el.dataset.loc;if(el.checked&&!s.selected.includes(id))s.selected.push(id);else if(!el.checked)s.selected=s.selected.filter(x=>x!==id);changed(s,'Chọn địa phương');return}
  if(el.dataset.setting&&s){
   const k=el.dataset.setting;if(['decimals','fontSize','threshold','areaDecimals','columnWidth'].includes(k)){const n=Number(el.value);if(!Number.isFinite(n))return;s.settings[k]=n;}else s.settings[k]=el.value;
   changed(s,'Chỉnh định dạng '+k);return;
@@ -295,7 +318,7 @@ async function start(){
  host.className='app-main';
  document.addEventListener('click',actions);
  document.addEventListener('change',fieldChanged);
- document.addEventListener('input',e=>{if(e.target.id==='locality-search')filterLoc();});
+ document.addEventListener('input',e=>{if(e.target.id==='locality-search'){localityQuery=e.target.value;localityScroll=0;filterLoc();}});
  document.addEventListener('dragover',e=>{if(e.target.closest('#studio-dropzone')){e.preventDefault();e.target.closest('#studio-dropzone').classList.add('dragover');}});
  document.addEventListener('dragleave',e=>{e.target.closest('#studio-dropzone')?.classList.remove('dragover')});
  document.addEventListener('drop',e=>{const dz=e.target.closest('#studio-dropzone');if(dz){e.preventDefault();dz.classList.remove('dragover');identifyFiles(e.dataTransfer.files);}});
