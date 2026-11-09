@@ -1,3 +1,15 @@
+# KTXH Offline — Document Studio PH1 (nhánh triển khai mới)
+
+**Bản chạy trực tiếp:** [`dist/index.html`](dist/index.html). Mở bằng Chrome/Edge từ thư mục đã tải, đường dẫn `file://`, không yêu cầu server, tài khoản hay Internet. Nguồn và báo cáo không truyền ra mạng.
+
+**Hướng dẫn nhanh:** tải file HTML, mở trình duyệt, bấm **+ Phiên mới** (không chọn sẵn địa phương); vào **Dữ liệu nguồn** để nhập 3 XLSX cùng lúc hoặc lần lượt (tự nhận diện REV/DISB/GPMB), xác nhận ngày chốt và căn cứ; trở lại **Báo cáo tổng hợp** để chọn các địa phương; dùng thanh **Bố cục** (tự động / ngang / dọc) và **Khổ giấy** để xem trước A4; bấm các ô để xem trace, sau đó **Xuất Excel** hoặc **In/PDF**. Khi làm xong, bấm **Sao lưu hồ sơ** để tải tệp `.kxh.json` có kiểm checksum. Tự lưu qua IndexedDB chỉ là lưu tạm, không thay thế file backup.
+
+**Nguồn thật:** dùng đúng 3 workbook tại `../data/reference/`, không thêm file nội bộ vào repo. Ngày chốt của REV `10T-19.10` vẫn cần kiểm tra và xác nhận theo chứng cứ hành chính, không tự nhận 19/10 hay 31/10 là ngày chốt.
+
+**Đánh giá QA mới:** [trạng thái triển khai](docs/STUDIO_STATUS_20261109.md) và [workflow kiểm thử](../.github/workflows/ktxh-document-studio.yml). Mọi bằng chứng phải gắn SHA; chưa phải nghiệm thu cuối cùng PH1/PH2. Ứng dụng sử dụng nguyên calculation engine của PH1 và bổ sung module `studio-*` để giữ kết quả số.
+
+---
+
 # ChatGPT PH1 — KTXH Offline (cô lập mã nguồn, dùng chung dữ liệu)
 
 Đây là vùng thực thi **Kế hoạch PH1** của ChatGPT trong repository `cavoixanh638/KTXD-report`. Mọi phần đã commit ở đây thuộc nhánh `chatgpt/ph1-20261109`, không sửa phần do AI khác sở hữu.
