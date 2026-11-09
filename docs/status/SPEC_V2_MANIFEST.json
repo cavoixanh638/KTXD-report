@@ -2,7 +2,7 @@
   "project": "KTXH-Offline-Report",
   "spec_version": "2.0 FINAL",
   "spec_file": "docs/specs/KTXH_OFFLINE_MASTER_SPEC_V2_FINAL.md",
-  "spec_sha256": "80f67f24d98e3044170bdd6247fd74afebf94e293cd01ec35f0fd242405ce764",
+  "spec_sha256": "6752aa90b24127ef60101de6806c477a950601964b225d9eed0dba599ef703f4",
   "spec_lines": 732,
   "test_ids": [
     "T01",
@@ -60,12 +60,14 @@
   ],
   "test_count": 52,
   "runtime_test_status": "NOT_RUN",
-  "github_commit": "NOT_CREATED_OR_VERIFIED",
+  "github_commit": "04f6d6694274e951fb14bdc7687b7ffd120a5cf5",
   "source_workbooks_included": false,
   "audit_scripts": [
     "tools/audit_review_round1.py",
     "tools/audit_review_round2.py",
     "tools/verify_final_spec_baseline.py"
   ],
-  "source_recheck": "docs/reviews/FINAL_SPEC_SOURCE_RECHECK.json"
+  "source_recheck": "docs/reviews/FINAL_SPEC_SOURCE_RECHECK.json",
+  "github_repository": "cavoixanh638/KTXD-report",
+  "github_files_verified": true
 }
