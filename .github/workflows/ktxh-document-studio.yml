@@ -22,6 +22,8 @@ jobs:
         run: python tools/verify_reference_files.py
       - name: Build file URL self-contained bundle
         run: node chatgpt/build.mjs
+      - name: Verify committed offline bundle matches reproducible build
+        run: git diff --exit-code -- chatgpt/dist/index.html
       - name: Test calculation engine and layout
         run: node --test chatgpt/tests/core.test.cjs chatgpt/tests/studio_layout.test.cjs
       - name: Install browser QA tools
