@@ -1,3 +1,4 @@
+import Decimal from 'decimal.js';
 import { CalculationTrace } from '../core/types';
 
 export function escapeHtmlUi(str: unknown): string {
@@ -7,6 +8,23 @@ export function escapeHtmlUi(str: unknown): string {
     .replace(/>/g, '&gt;')
     .replace(/"/g, '&quot;')
     .replace(/'/g, '&#39;');
+}
+
+export function formatMax4Decimals(val: unknown): string {
+  if (val === null || val === undefined || val === '') return 'null';
+  const str = String(val).trim();
+  if (str === 'null' || str === 'undefined') return 'null';
+  try {
+    const normalized = str.replace(',', '.');
+    if (!/^[-+]?(\d+(\.\d*)?|\.\d+)([eE][-+]?\d+)?$/.test(normalized)) {
+      return str;
+    }
+    const d = new Decimal(normalized);
+    if (d.isNaN()) return str;
+    return d.toDecimalPlaces(4, Decimal.ROUND_HALF_UP).toString();
+  } catch {
+    return str;
+  }
 }
 
 export function renderTraceInspectorHtml(
@@ -28,7 +46,7 @@ export function renderTraceInspectorHtml(
       (op) => `<tr>
         <td><strong>${escapeHtmlUi(op.role)}</strong></td>
         <td><code>${escapeHtmlUi(op.fieldId)}</code></td>
-        <td><code>${escapeHtmlUi(op.exactValue ?? 'null')}</code></td>
+        <td><code>${escapeHtmlUi(formatMax4Decimals(op.exactValue))}</code></td>
         <td>${escapeHtmlUi(op.unit)}</td>
         <td><span class="badge badge-${escapeHtmlUi(op.state)}">${escapeHtmlUi(op.state)}</span></td>
         <td>${op.sources
@@ -73,7 +91,7 @@ export function renderTraceInspectorHtml(
                     <td><code>${escapeHtmlUi(z.recordId)}</code></td>
                     <td>${escapeHtmlUi(z.localityName || z.localityId)}</td>
                     <td>${escapeHtmlUi(z.numeratorSource.address)}</td>
-                    <td><strong>${escapeHtmlUi(z.numeratorExactDecimal)}</strong></td>
+                    <td><strong>${escapeHtmlUi(formatMax4Decimals(z.numeratorExactDecimal))}</strong></td>
                     <td>${escapeHtmlUi(z.denominatorSource.address)} = 0</td>
                   </tr>`
                 )
@@ -200,8 +218,8 @@ export function renderTraceInspectorHtml(
         <strong class="stat-value">${escapeHtmlUi(trace.result.displayedText)}</strong>
       </div>
       <div class="trace-stat">
-        <span class="stat-label">Số gốc chính xác (Decimal chưa làm tròn):</span>
-        <code>${escapeHtmlUi(trace.result.exactDecimal ?? 'null')}</code>
+        <span class="stat-label">Số gốc chính xác (Decimal chưa làm tròn, tối đa 4 số thập phân):</span>
+        <code>${escapeHtmlUi(formatMax4Decimals(trace.result.exactDecimal))}</code>
       </div>
       <div class="trace-stat">
         <span class="stat-label">Đơn vị chuẩn / hiển thị:</span>
@@ -293,11 +311,11 @@ export function renderCellTracePopoverHtml(
       ? `<div class="popover-fraction">
           <div class="fraction-line">
             <span class="fraction-label">Tử số:</span>
-            <code>${escapeHtmlUi(numOp.exactValue ?? 'null')}</code> ${escapeHtmlUi(numOp.unit)}
+            <code>${escapeHtmlUi(formatMax4Decimals(numOp.exactValue))}</code> ${escapeHtmlUi(numOp.unit)}
           </div>
           <div class="fraction-line">
             <span class="fraction-label">Mẫu số:</span>
-            <code>${escapeHtmlUi(denOp.exactValue ?? 'null')}</code> ${escapeHtmlUi(denOp.unit)}
+            <code>${escapeHtmlUi(formatMax4Decimals(denOp.exactValue))}</code> ${escapeHtmlUi(denOp.unit)}
           </div>
         </div>`
       : '';
@@ -317,7 +335,7 @@ export function renderCellTracePopoverHtml(
       </div>
       <div class="popover-meta-row">
         <span class="popover-meta-label">Số gốc chưa làm tròn:</span>
-        <code class="popover-exact-val">${escapeHtmlUi(trace.result.exactDecimal ?? 'null')}</code>
+        <code class="popover-exact-val">${escapeHtmlUi(formatMax4Decimals(trace.result.exactDecimal))}</code>
       </div>
       <div class="popover-meta-row">
         <span class="popover-meta-label">Công thức:</span>

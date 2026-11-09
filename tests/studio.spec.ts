@@ -18,8 +18,12 @@ import { searchLocalities } from '../src/core/localities';
 import {
   computeAutoLayoutMode,
   renderA4DocumentStudioHtml,
+  formatReportCellValue,
 } from '../src/ui/reportStudio';
-import { renderCellTracePopoverHtml } from '../src/ui/cellInspector';
+import {
+  renderCellTracePopoverHtml,
+  formatMax4Decimals,
+} from '../src/ui/cellInspector';
 import { Dataset, Locality } from '../src/core/types';
 
 const rootDir = process.cwd();
@@ -151,12 +155,14 @@ describe('KTXH Offline – A4 Report Studio & WYSIWYG Architecture Suite', () =>
       datasets: { DISB: disbDataset, REV: revDataset, GPMB: gpmbDataset },
     });
 
-    // Check Administrative Elements
+    // Check Studio Document Header & Centered Title per user refinements
     expect(html5).toContain('a4-paper-sheet a4-landscape');
-    expect(html5).toContain('CỘNG HÒA XÃ HỘI CHỦ NGHĨA VIỆT NAM');
-    expect(html5).toContain('Độc lập - Tự do - Hạnh phúc');
-    expect(html5).toContain('ỦY BAN NHÂN DÂN THÀNH PHỐ');
-    expect(html5).toContain('SỞ KẾ HOẠCH VÀ ĐẦU TƯ');
+    expect(html5).toContain('doc-title-block text-center');
+    expect(html5).toContain('TÌNH HÌNH THỰC HIỆN MỘT SỐ CHỈ TIÊU KINH TẾ - XÃ HỘI CỦA CÁC ĐỊA PHƯƠNG');
+    expect(html5).not.toContain('CỘNG HÒA XÃ HỘI CHỦ NGHĨA VIỆT NAM');
+    expect(html5).not.toContain('SỞ KẾ HOẠCH VÀ ĐẦU TƯ');
+    expect(html5).not.toContain('doc-asof-meta');
+    expect(html5).not.toContain('doc-period-badge');
     expect(html5).toContain('doc-table-horizontal');
     expect(html5).toContain('Tỷ lệ GPMB địa phương theo diện tích');
     expect(html5).toContain('NGƯỜI LẬP BIỂU');
@@ -315,5 +321,49 @@ describe('KTXH Offline – A4 Report Studio & WYSIWYG Architecture Suite', () =>
 
     const cell = evaluatedRow10.cellsByLocalityId[firstLocId];
     expect(cell.trace.formula.formulaId).toBe('DISB_RATE_LOCALITY'); // Math unchanged!
+  });
+
+  it('7. User Formatting Refinements: clean row 7, max 4 unrounded decimals, and "tỷ" suffix for billion VND', () => {
+    // 1. Max 4 decimals helper verification
+    expect(formatMax4Decimals('136.41228070175438596')).toBe('136.4123');
+    expect(formatMax4Decimals('72.128795123')).toBe('72.1288');
+    expect(formatMax4Decimals('32.85')).toBe('32.85');
+    expect(formatMax4Decimals('100')).toBe('100');
+    expect(formatMax4Decimals(null)).toBe('null');
+
+    // 2. Evaluate report and check STT 7 (rowNumber 14) clean displayed text
+    const ws = createEmptyWorkspace();
+    const session = createReportSession(ws, { name: 'Test Refinements' });
+    const firstLocId = baselineLocalities[0].id;
+    setSessionLocalities(ws, session.id, [firstLocId]);
+
+    const evalReport = evaluateSessionReport({
+      session,
+      baselineLocalities,
+      datasets: { DISB: disbDataset, REV: revDataset, GPMB: gpmbDataset },
+    });
+
+    const row14 = evalReport.rows.find((r) => r.rowConfig.rowNumber === 14)!;
+    expect(row14.rowConfig.sttLabel).toBe('7');
+    const cellRow14 = row14.cellsByLocalityId[firstLocId];
+    expect(cellRow14.displayedText).toBe('72,13%');
+    expect(cellRow14.displayedText).not.toContain('108/114');
+    expect(cellRow14.displayedText).not.toContain('còn 3 DA thiếu I');
+
+    // 3. Check "tỷ" suffix in formatReportCellValue for billion_vnd
+    const row3 = evalReport.rows.find((r) => r.rowConfig.rowNumber === 3)!; // REV_BUDGET_Y
+    const cellRow3 = row3.cellsByLocalityId[firstLocId];
+    const formattedRow3 = formatReportCellValue(cellRow3, row3.indicator.displayUnit, 'billion');
+    expect(formattedRow3).toMatch(/tỷ$/);
+
+    // 4. Render Studio HTML and check absence of row-level notes and presence of "tỷ"
+    const studioHtml = renderA4DocumentStudioHtml({
+      evaluated: evalReport,
+      baselineLocalities,
+      datasets: { DISB: disbDataset, REV: revDataset, GPMB: gpmbDataset },
+    });
+    expect(studioHtml).not.toContain('indicator-unit-sub');
+    expect(studioHtml).not.toContain('ind-vert-stt');
+    expect(studioHtml).toContain('tỷ');
   });
 });

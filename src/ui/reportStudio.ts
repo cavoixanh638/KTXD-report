@@ -1,7 +1,33 @@
-import { EvaluatedSessionReport, EvaluatedReportRow } from '../core/calculationTrace';
+import { EvaluatedSessionReport, EvaluatedReportRow, EvaluatedReportCell } from '../core/calculationTrace';
 import { analyzeSourceCoverage } from '../core/coverage';
 import { Dataset, Locality, ReportSession } from '../core/types';
 import { escapeHtmlUi } from './cellInspector';
+
+export function formatReportCellValue(
+  cell: EvaluatedReportCell | undefined,
+  displayUnit: string,
+  moneyUnit: 'billion' | 'million' = 'billion'
+): string {
+  if (!cell) return 'Chưa có số liệu';
+  const text = cell.displayedText;
+  if (!text) return '';
+  if (
+    cell.state === 'OUT_OF_SCOPE' ||
+    cell.state === 'NOT_APPLICABLE' ||
+    cell.state === 'INVALID' ||
+    cell.state === 'FORMULA_ERROR'
+  ) {
+    return text;
+  }
+  if ((displayUnit === 'billion_vnd' || cell.unitLabel === 'tỷ đồng') && moneyUnit === 'billion') {
+    if (!text.includes('tỷ') && !text.includes('triệu')) {
+      if (/^[-+]?[\d.,\s]+$/.test(text.trim())) {
+        return `${text} tỷ`;
+      }
+    }
+  }
+  return text;
+}
 
 export interface LayoutDecision {
   mode: 'HORIZONTAL' | 'VERTICAL';
@@ -242,6 +268,12 @@ function renderHorizontalPages(params: {
                 ? `<span class="cell-note-pill" title="Có ghi chú nguyên văn cột Q">📝</span>`
                 : '';
 
+              const formattedVal = formatReportCellValue(
+                cell,
+                r.indicator.displayUnit,
+                session.settings.moneyUnit
+              );
+
               return `<td class="doc-td doc-cell state-${escapeHtmlUi(
                 cell.state
               )} quality-${escapeHtmlUi(cell.qualityStatus)} ${
@@ -254,7 +286,7 @@ function renderHorizontalPages(params: {
                 r.indicator.id
               )}" title="Nhấn để xem cách tính chi tiết và nguồn số liệu">
                 <div class="cell-content">
-                  <span class="cell-val">${escapeHtmlUi(cell.displayedText)}</span>
+                  <span class="cell-val">${escapeHtmlUi(formattedVal)}</span>
                   ${warnIcon}${noteIcon}
                 </div>
               </td>`;
@@ -270,7 +302,6 @@ function renderHorizontalPages(params: {
                   r.indicator.id
                 )}" data-row-number="${r.rowConfig.rowNumber}" title="Đổi tên hiển thị chỉ tiêu">✎</button>
               </div>
-              <div class="indicator-unit-sub">ĐVT: <strong>${escapeHtmlUi(unitBadge)}</strong> (Dòng mẫu ${r.rowConfig.rowNumber})</div>
             </td>
             ${cellsHtml}
           </tr>`;
@@ -360,7 +391,6 @@ function renderVerticalPages(params: {
         r.rowConfig.customLabel
       )}">
         <div class="ind-vert-name">${escapeHtmlUi(r.rowConfig.customLabel)}${escapeHtmlUi(unitSuffix)}</div>
-        <div class="ind-vert-stt">Dòng ${r.rowConfig.rowNumber}</div>
       </th>`;
     })
     .join('');
@@ -379,6 +409,11 @@ function renderVerticalPages(params: {
               const isSelected = activeTraceId === cell.traceId;
               const warnIcon = cell.hasWarning ? `<span class="cell-warn-pill">⚠</span>` : '';
               const noteIcon = cell.officialNote ? `<span class="cell-note-pill">📝</span>` : '';
+              const formattedVal = formatReportCellValue(
+                cell,
+                r.indicator.displayUnit,
+                session.settings.moneyUnit
+              );
 
               return `<td class="doc-td doc-cell state-${escapeHtmlUi(
                 cell.state
@@ -390,9 +425,9 @@ function renderVerticalPages(params: {
                 r.indicator.id
               )}" title="${escapeHtmlUi(loc.displayName)} — ${escapeHtmlUi(
                 r.rowConfig.customLabel
-              )}: ${escapeHtmlUi(cell.displayedText)}">
+              )}: ${escapeHtmlUi(formattedVal)}">
                 <div class="cell-content">
-                  <span class="cell-val">${escapeHtmlUi(cell.displayedText)}</span>
+                  <span class="cell-val">${escapeHtmlUi(formattedVal)}</span>
                   ${warnIcon}${noteIcon}
                 </div>
               </td>`;
@@ -489,38 +524,12 @@ function renderPaperSheetHtml(params: {
       : '';
 
   return `<div class="a4-paper-sheet a4-landscape" data-page-number="${pageIdx}">
-    <!-- HEADER HÀNH CHÍNH QUY CHUẨN VIỆT NAM -->
-    <header class="doc-header">
-      <div class="doc-agency-box">
-        <div class="agency-superior">${escapeHtmlUi(session.settings.agencyName || 'ỦY BAN NHÂN DÂN THÀNH PHỐ')}</div>
-        <div class="agency-unit">${escapeHtmlUi(session.settings.subAgencyName || 'SỞ KẾ HOẠCH VÀ ĐẦU TƯ')}</div>
-        <div class="agency-line"></div>
-      </div>
-      <div class="doc-motto-box">
-        <div class="motto-country">CỘNG HÒA XÃ HỘI CHỦ NGHĨA VIỆT NAM</div>
-        <div class="motto-independence">Độc lập - Tự do - Hạnh phúc</div>
-        <div class="motto-line"></div>
-        <div class="doc-asof-meta">
-          <span>Ngày chốt số liệu: DISB: ${escapeHtmlUi(disbDate)} | REV: ${escapeHtmlUi(revDate)} | GPMB: ${escapeHtmlUi(gpmbDate)}</span>
-        </div>
-      </div>
-    </header>
-
-    <!-- TIÊU ĐỀ BÁO CÁO (NHẤP TRỰC TIẾP ĐỂ CHỈNH SỬA) -->
-    <div class="doc-title-block text-${titleAlign}">
-      <h1 class="doc-title ${titleClass}" style="font-size:${titleFontSize}px" data-action="open-title-editor" title="Nhấp chuột vào tiêu đề để đổi tên báo cáo, phụ đề, tên cơ quan">
+    <!-- TIÊU ĐỀ BÁO CÁO (CĂN GIỮA) -->
+    <div class="doc-title-block text-center">
+      <h1 class="doc-title ${titleClass}" style="font-size:${titleFontSize}px" data-action="open-title-editor" title="Nhấp chuột vào tiêu đề để đổi tên báo cáo">
         ${escapeHtmlUi(session.settings.reportTitle)}
-        <button type="button" class="btn-inline-pencil" title="Sửa tiêu đề và thông tin báo cáo">✎</button>
+        <button type="button" class="btn-inline-pencil" title="Sửa tiêu đề báo cáo">✎</button>
       </h1>
-      ${
-        session.settings.subtitle
-          ? `<p class="doc-subtitle">${escapeHtmlUi(session.settings.subtitle)}</p>`
-          : ''
-      }
-      <div class="doc-period-badge">
-        <span>Phiên: <strong>${escapeHtmlUi(session.name)}</strong> (${session.selectedLocalityIds.length} địa phương)</span>
-        ${totalPages > 1 ? ` &bull; <span>Phần ${pageIdx}/${totalPages}</span>` : ''}
-      </div>
     </div>
 
     <!-- BẢNG DỮ LIỆU TÍNH TOÁN -->

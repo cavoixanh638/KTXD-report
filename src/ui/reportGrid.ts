@@ -2,6 +2,7 @@ import { EvaluatedSessionReport } from '../core/calculationTrace';
 import { analyzeSourceCoverage } from '../core/coverage';
 import { Dataset, Locality } from '../core/types';
 import { escapeHtmlUi } from './cellInspector';
+import { formatReportCellValue } from './reportStudio';
 
 export function renderReportGridHtml(params: {
   evaluated: EvaluatedSessionReport;
@@ -62,6 +63,12 @@ export function renderReportGridHtml(params: {
             ? `<span class="cell-note-icon" title="Có ghi chú cột Q nguyên văn">📝</span>`
             : '';
 
+          const formattedVal = formatReportCellValue(
+            cell,
+            r.indicator.displayUnit,
+            session.settings.moneyUnit
+          );
+
           return `<td class="report-cell state-${escapeHtmlUi(
             cell.state
           )} quality-${escapeHtmlUi(cell.qualityStatus)} ${
@@ -71,7 +78,7 @@ export function renderReportGridHtml(params: {
           )}" data-locality-id="${escapeHtmlUi(
             loc.id
           )}" data-indicator-id="${escapeHtmlUi(r.indicator.id)}">
-            <div class="cell-main-val">${escapeHtmlUi(cell.displayedText)} ${warnBadge}${noteBadge}</div>
+            <div class="cell-main-val">${escapeHtmlUi(formattedVal)} ${warnBadge}${noteBadge}</div>
           </td>`;
         })
         .join('');
@@ -82,9 +89,6 @@ export function renderReportGridHtml(params: {
         <td class="sticky-col stt-col">${escapeHtmlUi(r.rowConfig.sttLabel || '')}</td>
         <td class="sticky-col indicator-col">
           <div class="ind-label">${escapeHtmlUi(r.rowConfig.customLabel)}</div>
-          <div class="ind-meta">Dòng mẫu ${r.rowConfig.rowNumber} | ĐVT: <strong>${escapeHtmlUi(
-        unitBadge
-      )}</strong></div>
         </td>
         ${cellsHtml}
       </tr>`;
@@ -106,11 +110,8 @@ export function renderReportGridHtml(params: {
   return `<div class="report-grid-wrapper" style="font-family:${escapeHtmlUi(
     session.settings.fontFamily
   )}; font-size:${session.settings.fontSizePx}px">
-    <div class="report-title-banner">
+    <div class="report-title-banner" style="text-align: center">
       <h2>${escapeHtmlUi(session.settings.reportTitle)}</h2>
-      <p class="report-subtitle">Phiên: <strong>${escapeHtmlUi(
-        session.name
-      )}</strong> (${selectedLocalities.length} địa phương) | GPMB: <strong>Chỉ tính theo diện tích SUM(I)/SUM(D)</strong> (đã loại bỏ hoàn toàn bình quân tỷ lệ dự án M theo R06)</p>
     </div>
 
     <div class="table-scroll-container">

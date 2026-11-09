@@ -1521,8 +1521,9 @@ code {
 }
 
 .doc-title-block {
-  margin: 10px 0 14px;
+  margin: 12px 0 16px;
   position: relative;
+  text-align: center;
 }
 
 .doc-title {
@@ -1532,8 +1533,10 @@ code {
   cursor: pointer;
   display: inline-flex;
   align-items: center;
-  gap: 6px;
-  line-height: 1.3;
+  justify-content: center;
+  gap: 8px;
+  line-height: 1.35;
+  text-align: center;
 }
 
 .doc-title:hover {

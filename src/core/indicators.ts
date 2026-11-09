@@ -504,7 +504,7 @@ export const TEMPLATE_14_ROWS_DEFAULT: TemplateRowCustomConfig[] = [
     rowNumber: 14,
     indicatorId: 'GPMB_BENCHMARK_AREA_RATE',
     sttLabel: '7',
-    customLabel: 'Tỷ lệ GPMB của danh mục địa bàn có dữ liệu (108/114 địa bàn)',
+    customLabel: 'Tỷ lệ GPMB của danh mục địa bàn có dữ liệu',
     groupName: 'III. Công tác giải phóng mặt bằng (GPMB)',
     visible: true,
     order: 12,

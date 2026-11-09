@@ -1,8 +1,8 @@
 # CHECKPOINT — WebApp KTXH Offline (MASTER V2.2)
 
-- **Ngày cập nhật:** 2026-11-09
+- **Ngày cập nhật:** 2026-11-10
 - **Repository:** `cavoixanh638/KTXD-report` (Private)
-- **Nhánh triển khai:** `gemini` (Kiến trúc Modern Administrative Document Studio WYSIWYG A4 ngang)
+- **Nhánh triển khai:** `gemini` (Kiến trúc Modern Administrative Document Studio WYSIWYG A4 ngang — đã hoàn thiện các tinh chỉnh hiển thị & định dạng)
 - **Tài liệu có hiệu lực:** [`MASTER V2.2`](../specs/KTXH_OFFLINE_MASTER_SPEC_V2_2_CURRENT.md), [`PH1`](../plans/PHASE_1_RESULT_TEMPLATE.md), [`PH2`](../plans/PHASE_2_EXTENSIBILITY.md).
 - **Trạng thái tổng:** `MASTER_V2.2 / PH1_DOCUMENT_STUDIO_WYSIWYG_IMPLEMENTED / PH2_NOT_STARTED`.
 - **Bốn file nguồn tham chiếu (`data/reference/MANIFEST.json` — 4/4 SHA-256 PASS):**
@@ -25,7 +25,15 @@
 ## KẾT QUẢ KIỂM THỬ RUNTIME (`T01`–`T66` & STUDIO SUITE)
 
 - **Lệnh kiểm thử:** `npm run typecheck; npm test; npm run build; python tools/verify_reference_files.py`
-- **Bộ kiểm thử runtime:** 2 test suites, **24/24 tests PASS** (`tests/ph1.spec.ts` 18 tests, `tests/studio.spec.ts` 6 tests).
+- **Bộ kiểm thử runtime:** 2 test suites, **25/25 tests PASS** (`tests/ph1.spec.ts` 18 tests, `tests/studio.spec.ts` 7 tests bao gồm cả các kiểm thử định dạng và tinh chỉnh theo phản hồi người dùng).
+- **Tinh chỉnh giao diện và hiển thị đã hoàn thiện:**
+  1. Loại bỏ hoàn toàn khối cơ quan chủ quản (Sở KH&ĐT), quốc hiệu tiêu ngữ và dòng ngày chốt số liệu meta ở đầu trang báo cáo.
+  2. Loại bỏ phụ đề và huy hiệu phiên ở đầu báo cáo.
+  3. Căn giữa tiêu đề chính `TÌNH HÌNH THỰC HIỆN MỘT SỐ CHỈ TIÊU KINH TẾ - XÃ HỘI CỦA CÁC ĐỊA PHƯƠNG`.
+  4. Loại bỏ các dòng ghi chú phụ/dòng mẫu dưới tên chỉ tiêu trong các bảng.
+  5. Dòng STT 7 (chỉ tiêu `GPMB_BENCHMARK_AREA_RATE`) hiển thị gọn gàng `72,13%`, không còn chuỗi phụ cảnh báo.
+  6. Các số gốc Decimal chưa làm tròn trên popover và inspector hiển thị tối đa 4 chữ số sau dấu thập phân.
+  7. Các chỉ tiêu có đơn vị tỷ đồng hiển thị kèm chữ `tỷ` ngay bên cạnh số liệu (`formatReportCellValue`).
 - **Bằng chứng JSON xuất tự động từ runtime:** [`docs/data_checks/PH1_ACCEPTANCE_EVIDENCE_20261109.json`](../data_checks/PH1_ACCEPTANCE_EVIDENCE_20261109.json) (chứa bảng đối chiếu 14 dòng cho Phiên A 5 xã và Phiên B 7 phường cùng trạng thái từng mã `T01`–`T66`).
 - **Minh chứng Microsoft Edge Headless Offline (`file://`):**
   - [`docs/evidence/EDGE_HEADLESS_DOM_DUMP.html`](../evidence/EDGE_HEADLESS_DOM_DUMP.html) (2.04 MB DOM dump xác nhận khởi chạy JS & Document Studio hoàn chỉnh).

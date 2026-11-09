@@ -950,7 +950,7 @@ export function evaluateLocalityIndicator(params: {
       exactDecimal: bm.exactPercent ? bm.exactPercent.toString() : null,
       numericValueForExcel: bm.exactRatio ? bm.exactRatio.toNumber() : null,
       excelFormatType: 'PERCENT_RATIO',
-      displayedText: `${bm.displayedText} (108/114 địa bàn, còn 3 DA thiếu I)`,
+      displayedText: bm.displayedText,
       unitLabel: '%',
       state: bm.trace.result.state,
       qualityStatus: 'PARTIAL_AGGREGATE',

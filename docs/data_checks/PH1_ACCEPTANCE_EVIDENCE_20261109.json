@@ -1,7 +1,7 @@
 {
   "phase": "PH1",
   "specVersion": "MASTER_V2.2_CURRENT",
-  "generatedAt": "2026-11-09T16:45:20.326Z",
+  "generatedAt": "2026-11-09T17:19:42.290Z",
   "sourceSha256": {
     "DISB_20261015": "3ba33b3efd579499500d956c2580a170e84dd38b8d700fdfaaf9a361ea7cb38c",
     "REV_10M_2026": "b41227d1444c581e6f3b65d761fad8918b65aedfbd8114443e6dee9d4938356f",
@@ -509,38 +509,38 @@
         "rowNumber": 14,
         "stt": "7",
         "indicatorId": "GPMB_BENCHMARK_AREA_RATE",
-        "label": "Tỷ lệ GPMB của danh mục địa bàn có dữ liệu (108/114 địa bàn)",
+        "label": "Tỷ lệ GPMB của danh mục địa bàn có dữ liệu",
         "values": {
           "Phường Hưng Đạo": {
-            "displayed": "72,13% (108/114 địa bàn, còn 3 DA thiếu I)",
+            "displayed": "72,13%",
             "exactDecimal": "72.13318997118406358766576474148557086683",
             "state": "VALUE",
             "quality": "PARTIAL_AGGREGATE",
             "traceId": "TRACE_BM_GPMB_BENCHMARK_AREA_RATE_LOCALITIES_AVAILABLE_N_GPMB_d393c3c1f3f9"
           },
           "Xã Hồng Châu": {
-            "displayed": "72,13% (108/114 địa bàn, còn 3 DA thiếu I)",
+            "displayed": "72,13%",
             "exactDecimal": "72.13318997118406358766576474148557086683",
             "state": "VALUE",
             "quality": "PARTIAL_AGGREGATE",
             "traceId": "TRACE_BM_GPMB_BENCHMARK_AREA_RATE_LOCALITIES_AVAILABLE_N_GPMB_d393c3c1f3f9"
           },
           "Phường Trần Hưng Đạo": {
-            "displayed": "72,13% (108/114 địa bàn, còn 3 DA thiếu I)",
+            "displayed": "72,13%",
             "exactDecimal": "72.13318997118406358766576474148557086683",
             "state": "VALUE",
             "quality": "PARTIAL_AGGREGATE",
             "traceId": "TRACE_BM_GPMB_BENCHMARK_AREA_RATE_LOCALITIES_AVAILABLE_N_GPMB_d393c3c1f3f9"
           },
           "Xã Trần Phú": {
-            "displayed": "72,13% (108/114 địa bàn, còn 3 DA thiếu I)",
+            "displayed": "72,13%",
             "exactDecimal": "72.13318997118406358766576474148557086683",
             "state": "VALUE",
             "quality": "PARTIAL_AGGREGATE",
             "traceId": "TRACE_BM_GPMB_BENCHMARK_AREA_RATE_LOCALITIES_AVAILABLE_N_GPMB_d393c3c1f3f9"
           },
           "Xã Cẩm Giang": {
-            "displayed": "72,13% (108/114 địa bàn, còn 3 DA thiếu I)",
+            "displayed": "72,13%",
             "exactDecimal": "72.13318997118406358766576474148557086683",
             "state": "VALUE",
             "quality": "PARTIAL_AGGREGATE",
@@ -1279,52 +1279,52 @@
         "rowNumber": 14,
         "stt": "7",
         "indicatorId": "GPMB_BENCHMARK_AREA_RATE",
-        "label": "Tỷ lệ GPMB của danh mục địa bàn có dữ liệu (108/114 địa bàn)",
+        "label": "Tỷ lệ GPMB của danh mục địa bàn có dữ liệu",
         "values": {
           "Phường Hưng Đạo": {
-            "displayed": "72,13% (108/114 địa bàn, còn 3 DA thiếu I)",
+            "displayed": "72,13%",
             "exactDecimal": "72.13318997118406358766576474148557086683",
             "state": "VALUE",
             "quality": "PARTIAL_AGGREGATE",
             "traceId": "TRACE_BM_GPMB_BENCHMARK_AREA_RATE_LOCALITIES_AVAILABLE_N_GPMB_d393c3c1f3f9"
           },
           "Phường Trần Hưng Đạo": {
-            "displayed": "72,13% (108/114 địa bàn, còn 3 DA thiếu I)",
+            "displayed": "72,13%",
             "exactDecimal": "72.13318997118406358766576474148557086683",
             "state": "VALUE",
             "quality": "PARTIAL_AGGREGATE",
             "traceId": "TRACE_BM_GPMB_BENCHMARK_AREA_RATE_LOCALITIES_AVAILABLE_N_GPMB_d393c3c1f3f9"
           },
           "Phường Dương Kinh": {
-            "displayed": "72,13% (108/114 địa bàn, còn 3 DA thiếu I)",
+            "displayed": "72,13%",
             "exactDecimal": "72.13318997118406358766576474148557086683",
             "state": "VALUE",
             "quality": "PARTIAL_AGGREGATE",
             "traceId": "TRACE_BM_GPMB_BENCHMARK_AREA_RATE_LOCALITIES_AVAILABLE_N_GPMB_d393c3c1f3f9"
           },
           "Phường An Phong": {
-            "displayed": "72,13% (108/114 địa bàn, còn 3 DA thiếu I)",
+            "displayed": "72,13%",
             "exactDecimal": "72.13318997118406358766576474148557086683",
             "state": "VALUE",
             "quality": "PARTIAL_AGGREGATE",
             "traceId": "TRACE_BM_GPMB_BENCHMARK_AREA_RATE_LOCALITIES_AVAILABLE_N_GPMB_d393c3c1f3f9"
           },
           "Phường Nam Đồ Sơn": {
-            "displayed": "72,13% (108/114 địa bàn, còn 3 DA thiếu I)",
+            "displayed": "72,13%",
             "exactDecimal": "72.13318997118406358766576474148557086683",
             "state": "VALUE",
             "quality": "PARTIAL_AGGREGATE",
             "traceId": "TRACE_BM_GPMB_BENCHMARK_AREA_RATE_LOCALITIES_AVAILABLE_N_GPMB_d393c3c1f3f9"
           },
           "Phường Hồng An": {
-            "displayed": "72,13% (108/114 địa bàn, còn 3 DA thiếu I)",
+            "displayed": "72,13%",
             "exactDecimal": "72.13318997118406358766576474148557086683",
             "state": "VALUE",
             "quality": "PARTIAL_AGGREGATE",
             "traceId": "TRACE_BM_GPMB_BENCHMARK_AREA_RATE_LOCALITIES_AVAILABLE_N_GPMB_d393c3c1f3f9"
           },
           "Phường Trần Nhân Tông": {
-            "displayed": "72,13% (108/114 địa bàn, còn 3 DA thiếu I)",
+            "displayed": "72,13%",
             "exactDecimal": "72.13318997118406358766576474148557086683",
             "state": "VALUE",
             "quality": "PARTIAL_AGGREGATE",
