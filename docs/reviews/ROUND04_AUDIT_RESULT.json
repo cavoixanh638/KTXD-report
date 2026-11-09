@@ -1,0 +1,39 @@
+{
+  "workbook_sha256": "b41227d1444c581e6f3b65d761fad8918b65aedfbd8114443e6dee9d4938356f",
+  "rows": 113,
+  "annual": {
+    "zero_denominator_row_ids": [
+      15,
+      26,
+      42,
+      57,
+      114
+    ],
+    "zero_denominator_actual_million": "269290",
+    "actual_million": "9777655.45500000002",
+    "budget_million": "7182893",
+    "true_percent": "136.1241975204141286804634289",
+    "incorrect_excluding_zero_percent": "132.3751510011356151344590543"
+  },
+  "period": {
+    "zero_denominator_row_ids": [
+      15,
+      26,
+      28,
+      42,
+      57,
+      114
+    ],
+    "zero_denominator_actual_million": "304790",
+    "actual_million": "9777655.45500000002",
+    "plan_million": "4823476",
+    "true_percent": "202.7097357797571713842880114",
+    "incorrect_excluding_zero_percent": "196.3908487364713750001036597"
+  },
+  "source_total_cells": {
+    "D10": "7182893",
+    "G10": "4823476",
+    "R10": "9777655.455"
+  },
+  "result": "PASS_SOURCE_AUDIT_NOT_RUNTIME_TEST"
+}
