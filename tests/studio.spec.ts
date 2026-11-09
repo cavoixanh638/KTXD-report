@@ -164,7 +164,7 @@ describe('KTXH Offline – A4 Report Studio & WYSIWYG Architecture Suite', () =>
     expect(html5).not.toContain('doc-asof-meta');
     expect(html5).not.toContain('doc-period-badge');
     expect(html5).toContain('doc-table-horizontal');
-    expect(html5).toContain('Tỷ lệ GPMB địa phương theo diện tích');
+    expect(html5).toContain('Tỷ lệ GPMB của từng địa phương');
     expect(html5).not.toContain('Ghi chú phương pháp tính & Dữ liệu nguồn');
     expect(html5).not.toContain('NGƯỜI LẬP BIỂU');
     expect(html5).not.toContain('THỦ TRƯỞNG ĐƠN VỊ');
@@ -267,7 +267,7 @@ describe('KTXH Offline – A4 Report Studio & WYSIWYG Architecture Suite', () =>
     // Verify GPMB row 15 is strictly area-weighted ratio (SUM(I)/SUM(D))
     const row15 = eval11.rows.find((r) => r.rowConfig.rowNumber === 15);
     expect(row15).toBeDefined();
-    expect(row15!.rowConfig.customLabel).toBe('Tỷ lệ GPMB địa phương theo diện tích');
+    expect(row15!.rowConfig.customLabel).toBe('Tỷ lệ GPMB của từng địa phương');
   });
 
   it('5. Cell Trace Popover Rendering & Fraction Operands Breakdown', () => {
@@ -357,23 +357,49 @@ describe('KTXH Offline – A4 Report Studio & WYSIWYG Architecture Suite', () =>
     const formattedRow3 = formatReportCellValue(cellRow3, row3.indicator.displayUnit, 'billion');
     expect(formattedRow3).toMatch(/tỷ$/);
 
-    // 4. Check renamed indicators
+    // 4. Check renamed indicators & as-of date bolding
+    const row4 = evalReport.rows.find((r) => r.rowConfig.rowNumber === 4)!;
+    expect(row4.rowConfig.customLabel).toContain('Tỷ lệ thu NSNN so với dự toán (đến ngày');
+    const row9 = evalReport.rows.find((r) => r.rowConfig.rowNumber === 9)!;
+    expect(row9.rowConfig.customLabel).toContain('Tỷ lệ giải ngân chung của các địa phương (đến ngày');
     const row11 = evalReport.rows.find((r) => r.rowConfig.rowNumber === 11)!;
     expect(row11.rowConfig.customLabel).toBe('Kết quả giải ngân so với tỷ lệ trung bình');
+    const row14Renamed = evalReport.rows.find((r) => r.rowConfig.rowNumber === 14)!;
+    expect(row14Renamed.rowConfig.customLabel).toContain('Tỷ lệ GPMB trung bình của các địa phương (đến ngày');
+    const row15 = evalReport.rows.find((r) => r.rowConfig.rowNumber === 15)!;
+    expect(row15.rowConfig.customLabel).toBe('Tỷ lệ GPMB của từng địa phương');
     const row16 = evalReport.rows.find((r) => r.rowConfig.rowNumber === 16)!;
     expect(row16.rowConfig.customLabel).toBe('Kết quả GPMB so với tỷ lệ trung bình');
 
-    // 5. Render Studio HTML and check absence of row-level notes, absence of footer notes/signatures, and presence of "tỷ"
+    // 5. Check DISB_PLAN adjustment note (tăng/giảm/giữ nguyên)
+    const kienThuyLoc = baselineLocalities.find((l) => l.displayName.includes('Kiến Thụy'));
+    if (kienThuyLoc) {
+      setSessionLocalities(ws, session.id, [kienThuyLoc.id]);
+      const evalKt = evaluateSessionReport({
+        session,
+        baselineLocalities,
+        datasets: { DISB: disbDataset, REV: revDataset, GPMB: gpmbDataset },
+      });
+      const ktRow7 = evalKt.rows.find((r) => r.rowConfig.rowNumber === 7)!;
+      const ktCell7 = ktRow7.cellsByLocalityId[kienThuyLoc.id];
+      expect(ktCell7.adjustmentNote).toBe('tăng 38,25 tỷ');
+      const formattedKt = formatReportCellValue(ktCell7, ktRow7.indicator.displayUnit, 'billion');
+      expect(formattedKt).toContain('(tăng 38,25 tỷ)');
+    }
+
+    // 6. Render Studio HTML and check absence of hidden rows, absence of footer notes/signatures, and presence of bold date
     const studioHtml = renderA4DocumentStudioHtml({
       evaluated: evalReport,
       baselineLocalities,
       datasets: { DISB: disbDataset, REV: revDataset, GPMB: gpmbDataset },
     });
+    expect(studioHtml).not.toContain('So với mức vốn giao bình quân một địa phương');
     expect(studioHtml).not.toContain('indicator-unit-sub');
     expect(studioHtml).not.toContain('ind-vert-stt');
     expect(studioHtml).not.toContain('Ghi chú phương pháp tính & Dữ liệu nguồn');
     expect(studioHtml).not.toContain('NGƯỜI LẬP BIỂU');
     expect(studioHtml).not.toContain('THỦ TRƯỞNG ĐƠN VỊ');
+    expect(studioHtml).toContain('<strong>(đến ngày');
     expect(studioHtml).toContain('tỷ');
   });
 });

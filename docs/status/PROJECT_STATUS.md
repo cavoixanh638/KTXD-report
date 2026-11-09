@@ -33,9 +33,15 @@
   4. Loại bỏ phần chân trang: ghi chú phương pháp tính & dữ liệu nguồn (Master V2.2 & R06) và khối chữ ký (Người lập biểu, Thủ trưởng đơn vị), chỉ giữ đánh số trang gọn gàng.
   5. Đổi tên chỉ tiêu `DISB_COMPARISON_LABEL`: "Nhận xét tỷ lệ giải ngân" $\to$ **"Kết quả giải ngân so với tỷ lệ trung bình"**.
   6. Đổi tên chỉ tiêu `GPMB_COMPARISON_LABEL`: "Đánh giá GPMB" $\to$ **"Kết quả GPMB so với tỷ lệ trung bình"**.
-  7. Dòng STT 7 (chỉ tiêu `GPMB_BENCHMARK_AREA_RATE`) hiển thị gọn gàng `72,13%`, không còn chuỗi phụ cảnh báo.
-  8. Các số gốc Decimal chưa làm tròn trên popover và inspector hiển thị tối đa 4 chữ số sau dấu thập phân.
-  9. Các chỉ tiêu có đơn vị tỷ đồng hiển thị kèm chữ `tỷ` ngay bên cạnh số liệu (`formatReportCellValue`).
+  7. Đổi tên chỉ tiêu `REV_RATE_Y`: **"Tỷ lệ thu NSNN so với dự toán (đến ngày 19/10/2026)"**.
+  8. Đổi tên chỉ tiêu `DISB_BENCHMARK_RATE`: **"Tỷ lệ giải ngân chung của các địa phương (đến ngày 15/10/2026)"**.
+  9. Đổi tên chỉ tiêu `GPMB_BENCHMARK_AREA_RATE`: **"Tỷ lệ GPMB trung bình của các địa phương (đến ngày 26/10/2026)"** (hiển thị sạch `72,13%`, không còn chuỗi cảnh báo).
+  10. Đổi tên chỉ tiêu `GPMB_AREA_RATE`: **"Tỷ lệ GPMB của từng địa phương"**.
+  11. Lược bỏ dòng "So với mức vốn giao bình quân một địa phương" khỏi bảng báo cáo Document Studio.
+  12. Kế hoạch vốn đầu tư công sau điều chỉnh (`DISB_PLAN`) tự động tính và hiển thị số tăng/giảm/giữ nguyên so với kế hoạch ban đầu (Cột F so với Cột C, ví dụ Xã Kiến Thụy: `2101,33 tỷ (tăng 38,25 tỷ)`, Xã Hồng Châu: `35,68 tỷ (giữ nguyên)`).
+  13. Tất cả các cụm từ "(đến ngày...)" trên tiêu đề chỉ tiêu đều được in đậm tự động.
+  14. Các số gốc Decimal chưa làm tròn trên popover và inspector hiển thị tối đa 4 chữ số sau dấu thập phân.
+  15. Các chỉ tiêu có đơn vị tỷ đồng hiển thị kèm chữ `tỷ` ngay bên cạnh số liệu (`formatReportCellValue`).
 - **Bằng chứng JSON xuất tự động từ runtime:** [`docs/data_checks/PH1_ACCEPTANCE_EVIDENCE_20261109.json`](../data_checks/PH1_ACCEPTANCE_EVIDENCE_20261109.json) (chứa bảng đối chiếu 14 dòng cho Phiên A 5 xã và Phiên B 7 phường cùng trạng thái từng mã `T01`–`T66`).
 - **Minh chứng Microsoft Edge Headless Offline (`file://`):**
   - [`docs/evidence/EDGE_HEADLESS_DOM_DUMP.html`](../evidence/EDGE_HEADLESS_DOM_DUMP.html) (2.04 MB DOM dump xác nhận khởi chạy JS & Document Studio hoàn chỉnh).

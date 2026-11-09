@@ -19,14 +19,23 @@ export function formatReportCellValue(
   ) {
     return text;
   }
+  let result = text;
   if ((displayUnit === 'billion_vnd' || cell.unitLabel === 'tỷ đồng') && moneyUnit === 'billion') {
-    if (!text.includes('tỷ') && !text.includes('triệu')) {
-      if (/^[-+]?[\d.,\s]+$/.test(text.trim())) {
-        return `${text} tỷ`;
+    if (!result.includes('tỷ') && !result.includes('triệu')) {
+      if (/^[-+]?[\d.,\s]+$/.test(result.trim())) {
+        result = `${result} tỷ`;
       }
     }
   }
-  return text;
+  if (cell.adjustmentNote) {
+    result = `${result} (${cell.adjustmentNote})`;
+  }
+  return result;
+}
+
+export function renderIndicatorLabelHtml(label: string): string {
+  const escaped = escapeHtmlUi(label);
+  return escaped.replace(/(\(?đến ngày[^\)]*\)?)/gi, '<strong>$1</strong>');
 }
 
 export interface LayoutDecision {
@@ -239,7 +248,8 @@ function renderHorizontalPages(params: {
         )
         .join('');
 
-      const bodyRowsHtml = rows
+      const displayRows = rows.filter((r) => r.indicator.id !== 'DISB_PLAN_VS_AVG_COMMENT');
+      const bodyRowsHtml = displayRows
         .map((r) => {
           const unitBadge =
             r.indicator.displayUnit === 'billion_vnd'
@@ -297,7 +307,7 @@ function renderHorizontalPages(params: {
             <td class="doc-td doc-td-stt">${escapeHtmlUi(r.rowConfig.sttLabel || '')}</td>
             <td class="doc-td doc-td-indicator">
               <div class="indicator-name-group">
-                <span class="indicator-name-text">${escapeHtmlUi(r.rowConfig.customLabel)}</span>
+                <span class="indicator-name-text">${renderIndicatorLabelHtml(r.rowConfig.customLabel)}</span>
                 <button type="button" class="btn-inline-edit-ind" data-indicator-id="${escapeHtmlUi(
                   r.indicator.id
                 )}" data-row-number="${r.rowConfig.rowNumber}" title="Đổi tên hiển thị chỉ tiêu">✎</button>
@@ -371,7 +381,8 @@ function renderVerticalPages(params: {
   if (chunks.length === 0) chunks.push([]);
 
   // Indicator column headers
-  const indicatorHeadersHtml = rows
+  const displayRows = rows.filter((r) => r.indicator.id !== 'DISB_PLAN_VS_AVG_COMMENT');
+  const indicatorHeadersHtml = displayRows
     .map((r) => {
       const unitBadge =
         r.indicator.displayUnit === 'billion_vnd'
@@ -390,7 +401,7 @@ function renderVerticalPages(params: {
       return `<th class="doc-th doc-th-ind-vert" title="${escapeHtmlUi(
         r.rowConfig.customLabel
       )}">
-        <div class="ind-vert-name">${escapeHtmlUi(r.rowConfig.customLabel)}${escapeHtmlUi(unitSuffix)}</div>
+        <div class="ind-vert-name">${renderIndicatorLabelHtml(r.rowConfig.customLabel)}${escapeHtmlUi(unitSuffix)}</div>
       </th>`;
     })
     .join('');
@@ -400,7 +411,7 @@ function renderVerticalPages(params: {
       const bodyRowsHtml = chunk
         .map((loc, locIdx) => {
           const globalStt = (pageIdx * maxRowsPerPage) + locIdx + 1;
-          const cellsHtml = rows
+          const cellsHtml = displayRows
             .map((r) => {
               const cell = r.cellsByLocalityId[loc.id];
               if (!cell) {

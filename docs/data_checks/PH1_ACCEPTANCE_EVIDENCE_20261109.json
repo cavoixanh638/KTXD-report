@@ -1,7 +1,7 @@
 {
   "phase": "PH1",
   "specVersion": "MASTER_V2.2_CURRENT",
-  "generatedAt": "2026-11-09T17:42:12.998Z",
+  "generatedAt": "2026-11-09T18:01:21.827Z",
   "sourceSha256": {
     "DISB_20261015": "3ba33b3efd579499500d956c2580a170e84dd38b8d700fdfaaf9a361ea7cb38c",
     "REV_10M_2026": "b41227d1444c581e6f3b65d761fad8918b65aedfbd8114443e6dee9d4938356f",
@@ -79,7 +79,7 @@
         "rowNumber": 4,
         "stt": "2",
         "indicatorId": "REV_RATE_Y",
-        "label": "Tỷ lệ thu NSNN so với dự toán",
+        "label": "Tỷ lệ thu NSNN so với dự toán (đến ngày 19/10/2026)",
         "values": {
           "Phường Hưng Đạo": {
             "displayed": "174,42%",
@@ -294,7 +294,7 @@
         "rowNumber": 9,
         "stt": "4",
         "indicatorId": "DISB_BENCHMARK_RATE",
-        "label": "Tỷ lệ giải ngân chung của 114 địa phương",
+        "label": "Tỷ lệ giải ngân chung của các địa phương (đến ngày 15/10/2026)",
         "values": {
           "Phường Hưng Đạo": {
             "displayed": "67,10%",
@@ -509,7 +509,7 @@
         "rowNumber": 14,
         "stt": "7",
         "indicatorId": "GPMB_BENCHMARK_AREA_RATE",
-        "label": "Tỷ lệ GPMB của danh mục địa bàn có dữ liệu",
+        "label": "Tỷ lệ GPMB trung bình của các địa phương (đến ngày 26/10/2026)",
         "values": {
           "Phường Hưng Đạo": {
             "displayed": "72,13%",
@@ -552,7 +552,7 @@
         "rowNumber": 15,
         "stt": "",
         "indicatorId": "GPMB_AREA_RATE",
-        "label": "Tỷ lệ GPMB địa phương theo diện tích",
+        "label": "Tỷ lệ GPMB của từng địa phương",
         "values": {
           "Phường Hưng Đạo": {
             "displayed": "111,08%",
@@ -709,7 +709,7 @@
         "rowNumber": 4,
         "stt": "2",
         "indicatorId": "REV_RATE_Y",
-        "label": "Tỷ lệ thu NSNN so với dự toán",
+        "label": "Tỷ lệ thu NSNN so với dự toán (đến ngày 19/10/2026)",
         "values": {
           "Phường Hưng Đạo": {
             "displayed": "174,42%",
@@ -994,7 +994,7 @@
         "rowNumber": 9,
         "stt": "4",
         "indicatorId": "DISB_BENCHMARK_RATE",
-        "label": "Tỷ lệ giải ngân chung của 114 địa phương",
+        "label": "Tỷ lệ giải ngân chung của các địa phương (đến ngày 15/10/2026)",
         "values": {
           "Phường Hưng Đạo": {
             "displayed": "67,10%",
@@ -1279,7 +1279,7 @@
         "rowNumber": 14,
         "stt": "7",
         "indicatorId": "GPMB_BENCHMARK_AREA_RATE",
-        "label": "Tỷ lệ GPMB của danh mục địa bàn có dữ liệu",
+        "label": "Tỷ lệ GPMB trung bình của các địa phương (đến ngày 26/10/2026)",
         "values": {
           "Phường Hưng Đạo": {
             "displayed": "72,13%",
@@ -1336,7 +1336,7 @@
         "rowNumber": 15,
         "stt": "",
         "indicatorId": "GPMB_AREA_RATE",
-        "label": "Tỷ lệ GPMB địa phương theo diện tích",
+        "label": "Tỷ lệ GPMB của từng địa phương",
         "values": {
           "Phường Hưng Đạo": {
             "displayed": "111,08%",

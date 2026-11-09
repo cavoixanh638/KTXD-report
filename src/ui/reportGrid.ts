@@ -2,7 +2,7 @@ import { EvaluatedSessionReport } from '../core/calculationTrace';
 import { analyzeSourceCoverage } from '../core/coverage';
 import { Dataset, Locality } from '../core/types';
 import { escapeHtmlUi } from './cellInspector';
-import { formatReportCellValue } from './reportStudio';
+import { formatReportCellValue, renderIndicatorLabelHtml } from './reportStudio';
 
 export function renderReportGridHtml(params: {
   evaluated: EvaluatedSessionReport;
@@ -34,7 +34,8 @@ export function renderReportGridHtml(params: {
     )
     .join('');
 
-  const bodyRowsHtml = rows
+  const displayRows = rows.filter((r) => r.indicator.id !== 'DISB_PLAN_VS_AVG_COMMENT');
+  const bodyRowsHtml = displayRows
     .map((r) => {
       const unitBadge =
         r.indicator.displayUnit === 'billion_vnd'
@@ -88,7 +89,7 @@ export function renderReportGridHtml(params: {
       )}">
         <td class="sticky-col stt-col">${escapeHtmlUi(r.rowConfig.sttLabel || '')}</td>
         <td class="sticky-col indicator-col">
-          <div class="ind-label">${escapeHtmlUi(r.rowConfig.customLabel)}</div>
+          <div class="ind-label">${renderIndicatorLabelHtml(r.rowConfig.customLabel)}</div>
         </td>
         ${cellsHtml}
       </tr>`;

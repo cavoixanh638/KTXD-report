@@ -810,7 +810,7 @@ describe('KTXH Offline Report — MASTER SPEC V2.2 Phase 1 Runtime Suite (T01–
     const inspectorHtml = renderTraceInspectorHtml(
       eval5.rows[0].cellsByLocalityId[fiveIds[0]].trace
     );
-    expect(gridHtml).toContain('Tỷ lệ GPMB địa phương theo diện tích');
+    expect(gridHtml).toContain('Tỷ lệ GPMB của từng địa phương');
     expect(inspectorHtml).toContain('TRACE_');
 
     // Generate PH1 Acceptance Evidence JSON (5 communes & 7 wards 14-row reconciliation + T01..T66 status matrix)

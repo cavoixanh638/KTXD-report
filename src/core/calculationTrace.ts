@@ -856,6 +856,7 @@ export interface EvaluatedReportCell {
   warningCount: number;
   officialNote?: string | null;
   inspectionMarker?: string | null;
+  adjustmentNote?: string | null;
   trace: CalculationTrace;
 }
 
@@ -1537,6 +1538,25 @@ export function evaluateLocalityIndicator(params: {
         datasetHashes: [disb.workbookSha256],
       };
 
+      let adjustmentNote: string | null = null;
+      if (indicator.id === 'DISB_PLAN') {
+        const initCell = rec.metrics['initial_total_plan'];
+        if (initCell && initCell.normalizedDecimal !== null && initCell.normalizedDecimal !== undefined) {
+          const initMillion = new Decimal(initCell.normalizedDecimal);
+          const diffMillion = rawMillion.minus(initMillion);
+          const diffDisplay =
+            moneyUnit === 'billion' ? millionToBillion(diffMillion) : diffMillion;
+          const unitText = moneyUnit === 'billion' ? ' tỷ' : ' triệu';
+          if (diffDisplay.toDecimalPlaces(decMoney, Decimal.ROUND_HALF_UP).isZero()) {
+            adjustmentNote = 'giữ nguyên';
+          } else if (diffDisplay.gt(0)) {
+            adjustmentNote = `tăng ${formatVnNumber(diffDisplay, decMoney)}${unitText}`;
+          } else {
+            adjustmentNote = `giảm ${formatVnNumber(diffDisplay.abs(), decMoney)}${unitText}`;
+          }
+        }
+      }
+
       return {
         traceId,
         indicatorId: indicator.id,
@@ -1553,6 +1573,7 @@ export function evaluateLocalityIndicator(params: {
         warningCount: 0,
         officialNote: rec.officialNote,
         inspectionMarker: rec.inspectionMarker,
+        adjustmentNote,
         trace,
       };
     }
