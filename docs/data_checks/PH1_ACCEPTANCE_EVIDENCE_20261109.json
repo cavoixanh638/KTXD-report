@@ -1,0 +1,1717 @@
+{
+  "phase": "PH1",
+  "specVersion": "MASTER_V2.2_CURRENT",
+  "generatedAt": "2026-11-09T13:59:45.051Z",
+  "sourceSha256": {
+    "DISB_20261015": "3ba33b3efd579499500d956c2580a170e84dd38b8d700fdfaaf9a361ea7cb38c",
+    "REV_10M_2026": "b41227d1444c581e6f3b65d761fad8918b65aedfbd8114443e6dee9d4938356f",
+    "GPMB_20261026": "d393c3c1f3f9c99c95cc3d0035eab3386ff3cab8e63e623eaa9c925103ef9e0f",
+    "RESULT_REFERENCE": "bd19d2d910619d36dab5e3332ad9c8a491e3652b631e65b81e62bb23e6a4ec51"
+  },
+  "summary": {
+    "totalTests": 66,
+    "passedInPh1Runtime": 64,
+    "deferredByScopeToPh2": 2,
+    "failed": 0
+  },
+  "keyBenchmarks": {
+    "DISB_114_RATE": "67,10%",
+    "DISB_114_AVG_PLAN": "136,41 tỷ đồng",
+    "REV_113_RATE_Y": "111,30%",
+    "REV_113_LAND_RATE_Y": "136,12%",
+    "REV_113_LAND_RATE_P": "202,71%",
+    "GPMB_108_AREA_RATE": "72,13%"
+  },
+  "sessionA_5_Xa": {
+    "name": "Báo cáo 5 xã",
+    "localities": [
+      "Phường Hưng Đạo",
+      "Xã Hồng Châu",
+      "Phường Trần Hưng Đạo",
+      "Xã Trần Phú",
+      "Xã Cẩm Giang"
+    ],
+    "rows14": [
+      {
+        "rowNumber": 3,
+        "stt": "1",
+        "indicatorId": "REV_BUDGET_Y",
+        "label": "Dự toán thu NSNN năm",
+        "values": {
+          "Phường Hưng Đạo": {
+            "displayed": "250,16",
+            "exactDecimal": "250.158",
+            "state": "VALUE",
+            "quality": "COMPLETE",
+            "traceId": "TRACE_REV_BUDGET_Y_PHUONG_Phường_Hưng_Đạo_REV_b41227d1444c"
+          },
+          "Xã Hồng Châu": {
+            "displayed": "32,85",
+            "exactDecimal": "32.845",
+            "state": "VALUE",
+            "quality": "COMPLETE",
+            "traceId": "TRACE_REV_BUDGET_Y_XA_Xã_Hồng_Châu_REV_b41227d1444c"
+          },
+          "Phường Trần Hưng Đạo": {
+            "displayed": "174,02",
+            "exactDecimal": "174.02",
+            "state": "VALUE",
+            "quality": "COMPLETE",
+            "traceId": "TRACE_REV_BUDGET_Y_PHUONG_Phường_Trần_Hưng_Đạo_REV_b41227d1444c"
+          },
+          "Xã Trần Phú": {
+            "displayed": "84,41",
+            "exactDecimal": "84.411",
+            "state": "VALUE",
+            "quality": "COMPLETE",
+            "traceId": "TRACE_REV_BUDGET_Y_XA_Xã_Trần_Phú_REV_b41227d1444c"
+          },
+          "Xã Cẩm Giang": {
+            "displayed": "56,19",
+            "exactDecimal": "56.185",
+            "state": "VALUE",
+            "quality": "COMPLETE",
+            "traceId": "TRACE_REV_BUDGET_Y_XA_Xã_Cẩm_Giang_REV_b41227d1444c"
+          }
+        }
+      },
+      {
+        "rowNumber": 4,
+        "stt": "2",
+        "indicatorId": "REV_RATE_Y",
+        "label": "Tỷ lệ thu NSNN so với dự toán",
+        "values": {
+          "Phường Hưng Đạo": {
+            "displayed": "174,42%",
+            "exactDecimal": "174.4197667074408973528729842739388706338",
+            "state": "VALUE",
+            "quality": "COMPLETE",
+            "traceId": "TRACE_REV_RATE_Y_PHUONG_Phường_Hưng_Đạo_REV_b41227d1444c"
+          },
+          "Xã Hồng Châu": {
+            "displayed": "374,94%",
+            "exactDecimal": "374.9398690820520627188308722788856751408",
+            "state": "VALUE",
+            "quality": "COMPLETE",
+            "traceId": "TRACE_REV_RATE_Y_XA_Xã_Hồng_Châu_REV_b41227d1444c"
+          },
+          "Phường Trần Hưng Đạo": {
+            "displayed": "66,58%",
+            "exactDecimal": "66.57683024939662107803700724054706355591",
+            "state": "VALUE",
+            "quality": "COMPLETE",
+            "traceId": "TRACE_REV_RATE_Y_PHUONG_Phường_Trần_Hưng_Đạo_REV_b41227d1444c"
+          },
+          "Xã Trần Phú": {
+            "displayed": "158,10%",
+            "exactDecimal": "158.0978782386181895724490883889540462736",
+            "state": "VALUE",
+            "quality": "COMPLETE",
+            "traceId": "TRACE_REV_RATE_Y_XA_Xã_Trần_Phú_REV_b41227d1444c"
+          },
+          "Xã Cẩm Giang": {
+            "displayed": "163,95%",
+            "exactDecimal": "163.9512325353742101984515440064074041114",
+            "state": "VALUE",
+            "quality": "COMPLETE",
+            "traceId": "TRACE_REV_RATE_Y_XA_Xã_Cẩm_Giang_REV_b41227d1444c"
+          }
+        }
+      },
+      {
+        "rowNumber": 5,
+        "stt": "",
+        "indicatorId": "REV_LAND_RATE_Y",
+        "label": "Trong đó: tỷ lệ thu tiền sử dụng đất",
+        "values": {
+          "Phường Hưng Đạo": {
+            "displayed": "256,44%",
+            "exactDecimal": "256.4407569442646716197675321649537911931",
+            "state": "VALUE",
+            "quality": "COMPLETE",
+            "traceId": "TRACE_REV_LAND_RATE_Y_PHUONG_Phường_Hưng_Đạo_REV_b41227d1444c"
+          },
+          "Xã Hồng Châu": {
+            "displayed": "834,30%",
+            "exactDecimal": "834.3003547497043752463539613716988569176",
+            "state": "VALUE",
+            "quality": "COMPLETE",
+            "traceId": "TRACE_REV_LAND_RATE_Y_XA_Xã_Hồng_Châu_REV_b41227d1444c"
+          },
+          "Phường Trần Hưng Đạo": {
+            "displayed": "218,90%",
+            "exactDecimal": "218.9",
+            "state": "VALUE",
+            "quality": "COMPLETE",
+            "traceId": "TRACE_REV_LAND_RATE_Y_PHUONG_Phường_Trần_Hưng_Đạo_REV_b41227d1444c"
+          },
+          "Xã Trần Phú": {
+            "displayed": "184,89%",
+            "exactDecimal": "184.8854114350664798710052602363141339113",
+            "state": "VALUE",
+            "quality": "COMPLETE",
+            "traceId": "TRACE_REV_LAND_RATE_Y_XA_Xã_Trần_Phú_REV_b41227d1444c"
+          },
+          "Xã Cẩm Giang": {
+            "displayed": "236,64%",
+            "exactDecimal": "236.64",
+            "state": "VALUE",
+            "quality": "COMPLETE",
+            "traceId": "TRACE_REV_LAND_RATE_Y_XA_Xã_Cẩm_Giang_REV_b41227d1444c"
+          }
+        }
+      },
+      {
+        "rowNumber": 6,
+        "stt": "",
+        "indicatorId": "REV_NONLAND_RATE_Y",
+        "label": "Tỷ lệ thu không gồm tiền đất",
+        "values": {
+          "Phường Hưng Đạo": {
+            "displayed": "137,77%",
+            "exactDecimal": "137.7698091382301908617698091382301908618",
+            "state": "VALUE",
+            "quality": "COMPLETE",
+            "traceId": "TRACE_REV_NONLAND_RATE_Y_PHUONG_Phường_Hưng_Đạo_REV_b41227d1444c"
+          },
+          "Xã Hồng Châu": {
+            "displayed": "85,90%",
+            "exactDecimal": "85.90277777777777777777777777777777777778",
+            "state": "VALUE",
+            "quality": "COMPLETE",
+            "traceId": "TRACE_REV_NONLAND_RATE_Y_XA_Xã_Hồng_Châu_REV_b41227d1444c"
+          },
+          "Phường Trần Hưng Đạo": {
+            "displayed": "57,29%",
+            "exactDecimal": "57.2899646384587245457870991342519204975",
+            "state": "VALUE",
+            "quality": "COMPLETE",
+            "traceId": "TRACE_REV_NONLAND_RATE_Y_PHUONG_Phường_Trần_Hưng_Đạo_REV_b41227d1444c"
+          },
+          "Xã Trần Phú": {
+            "displayed": "136,34%",
+            "exactDecimal": "136.3417775869471876341777586947187634178",
+            "state": "VALUE",
+            "quality": "COMPLETE",
+            "traceId": "TRACE_REV_NONLAND_RATE_Y_XA_Xã_Trần_Phú_REV_b41227d1444c"
+          },
+          "Xã Cẩm Giang": {
+            "displayed": "123,78%",
+            "exactDecimal": "123.7750449081110957579107364930219704297",
+            "state": "VALUE",
+            "quality": "COMPLETE",
+            "traceId": "TRACE_REV_NONLAND_RATE_Y_XA_Xã_Cẩm_Giang_REV_b41227d1444c"
+          }
+        }
+      },
+      {
+        "rowNumber": 7,
+        "stt": "3",
+        "indicatorId": "DISB_PLAN",
+        "label": "Kế hoạch vốn đầu tư công sau điều chỉnh",
+        "values": {
+          "Phường Hưng Đạo": {
+            "displayed": "45,62",
+            "exactDecimal": "45.616175876626716",
+            "state": "VALUE",
+            "quality": "COMPLETE",
+            "traceId": "TRACE_DISB_PLAN_PHUONG_Phường_Hưng_Đạo_DISB_3ba33b3efd57"
+          },
+          "Xã Hồng Châu": {
+            "displayed": "35,68",
+            "exactDecimal": "35.680778561063955",
+            "state": "VALUE",
+            "quality": "COMPLETE",
+            "traceId": "TRACE_DISB_PLAN_XA_Xã_Hồng_Châu_DISB_3ba33b3efd57"
+          },
+          "Phường Trần Hưng Đạo": {
+            "displayed": "67,64",
+            "exactDecimal": "67.64486350730664",
+            "state": "VALUE",
+            "quality": "COMPLETE",
+            "traceId": "TRACE_DISB_PLAN_PHUONG_Phường_Trần_Hưng_Đạo_DISB_3ba33b3efd57"
+          },
+          "Xã Trần Phú": {
+            "displayed": "339,35",
+            "exactDecimal": "339.3538537327331",
+            "state": "VALUE",
+            "quality": "COMPLETE",
+            "traceId": "TRACE_DISB_PLAN_XA_Xã_Trần_Phú_DISB_3ba33b3efd57"
+          },
+          "Xã Cẩm Giang": {
+            "displayed": "38,12",
+            "exactDecimal": "38.12351363641558",
+            "state": "VALUE",
+            "quality": "COMPLETE",
+            "traceId": "TRACE_DISB_PLAN_XA_Xã_Cẩm_Giang_DISB_3ba33b3efd57"
+          }
+        }
+      },
+      {
+        "rowNumber": 8,
+        "stt": "",
+        "indicatorId": "DISB_PLAN_VS_AVG_COMMENT",
+        "label": "So với mức vốn giao bình quân một địa phương",
+        "values": {
+          "Phường Hưng Đạo": {
+            "displayed": "thấp hơn",
+            "exactDecimal": "-90795.4307769714900087719298245614035088",
+            "state": "VALUE",
+            "quality": "COMPLETE",
+            "traceId": "TRACE_DISB_PLAN_VS_AVG_PHUONG_Phường_Hưng_Đạo_DISB_3ba33b3efd57"
+          },
+          "Xã Hồng Châu": {
+            "displayed": "thấp hơn",
+            "exactDecimal": "-100730.8280925342510087719298245614035088",
+            "state": "VALUE",
+            "quality": "COMPLETE",
+            "traceId": "TRACE_DISB_PLAN_VS_AVG_XA_Xã_Hồng_Châu_DISB_3ba33b3efd57"
+          },
+          "Phường Trần Hưng Đạo": {
+            "displayed": "thấp hơn",
+            "exactDecimal": "-68766.7431462915660087719298245614035088",
+            "state": "VALUE",
+            "quality": "COMPLETE",
+            "traceId": "TRACE_DISB_PLAN_VS_AVG_PHUONG_Phường_Trần_Hưng_Đạo_DISB_3ba33b3efd57"
+          },
+          "Xã Trần Phú": {
+            "displayed": "cao hơn",
+            "exactDecimal": "202942.2470791348939912280701754385964912",
+            "state": "VALUE",
+            "quality": "COMPLETE",
+            "traceId": "TRACE_DISB_PLAN_VS_AVG_XA_Xã_Trần_Phú_DISB_3ba33b3efd57"
+          },
+          "Xã Cẩm Giang": {
+            "displayed": "thấp hơn",
+            "exactDecimal": "-98288.0930171826260087719298245614035088",
+            "state": "VALUE",
+            "quality": "COMPLETE",
+            "traceId": "TRACE_DISB_PLAN_VS_AVG_XA_Xã_Cẩm_Giang_DISB_3ba33b3efd57"
+          }
+        }
+      },
+      {
+        "rowNumber": 9,
+        "stt": "4",
+        "indicatorId": "DISB_BENCHMARK_RATE",
+        "label": "Tỷ lệ giải ngân chung của 114 địa phương",
+        "values": {
+          "Phường Hưng Đạo": {
+            "displayed": "67,10%",
+            "exactDecimal": "67.10162265358870227310304127304681981007",
+            "state": "VALUE",
+            "quality": "COMPLETE",
+            "traceId": "TRACE_BM_DISB_BENCHMARK_RATE_LOCALITIES_FULL_114_DISB_3ba33b3efd57"
+          },
+          "Xã Hồng Châu": {
+            "displayed": "67,10%",
+            "exactDecimal": "67.10162265358870227310304127304681981007",
+            "state": "VALUE",
+            "quality": "COMPLETE",
+            "traceId": "TRACE_BM_DISB_BENCHMARK_RATE_LOCALITIES_FULL_114_DISB_3ba33b3efd57"
+          },
+          "Phường Trần Hưng Đạo": {
+            "displayed": "67,10%",
+            "exactDecimal": "67.10162265358870227310304127304681981007",
+            "state": "VALUE",
+            "quality": "COMPLETE",
+            "traceId": "TRACE_BM_DISB_BENCHMARK_RATE_LOCALITIES_FULL_114_DISB_3ba33b3efd57"
+          },
+          "Xã Trần Phú": {
+            "displayed": "67,10%",
+            "exactDecimal": "67.10162265358870227310304127304681981007",
+            "state": "VALUE",
+            "quality": "COMPLETE",
+            "traceId": "TRACE_BM_DISB_BENCHMARK_RATE_LOCALITIES_FULL_114_DISB_3ba33b3efd57"
+          },
+          "Xã Cẩm Giang": {
+            "displayed": "67,10%",
+            "exactDecimal": "67.10162265358870227310304127304681981007",
+            "state": "VALUE",
+            "quality": "COMPLETE",
+            "traceId": "TRACE_BM_DISB_BENCHMARK_RATE_LOCALITIES_FULL_114_DISB_3ba33b3efd57"
+          }
+        }
+      },
+      {
+        "rowNumber": 10,
+        "stt": "",
+        "indicatorId": "DISB_RATE",
+        "label": "Tỷ lệ giải ngân của địa phương",
+        "values": {
+          "Phường Hưng Đạo": {
+            "displayed": "99,66%",
+            "exactDecimal": "99.65543828783058645751008780106745456143",
+            "state": "VALUE",
+            "quality": "COMPLETE",
+            "traceId": "TRACE_DISB_RATE_PHUONG_Phường_Hưng_Đạo_DISB_3ba33b3efd57"
+          },
+          "Xã Hồng Châu": {
+            "displayed": "97,87%",
+            "exactDecimal": "97.86781961676659793097415793323850581909",
+            "state": "VALUE",
+            "quality": "COMPLETE",
+            "traceId": "TRACE_DISB_RATE_XA_Xã_Hồng_Châu_DISB_3ba33b3efd57"
+          },
+          "Phường Trần Hưng Đạo": {
+            "displayed": "64,57%",
+            "exactDecimal": "64.56661708731565365528656809805133171822",
+            "state": "VALUE",
+            "quality": "COMPLETE",
+            "traceId": "TRACE_DISB_RATE_PHUONG_Phường_Trần_Hưng_Đạo_DISB_3ba33b3efd57"
+          },
+          "Xã Trần Phú": {
+            "displayed": "48,27%",
+            "exactDecimal": "48.27262168916364201284577187528581781545",
+            "state": "VALUE",
+            "quality": "COMPLETE",
+            "traceId": "TRACE_DISB_RATE_XA_Xã_Trần_Phú_DISB_3ba33b3efd57"
+          },
+          "Xã Cẩm Giang": {
+            "displayed": "94,78%",
+            "exactDecimal": "94.78140012122283349490641410973084822051",
+            "state": "VALUE",
+            "quality": "COMPLETE",
+            "traceId": "TRACE_DISB_RATE_XA_Xã_Cẩm_Giang_DISB_3ba33b3efd57"
+          }
+        }
+      },
+      {
+        "rowNumber": 11,
+        "stt": "",
+        "indicatorId": "DISB_COMPARISON_LABEL",
+        "label": "Nhận xét tỷ lệ giải ngân",
+        "values": {
+          "Phường Hưng Đạo": {
+            "displayed": "cao hơn",
+            "exactDecimal": "32.55381563424188418440704652802063475136",
+            "state": "VALUE",
+            "quality": "COMPLETE",
+            "traceId": "TRACE_DISB_COMPARISON_PHUONG_Phường_Hưng_Đạo_DISB_3ba33b3efd57"
+          },
+          "Xã Hồng Châu": {
+            "displayed": "cao hơn",
+            "exactDecimal": "30.76619696317789565787111666019168600902",
+            "state": "VALUE",
+            "quality": "COMPLETE",
+            "traceId": "TRACE_DISB_COMPARISON_XA_Xã_Hồng_Châu_DISB_3ba33b3efd57"
+          },
+          "Phường Trần Hưng Đạo": {
+            "displayed": "thấp hơn",
+            "exactDecimal": "-2.53500556627304861781647317499548809185",
+            "state": "VALUE",
+            "quality": "COMPLETE",
+            "traceId": "TRACE_DISB_COMPARISON_PHUONG_Phường_Trần_Hưng_Đạo_DISB_3ba33b3efd57"
+          },
+          "Xã Trần Phú": {
+            "displayed": "thấp hơn",
+            "exactDecimal": "-18.82900096442506026025726939776100199462",
+            "state": "VALUE",
+            "quality": "COMPLETE",
+            "traceId": "TRACE_DISB_COMPARISON_XA_Xã_Trần_Phú_DISB_3ba33b3efd57"
+          },
+          "Xã Cẩm Giang": {
+            "displayed": "cao hơn",
+            "exactDecimal": "27.67977746763413122180337283668402841044",
+            "state": "VALUE",
+            "quality": "COMPLETE",
+            "traceId": "TRACE_DISB_COMPARISON_XA_Xã_Cẩm_Giang_DISB_3ba33b3efd57"
+          }
+        }
+      },
+      {
+        "rowNumber": 12,
+        "stt": "5",
+        "indicatorId": "GPMB_BUDGET",
+        "label": "Kinh phí phân bổ GPMB",
+        "values": {
+          "Phường Hưng Đạo": {
+            "displayed": "249,05",
+            "exactDecimal": "249.046397178",
+            "state": "VALUE",
+            "quality": "COMPLETE",
+            "traceId": "TRACE_GPMB_BUDGET_PHUONG_Phường_Hưng_Đạo_GPMB_d393c3c1f3f9"
+          },
+          "Xã Hồng Châu": {
+            "displayed": "56,14",
+            "exactDecimal": "56.141672",
+            "state": "VALUE",
+            "quality": "COMPLETE",
+            "traceId": "TRACE_GPMB_BUDGET_XA_Xã_Hồng_Châu_GPMB_d393c3c1f3f9"
+          },
+          "Phường Trần Hưng Đạo": {
+            "displayed": "4,16",
+            "exactDecimal": "4.161",
+            "state": "VALUE",
+            "quality": "COMPLETE",
+            "traceId": "TRACE_GPMB_BUDGET_PHUONG_Phường_Trần_Hưng_Đạo_GPMB_d393c3c1f3f9"
+          },
+          "Xã Trần Phú": {
+            "displayed": "1.052,59",
+            "exactDecimal": "1052.594912",
+            "state": "VALUE",
+            "quality": "COMPLETE",
+            "traceId": "TRACE_GPMB_BUDGET_XA_Xã_Trần_Phú_GPMB_d393c3c1f3f9"
+          },
+          "Xã Cẩm Giang": {
+            "displayed": "125,00",
+            "exactDecimal": "125",
+            "state": "VALUE",
+            "quality": "COMPLETE",
+            "traceId": "TRACE_GPMB_BUDGET_XA_Xã_Cẩm_Giang_GPMB_d393c3c1f3f9"
+          }
+        }
+      },
+      {
+        "rowNumber": 13,
+        "stt": "6",
+        "indicatorId": "GPMB_AREA_PLAN",
+        "label": "Diện tích phải GPMB",
+        "values": {
+          "Phường Hưng Đạo": {
+            "displayed": "113.969",
+            "exactDecimal": "113969",
+            "state": "VALUE",
+            "quality": "COMPLETE",
+            "traceId": "TRACE_GPMB_AREA_PLAN_PHUONG_Phường_Hưng_Đạo_GPMB_d393c3c1f3f9"
+          },
+          "Xã Hồng Châu": {
+            "displayed": "119.280",
+            "exactDecimal": "119280",
+            "state": "VALUE",
+            "quality": "COMPLETE",
+            "traceId": "TRACE_GPMB_AREA_PLAN_XA_Xã_Hồng_Châu_GPMB_d393c3c1f3f9"
+          },
+          "Phường Trần Hưng Đạo": {
+            "displayed": "1.955",
+            "exactDecimal": "1955",
+            "state": "VALUE",
+            "quality": "COMPLETE",
+            "traceId": "TRACE_GPMB_AREA_PLAN_PHUONG_Phường_Trần_Hưng_Đạo_GPMB_d393c3c1f3f9"
+          },
+          "Xã Trần Phú": {
+            "displayed": "592.419",
+            "exactDecimal": "592419",
+            "state": "VALUE",
+            "quality": "COMPLETE",
+            "traceId": "TRACE_GPMB_AREA_PLAN_XA_Xã_Trần_Phú_GPMB_d393c3c1f3f9"
+          },
+          "Xã Cẩm Giang": {
+            "displayed": "269.600",
+            "exactDecimal": "269600",
+            "state": "VALUE",
+            "quality": "COMPLETE",
+            "traceId": "TRACE_GPMB_AREA_PLAN_XA_Xã_Cẩm_Giang_GPMB_d393c3c1f3f9"
+          }
+        }
+      },
+      {
+        "rowNumber": 14,
+        "stt": "7",
+        "indicatorId": "GPMB_BENCHMARK_AREA_RATE",
+        "label": "Tỷ lệ GPMB của danh mục địa bàn có dữ liệu (108/114 địa bàn)",
+        "values": {
+          "Phường Hưng Đạo": {
+            "displayed": "72,13% (108/114 địa bàn, còn 3 DA thiếu I)",
+            "exactDecimal": "72.13318997118406358766576474148557086683",
+            "state": "VALUE",
+            "quality": "PARTIAL_AGGREGATE",
+            "traceId": "TRACE_BM_GPMB_BENCHMARK_AREA_RATE_LOCALITIES_AVAILABLE_N_GPMB_d393c3c1f3f9"
+          },
+          "Xã Hồng Châu": {
+            "displayed": "72,13% (108/114 địa bàn, còn 3 DA thiếu I)",
+            "exactDecimal": "72.13318997118406358766576474148557086683",
+            "state": "VALUE",
+            "quality": "PARTIAL_AGGREGATE",
+            "traceId": "TRACE_BM_GPMB_BENCHMARK_AREA_RATE_LOCALITIES_AVAILABLE_N_GPMB_d393c3c1f3f9"
+          },
+          "Phường Trần Hưng Đạo": {
+            "displayed": "72,13% (108/114 địa bàn, còn 3 DA thiếu I)",
+            "exactDecimal": "72.13318997118406358766576474148557086683",
+            "state": "VALUE",
+            "quality": "PARTIAL_AGGREGATE",
+            "traceId": "TRACE_BM_GPMB_BENCHMARK_AREA_RATE_LOCALITIES_AVAILABLE_N_GPMB_d393c3c1f3f9"
+          },
+          "Xã Trần Phú": {
+            "displayed": "72,13% (108/114 địa bàn, còn 3 DA thiếu I)",
+            "exactDecimal": "72.13318997118406358766576474148557086683",
+            "state": "VALUE",
+            "quality": "PARTIAL_AGGREGATE",
+            "traceId": "TRACE_BM_GPMB_BENCHMARK_AREA_RATE_LOCALITIES_AVAILABLE_N_GPMB_d393c3c1f3f9"
+          },
+          "Xã Cẩm Giang": {
+            "displayed": "72,13% (108/114 địa bàn, còn 3 DA thiếu I)",
+            "exactDecimal": "72.13318997118406358766576474148557086683",
+            "state": "VALUE",
+            "quality": "PARTIAL_AGGREGATE",
+            "traceId": "TRACE_BM_GPMB_BENCHMARK_AREA_RATE_LOCALITIES_AVAILABLE_N_GPMB_d393c3c1f3f9"
+          }
+        }
+      },
+      {
+        "rowNumber": 15,
+        "stt": "",
+        "indicatorId": "GPMB_AREA_RATE",
+        "label": "Tỷ lệ GPMB địa phương theo diện tích",
+        "values": {
+          "Phường Hưng Đạo": {
+            "displayed": "111,08%",
+            "exactDecimal": "111.0758188630241556914599584097430002896",
+            "state": "VALUE",
+            "quality": "COMPLETE",
+            "traceId": "TRACE_GPMB_AREA_RATE_PHUONG_Phường_Hưng_Đạo_GPMB_d393c3c1f3f9"
+          },
+          "Xã Hồng Châu": {
+            "displayed": "30,09%",
+            "exactDecimal": "30.09473507712944332662642521797451374916",
+            "state": "VALUE",
+            "quality": "COMPLETE",
+            "traceId": "TRACE_GPMB_AREA_RATE_XA_Xã_Hồng_Châu_GPMB_d393c3c1f3f9"
+          },
+          "Phường Trần Hưng Đạo": {
+            "displayed": "0,00%",
+            "exactDecimal": "0",
+            "state": "VALUE",
+            "quality": "COMPLETE",
+            "traceId": "TRACE_GPMB_AREA_RATE_PHUONG_Phường_Trần_Hưng_Đạo_GPMB_d393c3c1f3f9"
+          },
+          "Xã Trần Phú": {
+            "displayed": "44,60%",
+            "exactDecimal": "44.60086526596884974992361824992108625821",
+            "state": "VALUE",
+            "quality": "COMPLETE",
+            "traceId": "TRACE_GPMB_AREA_RATE_XA_Xã_Trần_Phú_GPMB_d393c3c1f3f9"
+          },
+          "Xã Cẩm Giang": {
+            "displayed": "87,42%",
+            "exactDecimal": "87.42433234421364985163204747774480712166",
+            "state": "VALUE",
+            "quality": "COMPLETE",
+            "traceId": "TRACE_GPMB_AREA_RATE_XA_Xã_Cẩm_Giang_GPMB_d393c3c1f3f9"
+          }
+        }
+      },
+      {
+        "rowNumber": 16,
+        "stt": "",
+        "indicatorId": "GPMB_COMPARISON_LABEL",
+        "label": "Đánh giá GPMB",
+        "values": {
+          "Phường Hưng Đạo": {
+            "displayed": "Chưa đủ cơ sở đánh giá",
+            "exactDecimal": "38.94262889184009210379419366825742942277",
+            "state": "VALUE",
+            "quality": "PARTIAL_AGGREGATE",
+            "traceId": "TRACE_GPMB_COMPARISON_PHUONG_Phường_Hưng_Đạo_GPMB_d393c3c1f3f9"
+          },
+          "Xã Hồng Châu": {
+            "displayed": "Chưa đủ cơ sở đánh giá",
+            "exactDecimal": "-42.03845489405462026103933952351105711767",
+            "state": "VALUE",
+            "quality": "PARTIAL_AGGREGATE",
+            "traceId": "TRACE_GPMB_COMPARISON_XA_Xã_Hồng_Châu_GPMB_d393c3c1f3f9"
+          },
+          "Phường Trần Hưng Đạo": {
+            "displayed": "Chưa đủ cơ sở đánh giá",
+            "exactDecimal": "-72.13318997118406358766576474148557086683",
+            "state": "VALUE",
+            "quality": "PARTIAL_AGGREGATE",
+            "traceId": "TRACE_GPMB_COMPARISON_PHUONG_Phường_Trần_Hưng_Đạo_GPMB_d393c3c1f3f9"
+          },
+          "Xã Trần Phú": {
+            "displayed": "Chưa đủ cơ sở đánh giá",
+            "exactDecimal": "-27.53232470521521383774214649156448460862",
+            "state": "VALUE",
+            "quality": "PARTIAL_AGGREGATE",
+            "traceId": "TRACE_GPMB_COMPARISON_XA_Xã_Trần_Phú_GPMB_d393c3c1f3f9"
+          },
+          "Xã Cẩm Giang": {
+            "displayed": "Chưa đủ cơ sở đánh giá",
+            "exactDecimal": "15.29114237302958626396628273625923625483",
+            "state": "VALUE",
+            "quality": "PARTIAL_AGGREGATE",
+            "traceId": "TRACE_GPMB_COMPARISON_XA_Xã_Cẩm_Giang_GPMB_d393c3c1f3f9"
+          }
+        }
+      }
+    ]
+  },
+  "sessionB_7_Phuong": {
+    "name": "Phiên B (7 phường)",
+    "localities": [
+      "Phường Hưng Đạo",
+      "Phường Trần Hưng Đạo",
+      "Phường Dương Kinh",
+      "Phường An Phong",
+      "Phường Nam Đồ Sơn",
+      "Phường Hồng An",
+      "Phường Trần Nhân Tông"
+    ],
+    "rows14": [
+      {
+        "rowNumber": 3,
+        "stt": "1",
+        "indicatorId": "REV_BUDGET_Y",
+        "label": "Dự toán thu NSNN năm",
+        "values": {
+          "Phường Hưng Đạo": {
+            "displayed": "250,16",
+            "exactDecimal": "250.158",
+            "state": "VALUE",
+            "quality": "COMPLETE",
+            "traceId": "TRACE_REV_BUDGET_Y_PHUONG_Phường_Hưng_Đạo_REV_b41227d1444c"
+          },
+          "Phường Trần Hưng Đạo": {
+            "displayed": "174,02",
+            "exactDecimal": "174.02",
+            "state": "VALUE",
+            "quality": "COMPLETE",
+            "traceId": "TRACE_REV_BUDGET_Y_PHUONG_Phường_Trần_Hưng_Đạo_REV_b41227d1444c"
+          },
+          "Phường Dương Kinh": {
+            "displayed": "153,64",
+            "exactDecimal": "153.64",
+            "state": "VALUE",
+            "quality": "COMPLETE",
+            "traceId": "TRACE_REV_BUDGET_Y_PHUONG_Phường_Dương_Kinh_REV_b41227d1444c"
+          },
+          "Phường An Phong": {
+            "displayed": "148,39",
+            "exactDecimal": "148.39",
+            "state": "VALUE",
+            "quality": "COMPLETE",
+            "traceId": "TRACE_REV_BUDGET_Y_PHUONG_Phường_An_Phong_REV_b41227d1444c"
+          },
+          "Phường Nam Đồ Sơn": {
+            "displayed": "56,03",
+            "exactDecimal": "56.026",
+            "state": "VALUE",
+            "quality": "COMPLETE",
+            "traceId": "TRACE_REV_BUDGET_Y_PHUONG_Phường_Nam_Đồ_Sơn_REV_b41227d1444c"
+          },
+          "Phường Hồng An": {
+            "displayed": "237,85",
+            "exactDecimal": "237.85",
+            "state": "VALUE",
+            "quality": "COMPLETE",
+            "traceId": "TRACE_REV_BUDGET_Y_PHUONG_Phường_Hồng_An_REV_b41227d1444c"
+          },
+          "Phường Trần Nhân Tông": {
+            "displayed": "94,03",
+            "exactDecimal": "94.03",
+            "state": "VALUE",
+            "quality": "COMPLETE",
+            "traceId": "TRACE_REV_BUDGET_Y_PHUONG_Phường_Trần_Nhân_Tông_REV_b41227d1444c"
+          }
+        }
+      },
+      {
+        "rowNumber": 4,
+        "stt": "2",
+        "indicatorId": "REV_RATE_Y",
+        "label": "Tỷ lệ thu NSNN so với dự toán",
+        "values": {
+          "Phường Hưng Đạo": {
+            "displayed": "174,42%",
+            "exactDecimal": "174.4197667074408973528729842739388706338",
+            "state": "VALUE",
+            "quality": "COMPLETE",
+            "traceId": "TRACE_REV_RATE_Y_PHUONG_Phường_Hưng_Đạo_REV_b41227d1444c"
+          },
+          "Phường Trần Hưng Đạo": {
+            "displayed": "66,58%",
+            "exactDecimal": "66.57683024939662107803700724054706355591",
+            "state": "VALUE",
+            "quality": "COMPLETE",
+            "traceId": "TRACE_REV_RATE_Y_PHUONG_Phường_Trần_Hưng_Đạo_REV_b41227d1444c"
+          },
+          "Phường Dương Kinh": {
+            "displayed": "149,07%",
+            "exactDecimal": "149.0673001822442072376985160114553501692",
+            "state": "VALUE",
+            "quality": "COMPLETE",
+            "traceId": "TRACE_REV_RATE_Y_PHUONG_Phường_Dương_Kinh_REV_b41227d1444c"
+          },
+          "Phường An Phong": {
+            "displayed": "200,23%",
+            "exactDecimal": "200.2291259518835501044544780645596064425",
+            "state": "VALUE",
+            "quality": "COMPLETE",
+            "traceId": "TRACE_REV_RATE_Y_PHUONG_Phường_An_Phong_REV_b41227d1444c"
+          },
+          "Phường Nam Đồ Sơn": {
+            "displayed": "91,49%",
+            "exactDecimal": "91.48966551244065255417127762110448720237",
+            "state": "VALUE",
+            "quality": "COMPLETE",
+            "traceId": "TRACE_REV_RATE_Y_PHUONG_Phường_Nam_Đồ_Sơn_REV_b41227d1444c"
+          },
+          "Phường Hồng An": {
+            "displayed": "128,81%",
+            "exactDecimal": "128.8143788101744797141055286945553920538",
+            "state": "VALUE",
+            "quality": "COMPLETE",
+            "traceId": "TRACE_REV_RATE_Y_PHUONG_Phường_Hồng_An_REV_b41227d1444c"
+          },
+          "Phường Trần Nhân Tông": {
+            "displayed": "97,19%",
+            "exactDecimal": "97.19025842816122514091247474210358396257",
+            "state": "VALUE",
+            "quality": "COMPLETE",
+            "traceId": "TRACE_REV_RATE_Y_PHUONG_Phường_Trần_Nhân_Tông_REV_b41227d1444c"
+          }
+        }
+      },
+      {
+        "rowNumber": 5,
+        "stt": "",
+        "indicatorId": "REV_LAND_RATE_Y",
+        "label": "Trong đó: tỷ lệ thu tiền sử dụng đất",
+        "values": {
+          "Phường Hưng Đạo": {
+            "displayed": "256,44%",
+            "exactDecimal": "256.4407569442646716197675321649537911931",
+            "state": "VALUE",
+            "quality": "COMPLETE",
+            "traceId": "TRACE_REV_LAND_RATE_Y_PHUONG_Phường_Hưng_Đạo_REV_b41227d1444c"
+          },
+          "Phường Trần Hưng Đạo": {
+            "displayed": "218,90%",
+            "exactDecimal": "218.9",
+            "state": "VALUE",
+            "quality": "COMPLETE",
+            "traceId": "TRACE_REV_LAND_RATE_Y_PHUONG_Phường_Trần_Hưng_Đạo_REV_b41227d1444c"
+          },
+          "Phường Dương Kinh": {
+            "displayed": "240,39%",
+            "exactDecimal": "240.3857142857142857142857142857142857143",
+            "state": "VALUE",
+            "quality": "COMPLETE",
+            "traceId": "TRACE_REV_LAND_RATE_Y_PHUONG_Phường_Dương_Kinh_REV_b41227d1444c"
+          },
+          "Phường An Phong": {
+            "displayed": "524,29%",
+            "exactDecimal": "524.2871794871794871794871794871794871795",
+            "state": "VALUE",
+            "quality": "COMPLETE",
+            "traceId": "TRACE_REV_LAND_RATE_Y_PHUONG_Phường_An_Phong_REV_b41227d1444c"
+          },
+          "Phường Nam Đồ Sơn": {
+            "displayed": "147,79%",
+            "exactDecimal": "147.7858481724461105904404873477038425492",
+            "state": "VALUE",
+            "quality": "COMPLETE",
+            "traceId": "TRACE_REV_LAND_RATE_Y_PHUONG_Phường_Nam_Đồ_Sơn_REV_b41227d1444c"
+          },
+          "Phường Hồng An": {
+            "displayed": "Phát sinh ngoài dự toán",
+            "exactDecimal": null,
+            "state": "NOT_APPLICABLE",
+            "quality": "DENOMINATOR_ZERO",
+            "traceId": "TRACE_REV_LAND_RATE_Y_PHUONG_Phường_Hồng_An_REV_b41227d1444c"
+          },
+          "Phường Trần Nhân Tông": {
+            "displayed": "103,32%",
+            "exactDecimal": "103.3163784333672431332655137334689725331",
+            "state": "VALUE",
+            "quality": "COMPLETE",
+            "traceId": "TRACE_REV_LAND_RATE_Y_PHUONG_Phường_Trần_Nhân_Tông_REV_b41227d1444c"
+          }
+        }
+      },
+      {
+        "rowNumber": 6,
+        "stt": "",
+        "indicatorId": "REV_NONLAND_RATE_Y",
+        "label": "Tỷ lệ thu không gồm tiền đất",
+        "values": {
+          "Phường Hưng Đạo": {
+            "displayed": "137,77%",
+            "exactDecimal": "137.7698091382301908617698091382301908618",
+            "state": "VALUE",
+            "quality": "COMPLETE",
+            "traceId": "TRACE_REV_NONLAND_RATE_Y_PHUONG_Phường_Hưng_Đạo_REV_b41227d1444c"
+          },
+          "Phường Trần Hưng Đạo": {
+            "displayed": "57,29%",
+            "exactDecimal": "57.2899646384587245457870991342519204975",
+            "state": "VALUE",
+            "quality": "COMPLETE",
+            "traceId": "TRACE_REV_NONLAND_RATE_Y_PHUONG_Phường_Trần_Hưng_Đạo_REV_b41227d1444c"
+          },
+          "Phường Dương Kinh": {
+            "displayed": "96,69%",
+            "exactDecimal": "96.69295370749692748873412535845964768537",
+            "state": "VALUE",
+            "quality": "COMPLETE",
+            "traceId": "TRACE_REV_NONLAND_RATE_Y_PHUONG_Phường_Dương_Kinh_REV_b41227d1444c"
+          },
+          "Phường An Phong": {
+            "displayed": "177,44%",
+            "exactDecimal": "177.4394114252740911713791113675706866705",
+            "state": "VALUE",
+            "quality": "COMPLETE",
+            "traceId": "TRACE_REV_NONLAND_RATE_Y_PHUONG_Phường_An_Phong_REV_b41227d1444c"
+          },
+          "Phường Nam Đồ Sơn": {
+            "displayed": "81,37%",
+            "exactDecimal": "81.37081490840176879343019583070120025268",
+            "state": "VALUE",
+            "quality": "COMPLETE",
+            "traceId": "TRACE_REV_NONLAND_RATE_Y_PHUONG_Phường_Nam_Đồ_Sơn_REV_b41227d1444c"
+          },
+          "Phường Hồng An": {
+            "displayed": "120,86%",
+            "exactDecimal": "120.8593651461004834980029430313222619298",
+            "state": "VALUE",
+            "quality": "COMPLETE",
+            "traceId": "TRACE_REV_NONLAND_RATE_Y_PHUONG_Phường_Hồng_An_REV_b41227d1444c"
+          },
+          "Phường Trần Nhân Tông": {
+            "displayed": "96,05%",
+            "exactDecimal": "96.05095541401273885350318471337579617834",
+            "state": "VALUE",
+            "quality": "COMPLETE",
+            "traceId": "TRACE_REV_NONLAND_RATE_Y_PHUONG_Phường_Trần_Nhân_Tông_REV_b41227d1444c"
+          }
+        }
+      },
+      {
+        "rowNumber": 7,
+        "stt": "3",
+        "indicatorId": "DISB_PLAN",
+        "label": "Kế hoạch vốn đầu tư công sau điều chỉnh",
+        "values": {
+          "Phường Hưng Đạo": {
+            "displayed": "45,62",
+            "exactDecimal": "45.616175876626716",
+            "state": "VALUE",
+            "quality": "COMPLETE",
+            "traceId": "TRACE_DISB_PLAN_PHUONG_Phường_Hưng_Đạo_DISB_3ba33b3efd57"
+          },
+          "Phường Trần Hưng Đạo": {
+            "displayed": "67,64",
+            "exactDecimal": "67.64486350730664",
+            "state": "VALUE",
+            "quality": "COMPLETE",
+            "traceId": "TRACE_DISB_PLAN_PHUONG_Phường_Trần_Hưng_Đạo_DISB_3ba33b3efd57"
+          },
+          "Phường Dương Kinh": {
+            "displayed": "487,72",
+            "exactDecimal": "487.7227373698171",
+            "state": "VALUE",
+            "quality": "COMPLETE",
+            "traceId": "TRACE_DISB_PLAN_PHUONG_Phường_Dương_Kinh_DISB_3ba33b3efd57"
+          },
+          "Phường An Phong": {
+            "displayed": "34,51",
+            "exactDecimal": "34.50997429818448",
+            "state": "VALUE",
+            "quality": "COMPLETE",
+            "traceId": "TRACE_DISB_PLAN_PHUONG_Phường_An_Phong_DISB_3ba33b3efd57"
+          },
+          "Phường Nam Đồ Sơn": {
+            "displayed": "25,46",
+            "exactDecimal": "25.457457442615087",
+            "state": "VALUE",
+            "quality": "COMPLETE",
+            "traceId": "TRACE_DISB_PLAN_PHUONG_Phường_Nam_Đồ_Sơn_DISB_3ba33b3efd57"
+          },
+          "Phường Hồng An": {
+            "displayed": "37,50",
+            "exactDecimal": "37.50337175656685",
+            "state": "VALUE",
+            "quality": "COMPLETE",
+            "traceId": "TRACE_DISB_PLAN_PHUONG_Phường_Hồng_An_DISB_3ba33b3efd57"
+          },
+          "Phường Trần Nhân Tông": {
+            "displayed": "58,94",
+            "exactDecimal": "58.94239671857683",
+            "state": "VALUE",
+            "quality": "COMPLETE",
+            "traceId": "TRACE_DISB_PLAN_PHUONG_Phường_Trần_Nhân_Tông_DISB_3ba33b3efd57"
+          }
+        }
+      },
+      {
+        "rowNumber": 8,
+        "stt": "",
+        "indicatorId": "DISB_PLAN_VS_AVG_COMMENT",
+        "label": "So với mức vốn giao bình quân một địa phương",
+        "values": {
+          "Phường Hưng Đạo": {
+            "displayed": "thấp hơn",
+            "exactDecimal": "-90795.4307769714900087719298245614035088",
+            "state": "VALUE",
+            "quality": "COMPLETE",
+            "traceId": "TRACE_DISB_PLAN_VS_AVG_PHUONG_Phường_Hưng_Đạo_DISB_3ba33b3efd57"
+          },
+          "Phường Trần Hưng Đạo": {
+            "displayed": "thấp hơn",
+            "exactDecimal": "-68766.7431462915660087719298245614035088",
+            "state": "VALUE",
+            "quality": "COMPLETE",
+            "traceId": "TRACE_DISB_PLAN_VS_AVG_PHUONG_Phường_Trần_Hưng_Đạo_DISB_3ba33b3efd57"
+          },
+          "Phường Dương Kinh": {
+            "displayed": "cao hơn",
+            "exactDecimal": "351311.1307162188939912280701754385964912",
+            "state": "VALUE",
+            "quality": "COMPLETE",
+            "traceId": "TRACE_DISB_PLAN_VS_AVG_PHUONG_Phường_Dương_Kinh_DISB_3ba33b3efd57"
+          },
+          "Phường An Phong": {
+            "displayed": "thấp hơn",
+            "exactDecimal": "-101901.6323554137260087719298245614035088",
+            "state": "VALUE",
+            "quality": "COMPLETE",
+            "traceId": "TRACE_DISB_PLAN_VS_AVG_PHUONG_Phường_An_Phong_DISB_3ba33b3efd57"
+          },
+          "Phường Nam Đồ Sơn": {
+            "displayed": "thấp hơn",
+            "exactDecimal": "-110954.1492109831190087719298245614035088",
+            "state": "VALUE",
+            "quality": "COMPLETE",
+            "traceId": "TRACE_DISB_PLAN_VS_AVG_PHUONG_Phường_Nam_Đồ_Sơn_DISB_3ba33b3efd57"
+          },
+          "Phường Hồng An": {
+            "displayed": "thấp hơn",
+            "exactDecimal": "-98908.2348970313560087719298245614035088",
+            "state": "VALUE",
+            "quality": "COMPLETE",
+            "traceId": "TRACE_DISB_PLAN_VS_AVG_PHUONG_Phường_Hồng_An_DISB_3ba33b3efd57"
+          },
+          "Phường Trần Nhân Tông": {
+            "displayed": "thấp hơn",
+            "exactDecimal": "-77469.2099350213760087719298245614035088",
+            "state": "VALUE",
+            "quality": "COMPLETE",
+            "traceId": "TRACE_DISB_PLAN_VS_AVG_PHUONG_Phường_Trần_Nhân_Tông_DISB_3ba33b3efd57"
+          }
+        }
+      },
+      {
+        "rowNumber": 9,
+        "stt": "4",
+        "indicatorId": "DISB_BENCHMARK_RATE",
+        "label": "Tỷ lệ giải ngân chung của 114 địa phương",
+        "values": {
+          "Phường Hưng Đạo": {
+            "displayed": "67,10%",
+            "exactDecimal": "67.10162265358870227310304127304681981007",
+            "state": "VALUE",
+            "quality": "COMPLETE",
+            "traceId": "TRACE_BM_DISB_BENCHMARK_RATE_LOCALITIES_FULL_114_DISB_3ba33b3efd57"
+          },
+          "Phường Trần Hưng Đạo": {
+            "displayed": "67,10%",
+            "exactDecimal": "67.10162265358870227310304127304681981007",
+            "state": "VALUE",
+            "quality": "COMPLETE",
+            "traceId": "TRACE_BM_DISB_BENCHMARK_RATE_LOCALITIES_FULL_114_DISB_3ba33b3efd57"
+          },
+          "Phường Dương Kinh": {
+            "displayed": "67,10%",
+            "exactDecimal": "67.10162265358870227310304127304681981007",
+            "state": "VALUE",
+            "quality": "COMPLETE",
+            "traceId": "TRACE_BM_DISB_BENCHMARK_RATE_LOCALITIES_FULL_114_DISB_3ba33b3efd57"
+          },
+          "Phường An Phong": {
+            "displayed": "67,10%",
+            "exactDecimal": "67.10162265358870227310304127304681981007",
+            "state": "VALUE",
+            "quality": "COMPLETE",
+            "traceId": "TRACE_BM_DISB_BENCHMARK_RATE_LOCALITIES_FULL_114_DISB_3ba33b3efd57"
+          },
+          "Phường Nam Đồ Sơn": {
+            "displayed": "67,10%",
+            "exactDecimal": "67.10162265358870227310304127304681981007",
+            "state": "VALUE",
+            "quality": "COMPLETE",
+            "traceId": "TRACE_BM_DISB_BENCHMARK_RATE_LOCALITIES_FULL_114_DISB_3ba33b3efd57"
+          },
+          "Phường Hồng An": {
+            "displayed": "67,10%",
+            "exactDecimal": "67.10162265358870227310304127304681981007",
+            "state": "VALUE",
+            "quality": "COMPLETE",
+            "traceId": "TRACE_BM_DISB_BENCHMARK_RATE_LOCALITIES_FULL_114_DISB_3ba33b3efd57"
+          },
+          "Phường Trần Nhân Tông": {
+            "displayed": "67,10%",
+            "exactDecimal": "67.10162265358870227310304127304681981007",
+            "state": "VALUE",
+            "quality": "COMPLETE",
+            "traceId": "TRACE_BM_DISB_BENCHMARK_RATE_LOCALITIES_FULL_114_DISB_3ba33b3efd57"
+          }
+        }
+      },
+      {
+        "rowNumber": 10,
+        "stt": "",
+        "indicatorId": "DISB_RATE",
+        "label": "Tỷ lệ giải ngân của địa phương",
+        "values": {
+          "Phường Hưng Đạo": {
+            "displayed": "99,66%",
+            "exactDecimal": "99.65543828783058645751008780106745456143",
+            "state": "VALUE",
+            "quality": "COMPLETE",
+            "traceId": "TRACE_DISB_RATE_PHUONG_Phường_Hưng_Đạo_DISB_3ba33b3efd57"
+          },
+          "Phường Trần Hưng Đạo": {
+            "displayed": "64,57%",
+            "exactDecimal": "64.56661708731565365528656809805133171822",
+            "state": "VALUE",
+            "quality": "COMPLETE",
+            "traceId": "TRACE_DISB_RATE_PHUONG_Phường_Trần_Hưng_Đạo_DISB_3ba33b3efd57"
+          },
+          "Phường Dương Kinh": {
+            "displayed": "84,48%",
+            "exactDecimal": "84.47833419084267018027440692738186127643",
+            "state": "VALUE",
+            "quality": "COMPLETE",
+            "traceId": "TRACE_DISB_RATE_PHUONG_Phường_Dương_Kinh_DISB_3ba33b3efd57"
+          },
+          "Phường An Phong": {
+            "displayed": "93,38%",
+            "exactDecimal": "93.37590263489491554769730492309162371744",
+            "state": "VALUE",
+            "quality": "COMPLETE",
+            "traceId": "TRACE_DISB_RATE_PHUONG_Phường_An_Phong_DISB_3ba33b3efd57"
+          },
+          "Phường Nam Đồ Sơn": {
+            "displayed": "91,83%",
+            "exactDecimal": "91.8316373608696202517888034377328757064",
+            "state": "VALUE",
+            "quality": "COMPLETE",
+            "traceId": "TRACE_DISB_RATE_PHUONG_Phường_Nam_Đồ_Sơn_DISB_3ba33b3efd57"
+          },
+          "Phường Hồng An": {
+            "displayed": "90,78%",
+            "exactDecimal": "90.77583802592066106854733419701149773096",
+            "state": "VALUE",
+            "quality": "COMPLETE",
+            "traceId": "TRACE_DISB_RATE_PHUONG_Phường_Hồng_An_DISB_3ba33b3efd57"
+          },
+          "Phường Trần Nhân Tông": {
+            "displayed": "56,86%",
+            "exactDecimal": "56.85720612958674188855488337620375361917",
+            "state": "VALUE",
+            "quality": "COMPLETE",
+            "traceId": "TRACE_DISB_RATE_PHUONG_Phường_Trần_Nhân_Tông_DISB_3ba33b3efd57"
+          }
+        }
+      },
+      {
+        "rowNumber": 11,
+        "stt": "",
+        "indicatorId": "DISB_COMPARISON_LABEL",
+        "label": "Nhận xét tỷ lệ giải ngân",
+        "values": {
+          "Phường Hưng Đạo": {
+            "displayed": "cao hơn",
+            "exactDecimal": "32.55381563424188418440704652802063475136",
+            "state": "VALUE",
+            "quality": "COMPLETE",
+            "traceId": "TRACE_DISB_COMPARISON_PHUONG_Phường_Hưng_Đạo_DISB_3ba33b3efd57"
+          },
+          "Phường Trần Hưng Đạo": {
+            "displayed": "thấp hơn",
+            "exactDecimal": "-2.53500556627304861781647317499548809185",
+            "state": "VALUE",
+            "quality": "COMPLETE",
+            "traceId": "TRACE_DISB_COMPARISON_PHUONG_Phường_Trần_Hưng_Đạo_DISB_3ba33b3efd57"
+          },
+          "Phường Dương Kinh": {
+            "displayed": "cao hơn",
+            "exactDecimal": "17.37671153725396790717136565433504146636",
+            "state": "VALUE",
+            "quality": "COMPLETE",
+            "traceId": "TRACE_DISB_COMPARISON_PHUONG_Phường_Dương_Kinh_DISB_3ba33b3efd57"
+          },
+          "Phường An Phong": {
+            "displayed": "cao hơn",
+            "exactDecimal": "26.27427998130621327459426365004480390737",
+            "state": "VALUE",
+            "quality": "COMPLETE",
+            "traceId": "TRACE_DISB_COMPARISON_PHUONG_Phường_An_Phong_DISB_3ba33b3efd57"
+          },
+          "Phường Nam Đồ Sơn": {
+            "displayed": "cao hơn",
+            "exactDecimal": "24.73001470728091797868576216468605589633",
+            "state": "VALUE",
+            "quality": "COMPLETE",
+            "traceId": "TRACE_DISB_COMPARISON_PHUONG_Phường_Nam_Đồ_Sơn_DISB_3ba33b3efd57"
+          },
+          "Phường Hồng An": {
+            "displayed": "cao hơn",
+            "exactDecimal": "23.67421537233195879544429292396467792089",
+            "state": "VALUE",
+            "quality": "COMPLETE",
+            "traceId": "TRACE_DISB_COMPARISON_PHUONG_Phường_Hồng_An_DISB_3ba33b3efd57"
+          },
+          "Phường Trần Nhân Tông": {
+            "displayed": "thấp hơn",
+            "exactDecimal": "-10.2444165240019603845481578968430661909",
+            "state": "VALUE",
+            "quality": "COMPLETE",
+            "traceId": "TRACE_DISB_COMPARISON_PHUONG_Phường_Trần_Nhân_Tông_DISB_3ba33b3efd57"
+          }
+        }
+      },
+      {
+        "rowNumber": 12,
+        "stt": "5",
+        "indicatorId": "GPMB_BUDGET",
+        "label": "Kinh phí phân bổ GPMB",
+        "values": {
+          "Phường Hưng Đạo": {
+            "displayed": "249,05",
+            "exactDecimal": "249.046397178",
+            "state": "VALUE",
+            "quality": "COMPLETE",
+            "traceId": "TRACE_GPMB_BUDGET_PHUONG_Phường_Hưng_Đạo_GPMB_d393c3c1f3f9"
+          },
+          "Phường Trần Hưng Đạo": {
+            "displayed": "4,16",
+            "exactDecimal": "4.161",
+            "state": "VALUE",
+            "quality": "COMPLETE",
+            "traceId": "TRACE_GPMB_BUDGET_PHUONG_Phường_Trần_Hưng_Đạo_GPMB_d393c3c1f3f9"
+          },
+          "Phường Dương Kinh": {
+            "displayed": "566,62",
+            "exactDecimal": "566.620588417",
+            "state": "VALUE",
+            "quality": "COMPLETE",
+            "traceId": "TRACE_GPMB_BUDGET_PHUONG_Phường_Dương_Kinh_GPMB_d393c3c1f3f9"
+          },
+          "Phường An Phong": {
+            "displayed": "1.337,66",
+            "exactDecimal": "1337.660225826",
+            "state": "VALUE",
+            "quality": "COMPLETE",
+            "traceId": "TRACE_GPMB_BUDGET_PHUONG_Phường_An_Phong_GPMB_d393c3c1f3f9"
+          },
+          "Phường Nam Đồ Sơn": {
+            "displayed": "171,50",
+            "exactDecimal": "171.49938791",
+            "state": "VALUE",
+            "quality": "COMPLETE",
+            "traceId": "TRACE_GPMB_BUDGET_PHUONG_Phường_Nam_Đồ_Sơn_GPMB_d393c3c1f3f9"
+          },
+          "Phường Hồng An": {
+            "displayed": "946,56",
+            "exactDecimal": "946.56",
+            "state": "VALUE",
+            "quality": "COMPLETE",
+            "traceId": "TRACE_GPMB_BUDGET_PHUONG_Phường_Hồng_An_GPMB_d393c3c1f3f9"
+          },
+          "Phường Trần Nhân Tông": {
+            "displayed": "124,04",
+            "exactDecimal": "124.03744917",
+            "state": "VALUE",
+            "quality": "COMPLETE",
+            "traceId": "TRACE_GPMB_BUDGET_PHUONG_Phường_Trần_Nhân_Tông_GPMB_d393c3c1f3f9"
+          }
+        }
+      },
+      {
+        "rowNumber": 13,
+        "stt": "6",
+        "indicatorId": "GPMB_AREA_PLAN",
+        "label": "Diện tích phải GPMB",
+        "values": {
+          "Phường Hưng Đạo": {
+            "displayed": "113.969",
+            "exactDecimal": "113969",
+            "state": "VALUE",
+            "quality": "COMPLETE",
+            "traceId": "TRACE_GPMB_AREA_PLAN_PHUONG_Phường_Hưng_Đạo_GPMB_d393c3c1f3f9"
+          },
+          "Phường Trần Hưng Đạo": {
+            "displayed": "1.955",
+            "exactDecimal": "1955",
+            "state": "VALUE",
+            "quality": "COMPLETE",
+            "traceId": "TRACE_GPMB_AREA_PLAN_PHUONG_Phường_Trần_Hưng_Đạo_GPMB_d393c3c1f3f9"
+          },
+          "Phường Dương Kinh": {
+            "displayed": "731.923",
+            "exactDecimal": "731923",
+            "state": "VALUE",
+            "quality": "COMPLETE",
+            "traceId": "TRACE_GPMB_AREA_PLAN_PHUONG_Phường_Dương_Kinh_GPMB_d393c3c1f3f9"
+          },
+          "Phường An Phong": {
+            "displayed": "1.244.249",
+            "exactDecimal": "1244249",
+            "state": "VALUE",
+            "quality": "COMPLETE",
+            "traceId": "TRACE_GPMB_AREA_PLAN_PHUONG_Phường_An_Phong_GPMB_d393c3c1f3f9"
+          },
+          "Phường Nam Đồ Sơn": {
+            "displayed": "137.868",
+            "exactDecimal": "137868",
+            "state": "VALUE",
+            "quality": "COMPLETE",
+            "traceId": "TRACE_GPMB_AREA_PLAN_PHUONG_Phường_Nam_Đồ_Sơn_GPMB_d393c3c1f3f9"
+          },
+          "Phường Hồng An": {
+            "displayed": "1.971.600",
+            "exactDecimal": "1971600",
+            "state": "VALUE",
+            "quality": "COMPLETE",
+            "traceId": "TRACE_GPMB_AREA_PLAN_PHUONG_Phường_Hồng_An_GPMB_d393c3c1f3f9"
+          },
+          "Phường Trần Nhân Tông": {
+            "displayed": "582.062",
+            "exactDecimal": "582062",
+            "state": "VALUE",
+            "quality": "COMPLETE",
+            "traceId": "TRACE_GPMB_AREA_PLAN_PHUONG_Phường_Trần_Nhân_Tông_GPMB_d393c3c1f3f9"
+          }
+        }
+      },
+      {
+        "rowNumber": 14,
+        "stt": "7",
+        "indicatorId": "GPMB_BENCHMARK_AREA_RATE",
+        "label": "Tỷ lệ GPMB của danh mục địa bàn có dữ liệu (108/114 địa bàn)",
+        "values": {
+          "Phường Hưng Đạo": {
+            "displayed": "72,13% (108/114 địa bàn, còn 3 DA thiếu I)",
+            "exactDecimal": "72.13318997118406358766576474148557086683",
+            "state": "VALUE",
+            "quality": "PARTIAL_AGGREGATE",
+            "traceId": "TRACE_BM_GPMB_BENCHMARK_AREA_RATE_LOCALITIES_AVAILABLE_N_GPMB_d393c3c1f3f9"
+          },
+          "Phường Trần Hưng Đạo": {
+            "displayed": "72,13% (108/114 địa bàn, còn 3 DA thiếu I)",
+            "exactDecimal": "72.13318997118406358766576474148557086683",
+            "state": "VALUE",
+            "quality": "PARTIAL_AGGREGATE",
+            "traceId": "TRACE_BM_GPMB_BENCHMARK_AREA_RATE_LOCALITIES_AVAILABLE_N_GPMB_d393c3c1f3f9"
+          },
+          "Phường Dương Kinh": {
+            "displayed": "72,13% (108/114 địa bàn, còn 3 DA thiếu I)",
+            "exactDecimal": "72.13318997118406358766576474148557086683",
+            "state": "VALUE",
+            "quality": "PARTIAL_AGGREGATE",
+            "traceId": "TRACE_BM_GPMB_BENCHMARK_AREA_RATE_LOCALITIES_AVAILABLE_N_GPMB_d393c3c1f3f9"
+          },
+          "Phường An Phong": {
+            "displayed": "72,13% (108/114 địa bàn, còn 3 DA thiếu I)",
+            "exactDecimal": "72.13318997118406358766576474148557086683",
+            "state": "VALUE",
+            "quality": "PARTIAL_AGGREGATE",
+            "traceId": "TRACE_BM_GPMB_BENCHMARK_AREA_RATE_LOCALITIES_AVAILABLE_N_GPMB_d393c3c1f3f9"
+          },
+          "Phường Nam Đồ Sơn": {
+            "displayed": "72,13% (108/114 địa bàn, còn 3 DA thiếu I)",
+            "exactDecimal": "72.13318997118406358766576474148557086683",
+            "state": "VALUE",
+            "quality": "PARTIAL_AGGREGATE",
+            "traceId": "TRACE_BM_GPMB_BENCHMARK_AREA_RATE_LOCALITIES_AVAILABLE_N_GPMB_d393c3c1f3f9"
+          },
+          "Phường Hồng An": {
+            "displayed": "72,13% (108/114 địa bàn, còn 3 DA thiếu I)",
+            "exactDecimal": "72.13318997118406358766576474148557086683",
+            "state": "VALUE",
+            "quality": "PARTIAL_AGGREGATE",
+            "traceId": "TRACE_BM_GPMB_BENCHMARK_AREA_RATE_LOCALITIES_AVAILABLE_N_GPMB_d393c3c1f3f9"
+          },
+          "Phường Trần Nhân Tông": {
+            "displayed": "72,13% (108/114 địa bàn, còn 3 DA thiếu I)",
+            "exactDecimal": "72.13318997118406358766576474148557086683",
+            "state": "VALUE",
+            "quality": "PARTIAL_AGGREGATE",
+            "traceId": "TRACE_BM_GPMB_BENCHMARK_AREA_RATE_LOCALITIES_AVAILABLE_N_GPMB_d393c3c1f3f9"
+          }
+        }
+      },
+      {
+        "rowNumber": 15,
+        "stt": "",
+        "indicatorId": "GPMB_AREA_RATE",
+        "label": "Tỷ lệ GPMB địa phương theo diện tích",
+        "values": {
+          "Phường Hưng Đạo": {
+            "displayed": "111,08%",
+            "exactDecimal": "111.0758188630241556914599584097430002896",
+            "state": "VALUE",
+            "quality": "COMPLETE",
+            "traceId": "TRACE_GPMB_AREA_RATE_PHUONG_Phường_Hưng_Đạo_GPMB_d393c3c1f3f9"
+          },
+          "Phường Trần Hưng Đạo": {
+            "displayed": "0,00%",
+            "exactDecimal": "0",
+            "state": "VALUE",
+            "quality": "COMPLETE",
+            "traceId": "TRACE_GPMB_AREA_RATE_PHUONG_Phường_Trần_Hưng_Đạo_GPMB_d393c3c1f3f9"
+          },
+          "Phường Dương Kinh": {
+            "displayed": "43,35%",
+            "exactDecimal": "43.34813908020379192893241502179874112441",
+            "state": "VALUE",
+            "quality": "COMPLETE",
+            "traceId": "TRACE_GPMB_AREA_RATE_PHUONG_Phường_Dương_Kinh_GPMB_d393c3c1f3f9"
+          },
+          "Phường An Phong": {
+            "displayed": "96,66%",
+            "exactDecimal": "96.6610381041093864652493190671642090932",
+            "state": "VALUE",
+            "quality": "COMPLETE",
+            "traceId": "TRACE_GPMB_AREA_RATE_PHUONG_Phường_An_Phong_GPMB_d393c3c1f3f9"
+          },
+          "Phường Nam Đồ Sơn": {
+            "displayed": "86,62%",
+            "exactDecimal": "86.62488757362114486320248353497548379609",
+            "state": "VALUE",
+            "quality": "COMPLETE",
+            "traceId": "TRACE_GPMB_AREA_RATE_PHUONG_Phường_Nam_Đồ_Sơn_GPMB_d393c3c1f3f9"
+          },
+          "Phường Hồng An": {
+            "displayed": "74,90%",
+            "exactDecimal": "74.90363156826942584702779468452018665044",
+            "state": "VALUE",
+            "quality": "COMPLETE",
+            "traceId": "TRACE_GPMB_AREA_RATE_PHUONG_Phường_Hồng_An_GPMB_d393c3c1f3f9"
+          },
+          "Phường Trần Nhân Tông": {
+            "displayed": "100,00%",
+            "exactDecimal": "100",
+            "state": "VALUE",
+            "quality": "COMPLETE",
+            "traceId": "TRACE_GPMB_AREA_RATE_PHUONG_Phường_Trần_Nhân_Tông_GPMB_d393c3c1f3f9"
+          }
+        }
+      },
+      {
+        "rowNumber": 16,
+        "stt": "",
+        "indicatorId": "GPMB_COMPARISON_LABEL",
+        "label": "Đánh giá GPMB",
+        "values": {
+          "Phường Hưng Đạo": {
+            "displayed": "Chưa đủ cơ sở đánh giá",
+            "exactDecimal": "38.94262889184009210379419366825742942277",
+            "state": "VALUE",
+            "quality": "PARTIAL_AGGREGATE",
+            "traceId": "TRACE_GPMB_COMPARISON_PHUONG_Phường_Hưng_Đạo_GPMB_d393c3c1f3f9"
+          },
+          "Phường Trần Hưng Đạo": {
+            "displayed": "Chưa đủ cơ sở đánh giá",
+            "exactDecimal": "-72.13318997118406358766576474148557086683",
+            "state": "VALUE",
+            "quality": "PARTIAL_AGGREGATE",
+            "traceId": "TRACE_GPMB_COMPARISON_PHUONG_Phường_Trần_Hưng_Đạo_GPMB_d393c3c1f3f9"
+          },
+          "Phường Dương Kinh": {
+            "displayed": "Chưa đủ cơ sở đánh giá",
+            "exactDecimal": "-28.78505089098027165873334971968682974242",
+            "state": "VALUE",
+            "quality": "PARTIAL_AGGREGATE",
+            "traceId": "TRACE_GPMB_COMPARISON_PHUONG_Phường_Dương_Kinh_GPMB_d393c3c1f3f9"
+          },
+          "Phường An Phong": {
+            "displayed": "Chưa đủ cơ sở đánh giá",
+            "exactDecimal": "24.52784813292532287758355432567863822637",
+            "state": "VALUE",
+            "quality": "PARTIAL_AGGREGATE",
+            "traceId": "TRACE_GPMB_COMPARISON_PHUONG_Phường_An_Phong_GPMB_d393c3c1f3f9"
+          },
+          "Phường Nam Đồ Sơn": {
+            "displayed": "Chưa đủ cơ sở đánh giá",
+            "exactDecimal": "14.49169760243708127553671879348991292926",
+            "state": "VALUE",
+            "quality": "PARTIAL_AGGREGATE",
+            "traceId": "TRACE_GPMB_COMPARISON_PHUONG_Phường_Nam_Đồ_Sơn_GPMB_d393c3c1f3f9"
+          },
+          "Phường Hồng An": {
+            "displayed": "Chưa đủ cơ sở đánh giá",
+            "exactDecimal": "2.77044159708536225936202994303461578361",
+            "state": "VALUE",
+            "quality": "PARTIAL_AGGREGATE",
+            "traceId": "TRACE_GPMB_COMPARISON_PHUONG_Phường_Hồng_An_GPMB_d393c3c1f3f9"
+          },
+          "Phường Trần Nhân Tông": {
+            "displayed": "Chưa đủ cơ sở đánh giá",
+            "exactDecimal": "27.86681002881593641233423525851442913317",
+            "state": "VALUE",
+            "quality": "PARTIAL_AGGREGATE",
+            "traceId": "TRACE_GPMB_COMPARISON_PHUONG_Phường_Trần_Nhân_Tông_GPMB_d393c3c1f3f9"
+          }
+        }
+      }
+    ]
+  },
+  "testMatrix": {
+    "T01": {
+      "status": "PASS",
+      "note": "Đã kiểm chứng runtime thực tế bằng Vitest trên bộ 4 tệp Excel tham chiếu gốc."
+    },
+    "T02": {
+      "status": "PASS",
+      "note": "Đã kiểm chứng runtime thực tế bằng Vitest trên bộ 4 tệp Excel tham chiếu gốc."
+    },
+    "T03": {
+      "status": "PASS",
+      "note": "Đã kiểm chứng runtime thực tế bằng Vitest trên bộ 4 tệp Excel tham chiếu gốc."
+    },
+    "T04": {
+      "status": "PASS",
+      "note": "Đã kiểm chứng runtime thực tế bằng Vitest trên bộ 4 tệp Excel tham chiếu gốc."
+    },
+    "T05": {
+      "status": "PASS",
+      "note": "Đã kiểm chứng runtime thực tế bằng Vitest trên bộ 4 tệp Excel tham chiếu gốc."
+    },
+    "T06": {
+      "status": "PASS",
+      "note": "Đã kiểm chứng runtime thực tế bằng Vitest trên bộ 4 tệp Excel tham chiếu gốc."
+    },
+    "T07": {
+      "status": "PASS",
+      "note": "Đã kiểm chứng runtime thực tế bằng Vitest trên bộ 4 tệp Excel tham chiếu gốc."
+    },
+    "T08": {
+      "status": "PASS",
+      "note": "Đã kiểm chứng runtime thực tế bằng Vitest trên bộ 4 tệp Excel tham chiếu gốc."
+    },
+    "T09": {
+      "status": "PASS",
+      "note": "Đã kiểm chứng runtime thực tế bằng Vitest trên bộ 4 tệp Excel tham chiếu gốc."
+    },
+    "T10": {
+      "status": "PASS",
+      "note": "Đã kiểm chứng runtime thực tế bằng Vitest trên bộ 4 tệp Excel tham chiếu gốc."
+    },
+    "T11": {
+      "status": "PASS",
+      "note": "Đã kiểm chứng runtime thực tế bằng Vitest trên bộ 4 tệp Excel tham chiếu gốc."
+    },
+    "T12": {
+      "status": "PASS",
+      "note": "Đã kiểm chứng runtime thực tế bằng Vitest trên bộ 4 tệp Excel tham chiếu gốc."
+    },
+    "T13": {
+      "status": "PASS",
+      "note": "Đã kiểm chứng runtime thực tế bằng Vitest trên bộ 4 tệp Excel tham chiếu gốc."
+    },
+    "T14": {
+      "status": "PASS",
+      "note": "Đã kiểm chứng runtime thực tế bằng Vitest trên bộ 4 tệp Excel tham chiếu gốc."
+    },
+    "T15": {
+      "status": "PASS",
+      "note": "Đã kiểm chứng runtime thực tế bằng Vitest trên bộ 4 tệp Excel tham chiếu gốc."
+    },
+    "T16": {
+      "status": "PASS",
+      "note": "Đã kiểm chứng runtime thực tế bằng Vitest trên bộ 4 tệp Excel tham chiếu gốc."
+    },
+    "T17": {
+      "status": "PASS",
+      "note": "Đã kiểm chứng runtime thực tế bằng Vitest trên bộ 4 tệp Excel tham chiếu gốc."
+    },
+    "T18": {
+      "status": "PASS",
+      "note": "Đã kiểm chứng runtime thực tế bằng Vitest trên bộ 4 tệp Excel tham chiếu gốc."
+    },
+    "T19": {
+      "status": "PASS",
+      "note": "PH1 PASS phát hiện lỗi #VALUE! C7, nhận diện theo fingerprint khi đổi tên file và chặn BLOCKER_MAPPING_REQUIRED khi đổi cột; giao diện Mapping Wizard động thuộc PH2-01 (DEFERRED_BY_SCOPE)."
+    },
+    "T20": {
+      "status": "PASS",
+      "note": "Đã kiểm chứng runtime thực tế bằng Vitest trên bộ 4 tệp Excel tham chiếu gốc."
+    },
+    "T21": {
+      "status": "PASS",
+      "note": "Đã kiểm chứng runtime thực tế bằng Vitest trên bộ 4 tệp Excel tham chiếu gốc."
+    },
+    "T22": {
+      "status": "PASS",
+      "note": "Đã kiểm chứng runtime thực tế bằng Vitest trên bộ 4 tệp Excel tham chiếu gốc."
+    },
+    "T23": {
+      "status": "PASS",
+      "note": "Đã kiểm chứng runtime thực tế bằng Vitest trên bộ 4 tệp Excel tham chiếu gốc."
+    },
+    "T24": {
+      "status": "PASS",
+      "note": "Đã kiểm chứng runtime thực tế bằng Vitest trên bộ 4 tệp Excel tham chiếu gốc."
+    },
+    "T25": {
+      "status": "PASS",
+      "note": "Đã kiểm chứng runtime thực tế bằng Vitest trên bộ 4 tệp Excel tham chiếu gốc."
+    },
+    "T26": {
+      "status": "PASS",
+      "note": "Đã kiểm chứng runtime thực tế bằng Vitest trên bộ 4 tệp Excel tham chiếu gốc."
+    },
+    "T27": {
+      "status": "PASS",
+      "note": "Đã kiểm chứng runtime thực tế bằng Vitest trên bộ 4 tệp Excel tham chiếu gốc."
+    },
+    "T28": {
+      "status": "PASS",
+      "note": "Đã kiểm chứng runtime thực tế bằng Vitest trên bộ 4 tệp Excel tham chiếu gốc."
+    },
+    "T29": {
+      "status": "PASS",
+      "note": "Đã kiểm chứng runtime thực tế bằng Vitest trên bộ 4 tệp Excel tham chiếu gốc."
+    },
+    "T30": {
+      "status": "PASS",
+      "note": "Đã kiểm chứng runtime thực tế bằng Vitest trên bộ 4 tệp Excel tham chiếu gốc."
+    },
+    "T31": {
+      "status": "PASS",
+      "note": "PH1 PASS phát hiện lỗi #VALUE! C7, nhận diện theo fingerprint khi đổi tên file và chặn BLOCKER_MAPPING_REQUIRED khi đổi cột; giao diện Mapping Wizard động thuộc PH2-01 (DEFERRED_BY_SCOPE)."
+    },
+    "T32": {
+      "status": "PASS",
+      "note": "Đã kiểm chứng runtime thực tế bằng Vitest trên bộ 4 tệp Excel tham chiếu gốc."
+    },
+    "T33": {
+      "status": "PASS",
+      "note": "Đã kiểm chứng runtime thực tế bằng Vitest trên bộ 4 tệp Excel tham chiếu gốc."
+    },
+    "T34": {
+      "status": "PASS",
+      "note": "Đã kiểm chứng runtime thực tế bằng Vitest trên bộ 4 tệp Excel tham chiếu gốc."
+    },
+    "T35": {
+      "status": "PASS",
+      "note": "Đã kiểm chứng runtime thực tế bằng Vitest trên bộ 4 tệp Excel tham chiếu gốc."
+    },
+    "T36": {
+      "status": "PASS",
+      "note": "Đã kiểm chứng runtime thực tế bằng Vitest trên bộ 4 tệp Excel tham chiếu gốc."
+    },
+    "T37": {
+      "status": "PASS",
+      "note": "Đã kiểm chứng runtime thực tế bằng Vitest trên bộ 4 tệp Excel tham chiếu gốc."
+    },
+    "T38": {
+      "status": "PASS",
+      "note": "Đã kiểm chứng runtime thực tế bằng Vitest trên bộ 4 tệp Excel tham chiếu gốc."
+    },
+    "T39": {
+      "status": "PASS",
+      "note": "Đã kiểm chứng runtime thực tế bằng Vitest trên bộ 4 tệp Excel tham chiếu gốc."
+    },
+    "T40": {
+      "status": "PASS",
+      "note": "Đã kiểm chứng runtime thực tế bằng Vitest trên bộ 4 tệp Excel tham chiếu gốc."
+    },
+    "T41": {
+      "status": "PASS",
+      "note": "Đã kiểm chứng runtime thực tế bằng Vitest trên bộ 4 tệp Excel tham chiếu gốc."
+    },
+    "T42": {
+      "status": "PASS",
+      "note": "Đã kiểm chứng runtime thực tế bằng Vitest trên bộ 4 tệp Excel tham chiếu gốc."
+    },
+    "T43": {
+      "status": "PASS",
+      "note": "Đã kiểm chứng runtime thực tế bằng Vitest trên bộ 4 tệp Excel tham chiếu gốc."
+    },
+    "T44": {
+      "status": "PASS",
+      "note": "Đã kiểm chứng runtime thực tế bằng Vitest trên bộ 4 tệp Excel tham chiếu gốc."
+    },
+    "T45": {
+      "status": "PASS",
+      "note": "Đã kiểm chứng runtime thực tế bằng Vitest trên bộ 4 tệp Excel tham chiếu gốc."
+    },
+    "T46": {
+      "status": "PASS",
+      "note": "Đã kiểm chứng runtime thực tế bằng Vitest trên bộ 4 tệp Excel tham chiếu gốc."
+    },
+    "T47": {
+      "status": "PASS",
+      "note": "Đã kiểm chứng runtime thực tế bằng Vitest trên bộ 4 tệp Excel tham chiếu gốc."
+    },
+    "T48": {
+      "status": "PASS",
+      "note": "Đã kiểm chứng runtime thực tế bằng Vitest trên bộ 4 tệp Excel tham chiếu gốc."
+    },
+    "T49": {
+      "status": "DEFERRED_BY_SCOPE",
+      "note": "Thuộc phạm vi Kế hoạch con 2 (PH2-02 Trình soạn công thức AST tùy chỉnh & PH2-05 Kịch bản điều chỉnh Q có xác nhận tử/mẫu đa kỳ); PH1 đã chặn UNVERIFIED_NOTE và khóa eval."
+    },
+    "T50": {
+      "status": "DEFERRED_BY_SCOPE",
+      "note": "Thuộc phạm vi Kế hoạch con 2 (PH2-02 Trình soạn công thức AST tùy chỉnh & PH2-05 Kịch bản điều chỉnh Q có xác nhận tử/mẫu đa kỳ); PH1 đã chặn UNVERIFIED_NOTE và khóa eval."
+    },
+    "T51": {
+      "status": "PASS",
+      "note": "Đã kiểm chứng runtime thực tế bằng Vitest trên bộ 4 tệp Excel tham chiếu gốc."
+    },
+    "T52": {
+      "status": "PASS",
+      "note": "Đã kiểm chứng runtime thực tế bằng Vitest trên bộ 4 tệp Excel tham chiếu gốc."
+    },
+    "T53": {
+      "status": "PASS",
+      "note": "Đã kiểm chứng runtime thực tế bằng Vitest trên bộ 4 tệp Excel tham chiếu gốc."
+    },
+    "T54": {
+      "status": "PASS",
+      "note": "Đã kiểm chứng runtime thực tế bằng Vitest trên bộ 4 tệp Excel tham chiếu gốc."
+    },
+    "T55": {
+      "status": "PASS",
+      "note": "Đã kiểm chứng runtime thực tế bằng Vitest trên bộ 4 tệp Excel tham chiếu gốc."
+    },
+    "T56": {
+      "status": "PASS",
+      "note": "Đã kiểm chứng runtime thực tế bằng Vitest trên bộ 4 tệp Excel tham chiếu gốc."
+    },
+    "T57": {
+      "status": "PASS",
+      "note": "Đã kiểm chứng runtime thực tế bằng Vitest trên bộ 4 tệp Excel tham chiếu gốc."
+    },
+    "T58": {
+      "status": "PASS",
+      "note": "Đã kiểm chứng runtime thực tế bằng Vitest trên bộ 4 tệp Excel tham chiếu gốc."
+    },
+    "T59": {
+      "status": "PASS",
+      "note": "Đã kiểm chứng runtime thực tế bằng Vitest trên bộ 4 tệp Excel tham chiếu gốc."
+    },
+    "T60": {
+      "status": "PASS",
+      "note": "Đã kiểm chứng runtime thực tế bằng Vitest trên bộ 4 tệp Excel tham chiếu gốc."
+    },
+    "T61": {
+      "status": "PASS",
+      "note": "Đã kiểm chứng runtime thực tế bằng Vitest trên bộ 4 tệp Excel tham chiếu gốc."
+    },
+    "T62": {
+      "status": "PASS",
+      "note": "Đã kiểm chứng runtime thực tế bằng Vitest trên bộ 4 tệp Excel tham chiếu gốc."
+    },
+    "T63": {
+      "status": "PASS",
+      "note": "Đã kiểm chứng runtime thực tế bằng Vitest trên bộ 4 tệp Excel tham chiếu gốc."
+    },
+    "T64": {
+      "status": "PASS",
+      "note": "Đã kiểm chứng runtime thực tế bằng Vitest trên bộ 4 tệp Excel tham chiếu gốc."
+    },
+    "T65": {
+      "status": "PASS",
+      "note": "Đã kiểm chứng runtime thực tế bằng Vitest trên bộ 4 tệp Excel tham chiếu gốc."
+    },
+    "T66": {
+      "status": "PASS",
+      "note": "Đã kiểm chứng runtime thực tế bằng Vitest trên bộ 4 tệp Excel tham chiếu gốc."
+    }
+  }
+}

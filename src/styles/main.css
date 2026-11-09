@@ -1,0 +1,969 @@
+/* ==========================================================================
+   KTXH OFFLINE REPORT — MAIN STYLESHEET
+   Dự án: KTXH Offline Report (cavoixanh638/KTXD-report)
+   Đặc tả: MASTER V2.2 & Kế hoạch PH1 (PHASE_1_RESULT_TEMPLATE.md)
+   Môi trường: 100% Offline (Không dùng @import, không dùng Google Fonts CDN)
+   Font hành chính: 'Times New Roman', Times, serif cho bảng báo cáo văn bản
+   Font ứng dụng: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif
+   ========================================================================== */
+
+/* --------------------------------------------------------------------------
+   1. CSS RESET & NỀN TẢNG THIẾT KẾ
+   -------------------------------------------------------------------------- */
+*, *::before, *::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+:root {
+  /* Bảng màu chính thống công sở / hành chính nhà nước */
+  --color-primary: #1e3a8a;       /* Xanh hải quân hành chính */
+  --color-primary-hover: #1e40af;
+  --color-primary-light: #eff6ff;
+  --color-secondary: #334155;     /* Xám than slate */
+  --color-surface: #ffffff;
+  --color-background: #f8fafc;
+  --color-border: #cbd5e1;
+  --color-border-dark: #94a3b8;
+  --color-text-main: #0f172a;
+  --color-text-muted: #475569;
+  --color-text-light: #64748b;
+
+  /* Màu trạng thái dữ liệu (Data State Colors) */
+  --status-value-bg: #ecfdf5;
+  --status-value-text: #065f46;
+  --status-value-border: #a7f3d0;
+
+  --status-zero-bg: #f0fdfa;
+  --status-zero-text: #0f766e;
+  --status-zero-border: #99f6e4;
+
+  --status-missing-bg: #f1f5f9;
+  --status-missing-text: #64748b;
+  --status-missing-border: #cbd5e1;
+
+  --status-partial-bg: #fffbeb;
+  --status-partial-text: #b45309;
+  --status-partial-border: #fde68a;
+
+  --status-warning-bg: #fff7ed;
+  --status-warning-text: #c2410c;
+  --status-warning-border: #ffedd5;
+
+  --status-error-bg: #fef2f2;
+  --status-error-text: #b91c1c;
+  --status-error-border: #fecaca;
+
+  --status-denominator-zero-bg: #faf5ff;
+  --status-denominator-zero-text: #6b21a8;
+  --status-denominator-zero-border: #e9d5ff;
+
+  /* Fonts */
+  --font-app: system-ui, -apple-system, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+  --font-admin: 'Times New Roman', Times, 'Liberation Serif', serif;
+  --font-mono: 'Consolas', 'Courier New', Courier, monospace;
+
+  /* Kích thước & Khoảng cách */
+  --header-height: 56px;
+  --nav-tabs-height: 48px;
+  --inspector-width: 420px;
+  --radius-sm: 4px;
+  --radius-md: 6px;
+  --radius-lg: 8px;
+  --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+  --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -2px rgba(0, 0, 0, 0.1);
+  --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -4px rgba(0, 0, 0, 0.1);
+}
+
+html, body {
+  height: 100%;
+  font-family: var(--font-app);
+  font-size: 14px;
+  line-height: 1.5;
+  color: var(--color-text-main);
+  background-color: var(--color-background);
+  -webkit-font-smoothing: antialiased;
+}
+
+/* --------------------------------------------------------------------------
+   2. KHUNG TRANG CHÍNH & HEADER HỆ THỐNG
+   -------------------------------------------------------------------------- */
+#app-root {
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;
+}
+
+.app-header {
+  height: var(--header-height);
+  background-color: var(--color-primary);
+  color: #ffffff;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 20px;
+  box-shadow: var(--shadow-md);
+  position: sticky;
+  top: 0;
+  z-index: 100;
+}
+
+.app-brand {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.app-logo-badge {
+  background-color: #ffffff;
+  color: var(--color-primary);
+  font-weight: 700;
+  font-size: 14px;
+  padding: 2px 8px;
+  border-radius: var(--radius-sm);
+  letter-spacing: 0.5px;
+}
+
+.app-title {
+  font-size: 16px;
+  font-weight: 600;
+  letter-spacing: 0.2px;
+}
+
+.app-version-badge {
+  font-size: 11px;
+  background-color: rgba(255, 255, 255, 0.2);
+  color: #ffffff;
+  padding: 2px 6px;
+  border-radius: var(--radius-sm);
+}
+
+.header-status-indicator {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  font-size: 12px;
+}
+
+.offline-pill {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  background-color: rgba(16, 185, 129, 0.2);
+  color: #a7f3d0;
+  padding: 4px 10px;
+  border-radius: 9999px;
+  border: 1px solid rgba(16, 185, 129, 0.4);
+}
+
+.offline-pill::before {
+  content: '';
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background-color: #10b981;
+}
+
+/* --------------------------------------------------------------------------
+   3. THANH ĐIỀU HƯỚNG 7 TAB CHÍNH
+   -------------------------------------------------------------------------- */
+.main-nav-tabs {
+  background-color: #ffffff;
+  border-bottom: 1px solid var(--color-border);
+  display: flex;
+  gap: 2px;
+  padding: 0 16px;
+  position: sticky;
+  top: var(--header-height);
+  z-index: 90;
+  box-shadow: var(--shadow-sm);
+  overflow-x: auto;
+}
+
+.nav-tab-btn {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 12px 18px;
+  border: none;
+  background: transparent;
+  color: var(--color-text-muted);
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  border-bottom: 3px solid transparent;
+  transition: all 0.15s ease-in-out;
+  white-space: nowrap;
+}
+
+.nav-tab-btn:hover {
+  color: var(--color-primary);
+  background-color: var(--color-primary-light);
+}
+
+.nav-tab-btn.active {
+  color: var(--color-primary);
+  border-bottom-color: var(--color-primary);
+  font-weight: 600;
+  background-color: rgba(239, 246, 255, 0.5);
+}
+
+.nav-tab-badge {
+  background-color: #e2e8f0;
+  color: #475569;
+  font-size: 11px;
+  padding: 1px 6px;
+  border-radius: 10px;
+  font-weight: 600;
+}
+
+.nav-tab-btn.active .nav-tab-badge {
+  background-color: var(--color-primary);
+  color: #ffffff;
+}
+
+/* --------------------------------------------------------------------------
+   4. NỘI DUNG CHÍNH (MAIN WORKSPACE LAYOUT)
+   -------------------------------------------------------------------------- */
+.app-workspace {
+  flex: 1;
+  display: flex;
+  position: relative;
+  overflow: hidden;
+}
+
+.tab-content-panel {
+  flex: 1;
+  padding: 20px;
+  overflow-y: auto;
+  display: none;
+}
+
+.tab-content-panel.active {
+  display: block;
+}
+
+/* Container giới hạn độ rộng cho các tab cấu hình */
+.container-narrow {
+  max-width: 1000px;
+  margin: 0 auto;
+}
+
+.container-fluid {
+  width: 100%;
+}
+
+/* --------------------------------------------------------------------------
+   5. BẢNG BÁO CÁO 14 DÒNG CHUẨN HÀNH CHÍNH (REPORT GRID)
+   -------------------------------------------------------------------------- */
+.report-grid-wrapper {
+  background-color: #ffffff;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-sm);
+  display: flex;
+  flex-direction: column;
+  position: relative;
+}
+
+.report-grid-toolbar {
+  padding: 12px 16px;
+  background-color: #f8fafc;
+  border-bottom: 1px solid var(--color-border);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+
+.report-grid-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+/* Khung cuộn ngang báo cáo */
+.report-scroll-container {
+  overflow-x: auto;
+  overflow-y: visible;
+  position: relative;
+  max-width: 100%;
+}
+
+/* Bảng phong cách hành chính Việt Nam chuẩn */
+.admin-report-table {
+  width: 100%;
+  border-collapse: separate;
+  border-spacing: 0;
+  font-family: var(--font-admin);
+  font-size: 13.5px;
+  line-height: 1.35;
+  color: #000000;
+  background-color: #ffffff;
+}
+
+.admin-report-table th,
+.admin-report-table td {
+  border-right: 1px solid #000000;
+  border-bottom: 1px solid #000000;
+  padding: 6px 8px;
+  vertical-align: middle;
+}
+
+.admin-report-table tr:first-child th {
+  border-top: 1px solid #000000;
+}
+
+.admin-report-table th:first-child,
+.admin-report-table td:first-child {
+  border-left: 1px solid #000000;
+}
+
+/* Cột cố định (Sticky Columns) */
+.col-sticky-stt {
+  position: sticky;
+  left: 0;
+  width: 44px;
+  min-width: 44px;
+  max-width: 44px;
+  text-align: center;
+  background-color: #ffffff;
+  z-index: 10;
+}
+
+.col-sticky-indicator {
+  position: sticky;
+  left: 44px;
+  width: 280px;
+  min-width: 280px;
+  max-width: 340px;
+  text-align: left;
+  background-color: #ffffff;
+  z-index: 10;
+  font-weight: 500;
+}
+
+/* Tiêu đề bảng cố định trên đỉnh khi cuộn dọc */
+.admin-report-table thead th {
+  position: sticky;
+  top: 0;
+  background-color: #f1f5f9;
+  font-weight: bold;
+  text-align: center;
+  z-index: 20;
+}
+
+/* Giao điểm 2 cột sticky và hàng thead sticky */
+.admin-report-table thead th.col-sticky-stt,
+.admin-report-table thead th.col-sticky-indicator {
+  background-color: #e2e8f0;
+  z-index: 30;
+}
+
+/* Định dạng các ô số liệu */
+.cell-numeric {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+  cursor: pointer;
+  position: relative;
+  transition: background-color 0.15s;
+}
+
+.cell-numeric:hover {
+  background-color: #eff6ff !important;
+  outline: 1px dashed var(--color-primary);
+}
+
+.cell-numeric.active-selected {
+  background-color: #dbeafe !important;
+  outline: 2px solid var(--color-primary);
+  font-weight: bold;
+}
+
+/* Dòng nhóm chỉ tiêu */
+.row-indicator-group td {
+  background-color: #f8fafc;
+  font-weight: bold;
+  font-style: italic;
+  color: var(--color-primary);
+}
+
+/* Dòng benchmark tham chiếu */
+.row-benchmark td {
+  background-color: #fdfaf5;
+  font-weight: 600;
+}
+
+/* Dòng nhận xét so sánh */
+.row-comment td {
+  font-style: italic;
+  color: #334155;
+}
+
+/* --------------------------------------------------------------------------
+   6. BADGE TRẠNG THÁI DỮ LIỆU & CẢNH BÁO
+   -------------------------------------------------------------------------- */
+.badge-state {
+  display: inline-flex;
+  align-items: center;
+  padding: 1px 6px;
+  font-size: 11px;
+  font-weight: 600;
+  border-radius: var(--radius-sm);
+  font-family: var(--font-app);
+  line-height: 1.3;
+}
+
+.badge-state.state-value {
+  background-color: var(--status-value-bg);
+  color: var(--status-value-text);
+  border: 1px solid var(--status-value-border);
+}
+
+.badge-state.state-zero {
+  background-color: var(--status-zero-bg);
+  color: var(--status-zero-text);
+  border: 1px solid var(--status-zero-border);
+}
+
+.badge-state.state-missing {
+  background-color: var(--status-missing-bg);
+  color: var(--status-missing-text);
+  border: 1px solid var(--status-missing-border);
+}
+
+.badge-state.state-partial {
+  background-color: var(--status-partial-bg);
+  color: var(--status-partial-text);
+  border: 1px solid var(--status-partial-border);
+}
+
+.badge-state.state-warning {
+  background-color: var(--status-warning-bg);
+  color: var(--status-warning-text);
+  border: 1px solid var(--status-warning-border);
+}
+
+.badge-state.state-error {
+  background-color: var(--status-error-bg);
+  color: var(--status-error-text);
+  border: 1px solid var(--status-error-border);
+}
+
+.badge-state.state-denominator-zero {
+  background-color: var(--status-denominator-zero-bg);
+  color: var(--status-denominator-zero-text);
+  border: 1px solid var(--status-denominator-zero-border);
+}
+
+/* Cảnh báo nhỏ góc ô */
+.cell-warning-flag {
+  position: absolute;
+  top: 1px;
+  right: 1px;
+  width: 0;
+  height: 0;
+  border-style: solid;
+  border-width: 0 7px 7px 0;
+  border-color: transparent #ea580c transparent transparent;
+}
+
+/* --------------------------------------------------------------------------
+   7. PANEL TRACE INSPECTOR (BÊN PHẢI)
+   -------------------------------------------------------------------------- */
+.trace-inspector-panel {
+  width: var(--inspector-width);
+  min-width: var(--inspector-width);
+  background-color: #ffffff;
+  border-left: 1px solid var(--color-border);
+  box-shadow: -2px 0 6px rgba(0, 0, 0, 0.05);
+  display: flex;
+  flex-direction: column;
+  position: relative;
+  z-index: 50;
+  height: calc(100vh - var(--header-height) - var(--nav-tabs-height));
+  transition: width 0.2s ease-in-out, transform 0.2s ease-in-out;
+}
+
+.trace-inspector-panel.collapsed {
+  width: 0;
+  min-width: 0;
+  transform: translateX(100%);
+  display: none;
+}
+
+.inspector-header {
+  padding: 12px 16px;
+  background-color: #f8fafc;
+  border-bottom: 1px solid var(--color-border);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.inspector-title {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--color-primary);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.inspector-body {
+  padding: 16px;
+  overflow-y: auto;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.inspector-section {
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  padding: 12px;
+  background-color: #ffffff;
+}
+
+.inspector-section-title {
+  font-size: 12px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: var(--color-text-muted);
+  margin-bottom: 8px;
+  border-bottom: 1px solid #f1f5f9;
+  padding-bottom: 4px;
+}
+
+.formula-expression-box {
+  background-color: #f1f5f9;
+  padding: 10px;
+  border-radius: var(--radius-sm);
+  font-family: var(--font-mono);
+  font-size: 12px;
+  color: #0f172a;
+  word-break: break-all;
+  border: 1px solid #e2e8f0;
+}
+
+.trace-field-row {
+  display: flex;
+  justify-content: space-between;
+  padding: 4px 0;
+  font-size: 13px;
+}
+
+.trace-field-label {
+  color: var(--color-text-muted);
+}
+
+.trace-field-value {
+  font-weight: 600;
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+.trace-source-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 12px;
+  margin-top: 6px;
+}
+
+.trace-source-table th,
+.trace-source-table td {
+  padding: 4px 6px;
+  border: 1px solid #e2e8f0;
+  text-align: left;
+}
+
+.trace-source-table th {
+  background-color: #f8fafc;
+  font-weight: 600;
+}
+
+.btn-copy-trace-json {
+  width: 100%;
+  padding: 8px;
+  background-color: #f1f5f9;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  transition: all 0.15s;
+}
+
+.btn-copy-trace-json:hover {
+  background-color: #e2e8f0;
+  border-color: var(--color-border-dark);
+}
+
+/* --------------------------------------------------------------------------
+   8. CÁC THÀNH PHẦN GIAO DIỆN CHUNG (UI COMPONENTS)
+   -------------------------------------------------------------------------- */
+/* Nút bấm chuẩn */
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 8px 14px;
+  font-size: 13px;
+  font-weight: 500;
+  border-radius: var(--radius-md);
+  border: 1px solid transparent;
+  cursor: pointer;
+  transition: all 0.15s ease-in-out;
+  white-space: nowrap;
+}
+
+.btn-primary {
+  background-color: var(--color-primary);
+  color: #ffffff;
+}
+
+.btn-primary:hover {
+  background-color: var(--color-primary-hover);
+}
+
+.btn-secondary {
+  background-color: #ffffff;
+  border-color: var(--color-border);
+  color: var(--color-text-main);
+}
+
+.btn-secondary:hover {
+  background-color: #f1f5f9;
+  border-color: var(--color-border-dark);
+}
+
+.btn-outline-danger {
+  background-color: #ffffff;
+  border-color: #fca5a5;
+  color: #dc2626;
+}
+
+.btn-outline-danger:hover {
+  background-color: #fef2f2;
+  border-color: #ef4444;
+}
+
+.btn-sm {
+  padding: 4px 10px;
+  font-size: 12px;
+}
+
+/* Thẻ thông tin (Card) */
+.card {
+  background-color: #ffffff;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-sm);
+  padding: 16px;
+  margin-bottom: 16px;
+}
+
+.card-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 12px;
+  padding-bottom: 8px;
+  border-bottom: 1px solid #f1f5f9;
+}
+
+.card-title {
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--color-text-main);
+}
+
+/* Input & Select */
+.form-group {
+  margin-bottom: 14px;
+}
+
+.form-label {
+  display: block;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--color-text-muted);
+  margin-bottom: 4px;
+}
+
+.form-control {
+  width: 100%;
+  padding: 8px 12px;
+  font-size: 13px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  background-color: #ffffff;
+  color: var(--color-text-main);
+  transition: border-color 0.15s;
+}
+
+.form-control:focus {
+  outline: none;
+  border-color: var(--color-primary);
+  box-shadow: 0 0 0 2px rgba(30, 58, 138, 0.15);
+}
+
+/* Khung kéo thả tệp Excel (Dropzone) */
+.file-dropzone {
+  border: 2px dashed var(--color-border-dark);
+  border-radius: var(--radius-lg);
+  padding: 24px;
+  text-align: center;
+  background-color: #fafafa;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.file-dropzone:hover,
+.file-dropzone.dragover {
+  border-color: var(--color-primary);
+  background-color: var(--color-primary-light);
+}
+
+.dropzone-icon {
+  font-size: 32px;
+  margin-bottom: 8px;
+  color: var(--color-primary);
+}
+
+.dropzone-text {
+  font-size: 13px;
+  color: var(--color-text-muted);
+}
+
+/* Lưới chọn địa phương (Locality Selector Grid) */
+.locality-search-bar {
+  margin-bottom: 12px;
+}
+
+.locality-chips-wrapper {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  padding: 8px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  background-color: #ffffff;
+  min-height: 40px;
+  margin-bottom: 14px;
+}
+
+.locality-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  background-color: #e0f2fe;
+  color: #0369a1;
+  padding: 2px 8px;
+  border-radius: 12px;
+  font-size: 12px;
+  font-weight: 500;
+}
+
+.locality-chip-remove {
+  cursor: pointer;
+  font-weight: bold;
+  border-radius: 50%;
+  width: 14px;
+  height: 14px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.locality-chip-remove:hover {
+  background-color: #bae6fd;
+}
+
+.locality-grid-list {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  gap: 8px;
+  max-height: 400px;
+  overflow-y: auto;
+  border: 1px solid var(--color-border);
+  padding: 10px;
+  border-radius: var(--radius-sm);
+  background-color: #ffffff;
+}
+
+.locality-item-checkbox {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 4px 6px;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  font-size: 13px;
+}
+
+.locality-item-checkbox:hover {
+  background-color: #f1f5f9;
+}
+
+/* Cảnh báo khối thông báo (Alert Banner) */
+.alert-banner {
+  padding: 12px 16px;
+  border-radius: var(--radius-md);
+  margin-bottom: 16px;
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  font-size: 13px;
+}
+
+.alert-banner.alert-warning {
+  background-color: #fffbeb;
+  border: 1px solid #fde68a;
+  color: #92400e;
+}
+
+.alert-banner.alert-danger {
+  background-color: #fef2f2;
+  border: 1px solid #fecaca;
+  color: #991b1b;
+}
+
+.alert-banner.alert-info {
+  background-color: #f0fdf4;
+  border: 1px solid #bbf7d0;
+  color: #166534;
+}
+
+/* --------------------------------------------------------------------------
+   9. ĐỊNH DẠNG IN ẤN VĂN BẢN CHUẨN A4 / A3 (@MEDIA PRINT)
+   -------------------------------------------------------------------------- */
+@media print {
+  /* Thiết lập khổ giấy in A4 Landscape tiêu chuẩn hành chính */
+  @page {
+    size: A4 landscape;
+    margin: 15mm 10mm 15mm 10mm;
+  }
+
+  /* Ẩn toàn bộ các thành phần điều khiển, thanh tab, nút bấm khi in */
+  .no-print,
+  .app-header,
+  .main-nav-tabs,
+  .report-grid-toolbar,
+  .trace-inspector-panel,
+  .btn,
+  .alert-banner,
+  .locality-search-bar,
+  .cell-warning-flag {
+    display: none !important;
+  }
+
+  html, body {
+    height: auto !important;
+    background: #ffffff !important;
+    color: #000000 !important;
+    font-size: 11pt !important;
+    font-family: var(--font-admin) !important;
+  }
+
+  #app-root, .app-workspace, .tab-content-panel {
+    display: block !important;
+    padding: 0 !important;
+    margin: 0 !important;
+    overflow: visible !important;
+    height: auto !important;
+  }
+
+  .report-grid-wrapper,
+  .report-scroll-container {
+    border: none !important;
+    box-shadow: none !important;
+    overflow: visible !important;
+  }
+
+  /* Bảng in hành chính */
+  .admin-report-table {
+    width: 100% !important;
+    border-collapse: collapse !important;
+    font-family: var(--font-admin) !important;
+    font-size: 10pt !important;
+  }
+
+  /* Bắt buộc lặp lại tiêu đề thead ở mỗi trang giấy */
+  .admin-report-table thead {
+    display: table-header-group !important;
+  }
+
+  /* Chống tách đôi hàng ngang giữa 2 trang */
+  .admin-report-table tr {
+    page-break-inside: avoid !important;
+  }
+
+  .admin-report-table th,
+  .admin-report-table td {
+    border: 0.5pt solid #000000 !important;
+    padding: 4pt 6pt !important;
+    color: #000000 !important;
+    background-color: transparent !important;
+  }
+
+  .admin-report-table thead th {
+    background-color: #f0f0f0 !important;
+    font-weight: bold !important;
+    position: static !important;
+  }
+
+  /* Bỏ ghim sticky khi in */
+  .col-sticky-stt,
+  .col-sticky-indicator {
+    position: static !important;
+    background-color: transparent !important;
+  }
+
+  /* Tiêu đề văn bản hành chính in */
+  .print-document-header {
+    display: block !important;
+    text-align: center;
+    margin-bottom: 15pt;
+  }
+
+  .print-document-title {
+    font-size: 14pt;
+    font-weight: bold;
+    text-transform: uppercase;
+    margin-bottom: 4pt;
+  }
+
+  .print-document-subtitle {
+    font-size: 11pt;
+    font-style: italic;
+    margin-bottom: 8pt;
+  }
+
+  /* Phụ lục ghi chú và chữ ký cuối trang */
+  .print-document-footer {
+    display: flex !important;
+    justify-content: space-between;
+    margin-top: 20pt;
+    page-break-inside: avoid;
+  }
+
+  .print-signature-box {
+    text-align: center;
+    width: 200pt;
+  }
+
+  .print-signature-role {
+    font-weight: bold;
+    margin-bottom: 40pt;
+  }
+}

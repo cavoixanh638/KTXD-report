@@ -1,0 +1,22 @@
+{
+  "name": "ktxh-offline-report",
+  "version": "2.2.0",
+  "private": true,
+  "description": "KTXH Offline Report WebApp - MASTER SPEC V2.2 (Phase 1)",
+  "type": "module",
+  "scripts": {
+    "build": "node tools/build.mjs",
+    "test": "vitest run",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "decimal.js": "^10.4.3",
+    "fflate": "^0.8.2"
+  },
+  "devDependencies": {
+    "@types/node": "^22.0.0",
+    "esbuild": "^0.24.0",
+    "typescript": "^5.6.3",
+    "vitest": "^2.1.4"
+  }
+}
