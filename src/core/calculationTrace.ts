@@ -1843,11 +1843,12 @@ export function evaluateLocalityIndicator(params: {
       const locPct = new Decimal(rateCell.exactDecimal || '0');
       const bmPct = bm.exactPercent!;
       const diffPp = locPct.minus(bmPct);
+      const diffFormatted = formatVnNumber(diffPp.abs(), decPct);
       const label = diffPp.gt(session.comparisonRules.higherThresholdPp)
-        ? session.comparisonRules.higherLabel
+        ? `${session.comparisonRules.higherLabel} (+${diffFormatted}%)`
         : diffPp.lt(-session.comparisonRules.lowerThresholdPp)
-        ? session.comparisonRules.lowerLabel
-        : session.comparisonRules.equalLabel;
+        ? `${session.comparisonRules.lowerLabel} (-${diffFormatted}%)`
+        : `${session.comparisonRules.equalLabel} (0,00%)`;
 
       const traceId = `TRACE_DISB_COMPARISON_${locality.id}_${disb.id}`;
       const trace: CalculationTrace = {
@@ -2449,27 +2450,39 @@ export function evaluateLocalityIndicator(params: {
           decimals: decPct,
         });
 
+      if (
+        locAreaRate.state === 'MISSING' ||
+        locAreaRate.exactDecimal === null ||
+        locAreaRate.exactDecimal === undefined
+      ) {
+        return {
+          traceId: `TRACE_GPMB_COMPARISON_${locality.id}_${gpmb.id}`,
+          indicatorId: indicator.id,
+          localityId: locality.id,
+          localityName: locality.canonicalNameNFC,
+          exactDecimal: null,
+          numericValueForExcel: null,
+          excelFormatType: 'TEXT',
+          displayedText: 'Chưa có số liệu',
+          unitLabel: '',
+          state: 'MISSING',
+          qualityStatus: 'INSUFFICIENT_COMPONENTS',
+          hasWarning: false,
+          warningCount: 0,
+          trace: locAreaRate.trace,
+        };
+      }
+
       const locPct = new Decimal(locAreaRate.exactDecimal || '0');
       const bmPct = bm.exactPercent!;
       const diffPp = locPct.minus(bmPct);
+      const diffFormatted = formatVnNumber(diffPp.abs(), decPct);
 
-      const isLocalityPartial =
-        locAreaRate.qualityStatus === 'PARTIAL_AGGREGATE';
-      const canEvaluate =
-        !isLocalityPartial &&
-        session.comparisonRules.allowPartialBenchmarkEvaluation;
-
-      let label = session.comparisonRules.insufficientBasisLabel;
-      if (canEvaluate) {
-        const baseLabel = diffPp.gt(session.comparisonRules.higherThresholdPp)
-          ? session.comparisonRules.higherLabel
-          : diffPp.lt(-session.comparisonRules.lowerThresholdPp)
-          ? session.comparisonRules.lowerLabel
-          : session.comparisonRules.equalLabel;
-        label = `${baseLabel} (so với mốc tham khảo 108/114 địa bàn)`;
-      } else if (isLocalityPartial) {
-        label = `${session.comparisonRules.insufficientBasisLabel} (địa bàn còn dự án thiếu dữ liệu I)`;
-      }
+      const label = diffPp.gt(session.comparisonRules.higherThresholdPp)
+        ? `${session.comparisonRules.higherLabel} (+${diffFormatted}%)`
+        : diffPp.lt(-session.comparisonRules.lowerThresholdPp)
+        ? `${session.comparisonRules.lowerLabel} (-${diffFormatted}%)`
+        : `${session.comparisonRules.equalLabel} (0,00%)`;
 
       const traceId = `TRACE_GPMB_COMPARISON_${locality.id}_${gpmb.id}`;
       const trace: CalculationTrace = {
@@ -2551,14 +2564,14 @@ export function evaluateLocalityIndicator(params: {
               'Tính chênh lệch điểm phần trăm giữa tỷ lệ diện tích GPMB địa phương và mốc 108 địa bàn (72,13%)',
           },
           {
-            operation: 'QUALITY_GATE_EVALUATION',
-            inputs: [locAreaRate.qualityStatus, String(session.comparisonRules.allowPartialBenchmarkEvaluation)],
+            operation: 'THRESHOLD_COMPARE',
+            inputs: [
+              diffPp.toString(),
+              session.comparisonRules.higherThresholdPp.toString(),
+              session.comparisonRules.lowerThresholdPp.toString(),
+            ],
             output: label,
-            reason: canEvaluate
-              ? `Người dùng đã xác nhận sử dụng mốc tham khảo 108/114 địa bàn: ${
-                  session.comparisonRules.partialApprovalReason || 'So sánh có điều kiện'
-                }`
-              : 'Mặc định không tự kết luận đạt/thấp khi địa bàn thiếu thành phần hoặc chưa phê duyệt mốc PARTIAL 108/114 (§4.3, §6A.4)',
+            reason: `So sánh trực tiếp chênh lệch ${diffFormatted}% với mốc trung bình: kết quả "${label}"`,
           },
         ],
         quality: {

@@ -26,22 +26,28 @@
 
 - **Lệnh kiểm thử:** `npm run typecheck; npm test; npm run build; python tools/verify_reference_files.py`
 - **Bộ kiểm thử runtime:** 2 test suites, **25/25 tests PASS** (`tests/ph1.spec.ts` 18 tests, `tests/studio.spec.ts` 7 tests bao gồm cả các kiểm thử định dạng và tinh chỉnh theo phản hồi người dùng).
-- **Tinh chỉnh giao diện và hiển thị đã hoàn thiện:**
+- **Tinh chỉnh giao diện, tìm kiếm và công thức tính đã hoàn thiện:**
   1. Loại bỏ hoàn toàn khối cơ quan chủ quản (Sở KH&ĐT), quốc hiệu tiêu ngữ và dòng ngày chốt số liệu meta ở đầu trang báo cáo.
   2. Loại bỏ phụ đề và huy hiệu phiên ở đầu báo cáo; căn giữa tiêu đề chính `TÌNH HÌNH THỰC HIỆN MỘT SỐ CHỈ TIÊU KINH TẾ - XÃ HỘI CỦA CÁC ĐỊA PHƯƠNG`.
   3. Loại bỏ các dòng ghi chú phụ/dòng mẫu dưới tên chỉ tiêu trong các bảng.
   4. Loại bỏ phần chân trang: ghi chú phương pháp tính & dữ liệu nguồn (Master V2.2 & R06) và khối chữ ký (Người lập biểu, Thủ trưởng đơn vị), chỉ giữ đánh số trang gọn gàng.
-  5. Đổi tên chỉ tiêu `DISB_COMPARISON_LABEL`: "Nhận xét tỷ lệ giải ngân" $\to$ **"Kết quả giải ngân so với tỷ lệ trung bình"**.
-  6. Đổi tên chỉ tiêu `GPMB_COMPARISON_LABEL`: "Đánh giá GPMB" $\to$ **"Kết quả GPMB so với tỷ lệ trung bình"**.
-  7. Đổi tên chỉ tiêu `REV_RATE_Y`: **"Tỷ lệ thu NSNN so với dự toán (đến ngày 19/10/2026)"**.
-  8. Đổi tên chỉ tiêu `DISB_BENCHMARK_RATE`: **"Tỷ lệ giải ngân chung của các địa phương (đến ngày 15/10/2026)"**.
-  9. Đổi tên chỉ tiêu `GPMB_BENCHMARK_AREA_RATE`: **"Tỷ lệ GPMB trung bình của các địa phương (đến ngày 26/10/2026)"** (hiển thị sạch `72,13%`, không còn chuỗi cảnh báo).
-  10. Đổi tên chỉ tiêu `GPMB_AREA_RATE`: **"Tỷ lệ GPMB của từng địa phương"**.
-  11. Lược bỏ dòng "So với mức vốn giao bình quân một địa phương" khỏi bảng báo cáo Document Studio.
-  12. Kế hoạch vốn đầu tư công sau điều chỉnh (`DISB_PLAN`) tự động tính và hiển thị số tăng/giảm/giữ nguyên so với kế hoạch ban đầu (Cột F so với Cột C, ví dụ Xã Kiến Thụy: `2101,33 tỷ (tăng 38,25 tỷ)`, Xã Hồng Châu: `35,68 tỷ (giữ nguyên)`).
-  13. Tất cả các cụm từ "(đến ngày...)" trên tiêu đề chỉ tiêu đều được in đậm tự động.
-  14. Các số gốc Decimal chưa làm tròn trên popover và inspector hiển thị tối đa 4 chữ số sau dấu thập phân.
-  15. Các chỉ tiêu có đơn vị tỷ đồng hiển thị kèm chữ `tỷ` ngay bên cạnh số liệu (`formatReportCellValue`).
+  5. Đổi tên chỉ tiêu `DISB_PLAN`: "Kế hoạch vốn đầu tư công sau điều chỉnh" $\to$ **"Kế hoạch vốn đầu tư công sau NQ điều chỉnh, bổ sung của HĐND"**.
+  6. Đổi tên chỉ tiêu `DISB_COMPARISON_LABEL`: "Nhận xét tỷ lệ giải ngân" $\to$ **"Kết quả giải ngân so với tỷ lệ trung bình"**.
+  7. Đổi tên chỉ tiêu `GPMB_COMPARISON_LABEL`: "Đánh giá GPMB" $\to$ **"Kết quả GPMB so với tỷ lệ trung bình"**.
+  8. Đổi tên chỉ tiêu `REV_RATE_Y`: **"Tỷ lệ thu NSNN so với dự toán (đến ngày 19/10/2026)"**.
+  9. Đổi tên chỉ tiêu `DISB_BENCHMARK_RATE`: **"Tỷ lệ giải ngân chung của các địa phương (đến ngày 15/10/2026)"**.
+  10. Đổi tên chỉ tiêu `GPMB_BENCHMARK_AREA_RATE`: **"Tỷ lệ GPMB trung bình của các địa phương (đến ngày 26/10/2026)"** (hiển thị sạch `72,13%`, không còn chuỗi cảnh báo).
+  11. Đổi tên chỉ tiêu `GPMB_AREA_RATE`: **"Tỷ lệ GPMB của từng địa phương"**.
+  12. Lược bỏ dòng "So với mức vốn giao bình quân một địa phương" khỏi bảng báo cáo Document Studio.
+  13. Kế hoạch vốn đầu tư công sau điều chỉnh (`DISB_PLAN`) tự động tính và hiển thị số tăng/giảm/giữ nguyên so với kế hoạch ban đầu (Cột F so với Cột C, ví dụ Xã Kiến Thụy: `2101,33 tỷ (tăng 38,25 tỷ)`, Xã Hồng Châu: `35,68 tỷ (giữ nguyên)`).
+  14. Tất cả các cụm từ "(đến ngày...)" trên tiêu đề chỉ tiêu đều được in đậm tự động.
+  15. Các số gốc Decimal chưa làm tròn trên popover và inspector hiển thị tối đa 4 chữ số sau dấu thập phân.
+  16. Các chỉ tiêu có đơn vị tỷ đồng hiển thị kèm chữ `tỷ` ngay bên cạnh số liệu (`formatReportCellValue`).
+  17. Sửa triệt để lỗi nhảy con trỏ tìm kiếm địa phương: lọc danh sách in-place không tải lại toàn trang và tự động bảo lưu focus/selectionRange của ô nhập liệu.
+  18. Xóa nhãn phân loại thừa (`Xã`, `Phường`, `Đặc khu`) ở tiêu đề cột khi tên đã có chữ Xã/Phường; xóa cột `Loại` ở bố cục bảng dọc.
+  19. So sánh tỷ lệ GPMB trực tiếp với mốc trung bình 108 địa bàn: loại bỏ giới hạn "Chưa đủ cơ sở đánh giá", tính trực tiếp độ lệch điểm phần trăm.
+  20. Chuẩn hóa kết quả so sánh giải ngân và GPMB: hiển thị rõ mức độ `cao hơn (+X,XX%)`, `thấp hơn (-X,XX%)` hoặc `tương đương (0,00%)`.
+  21. Các dòng chỉ tiêu không có số thứ tự (dòng phụ con) được định dạng chữ nghiêng (`font-style: italic;`) và không in đậm (`font-weight: normal;`).
 - **Bằng chứng JSON xuất tự động từ runtime:** [`docs/data_checks/PH1_ACCEPTANCE_EVIDENCE_20261109.json`](../data_checks/PH1_ACCEPTANCE_EVIDENCE_20261109.json) (chứa bảng đối chiếu 14 dòng cho Phiên A 5 xã và Phiên B 7 phường cùng trạng thái từng mã `T01`–`T66`).
 - **Minh chứng Microsoft Edge Headless Offline (`file://`):**
   - [`docs/evidence/EDGE_HEADLESS_DOM_DUMP.html`](../evidence/EDGE_HEADLESS_DOM_DUMP.html) (2.04 MB DOM dump xác nhận khởi chạy JS & Document Studio hoàn chỉnh).

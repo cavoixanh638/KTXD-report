@@ -1711,6 +1711,26 @@ code {
   color: #555;
 }
 
+/* Sub-indicator rows without STT number: normal weight and italic */
+.doc-row-sub td,
+.doc-row-sub .indicator-name-text,
+.doc-row-sub .cell-val {
+  font-weight: normal !important;
+  font-style: italic !important;
+}
+
+.doc-th-sub .ind-vert-name {
+  font-weight: normal !important;
+  font-style: italic !important;
+}
+
+.ktxh-report-table tr.doc-row-sub td,
+.ktxh-report-table tr.doc-row-sub .ind-label,
+.ktxh-report-table tr.doc-row-sub .cell-main-val {
+  font-weight: normal !important;
+  font-style: italic !important;
+}
+
 /* Document Footers & Signatures */
 .doc-footer {
   margin-top: 14px;

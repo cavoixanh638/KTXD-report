@@ -147,7 +147,7 @@ export const DEFAULT_INDICATORS: Record<string, IndicatorDefinition> = {
   },
   DISB_PLAN: {
     id: 'DISB_PLAN',
-    label: 'Kế hoạch vốn đầu tư công sau điều chỉnh',
+    label: 'Kế hoạch vốn đầu tư công sau NQ điều chỉnh, bổ sung của HĐND',
     sourceType: 'DISB',
     fieldOrFormula: 'F / 1000',
     numeratorField: 'adjusted_total_plan',
@@ -441,7 +441,7 @@ export const TEMPLATE_14_ROWS_DEFAULT: TemplateRowCustomConfig[] = [
     rowNumber: 7,
     indicatorId: 'DISB_PLAN',
     sttLabel: '3',
-    customLabel: 'Kế hoạch vốn đầu tư công sau điều chỉnh',
+    customLabel: 'Kế hoạch vốn đầu tư công sau NQ điều chỉnh, bổ sung của HĐND',
     groupName: 'II. Giải ngân vốn đầu tư công',
     visible: true,
     order: 5,

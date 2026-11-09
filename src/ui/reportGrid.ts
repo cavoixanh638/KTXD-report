@@ -29,7 +29,6 @@ export function renderReportGridHtml(params: {
     .map(
       (loc) => `<th class="locality-col-header" style="min-width:${session.settings.columnWidthPx}px">
         <div class="loc-header-name">${escapeHtmlUi(loc.displayName)}</div>
-        <span class="loc-type-tag">${escapeHtmlUi(loc.type)}</span>
       </th>`
     )
     .join('');
@@ -84,7 +83,8 @@ export function renderReportGridHtml(params: {
         })
         .join('');
 
-      return `<tr data-row-number="${r.rowConfig.rowNumber}" data-indicator-id="${escapeHtmlUi(
+      const hasStt = Boolean(r.rowConfig.sttLabel && r.rowConfig.sttLabel.trim());
+      return `<tr class="${hasStt ? 'doc-row-primary' : 'doc-row-sub'}" data-row-number="${r.rowConfig.rowNumber}" data-indicator-id="${escapeHtmlUi(
         r.indicator.id
       )}">
         <td class="sticky-col stt-col">${escapeHtmlUi(r.rowConfig.sttLabel || '')}</td>

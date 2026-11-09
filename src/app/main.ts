@@ -330,6 +330,20 @@ export class KtxhOfflineApp {
     const root = document.getElementById('app');
     if (!root) return;
 
+    const activeEl = document.activeElement;
+    let focusedInputId: string | null = null;
+    let selStart: number | null = null;
+    let selEnd: number | null = null;
+    if (
+      activeEl &&
+      (activeEl instanceof HTMLInputElement || activeEl instanceof HTMLTextAreaElement) &&
+      activeEl.id
+    ) {
+      focusedInputId = activeEl.id;
+      selStart = activeEl.selectionStart;
+      selEnd = activeEl.selectionEnd;
+    }
+
     const activeSession = this.getActiveSession();
     const datasets = this.getLatestDatasetsMap();
     const hasAllThreeSources = Boolean(
@@ -426,6 +440,21 @@ export class KtxhOfflineApp {
     `;
 
     this.bindDomEvents(evaluatedReport, datasets);
+
+    if (focusedInputId) {
+      const restoredInput = document.getElementById(focusedInputId) as
+        | HTMLInputElement
+        | HTMLTextAreaElement
+        | null;
+      if (restoredInput) {
+        restoredInput.focus();
+        if (selStart !== null && selEnd !== null) {
+          try {
+            restoredInput.setSelectionRange(selStart, selEnd);
+          } catch (_) {}
+        }
+      }
+    }
   }
 
   private renderTopBar(activeSession: Workspace['sessions'][number] | undefined): string {
@@ -858,13 +887,9 @@ export class KtxhOfflineApp {
     </div>`;
   }
 
-  private renderUnifiedLocalitiesPage(
-    activeSession: Workspace['sessions'][number] | undefined
+  private renderLocalityItemsHtml(
+    activeSession: Workspace['sessions'][number]
   ): string {
-    if (!activeSession) {
-      return `<div class="card"><h3>Vui lòng tạo hoặc chọn một phiên báo cáo.</h3></div>`;
-    }
-
     const filtered = searchLocalities(
       this.workspace.localities,
       this.localitySearchQuery,
@@ -897,7 +922,11 @@ export class KtxhOfflineApp {
       return 0; // Default order
     });
 
-    const itemsHtml = sorted
+    if (sorted.length === 0) {
+      return '<p class="muted" style="padding:16px">Không tìm thấy địa phương nào khớp từ khóa.</p>';
+    }
+
+    return sorted
       .map((loc) => {
         const isChecked = selectedSet.has(loc.id);
         const isMissingGpmb = [
@@ -931,6 +960,14 @@ export class KtxhOfflineApp {
         </label>`;
       })
       .join('');
+  }
+
+  private renderUnifiedLocalitiesPage(
+    activeSession: Workspace['sessions'][number] | undefined
+  ): string {
+    if (!activeSession) {
+      return `<div class="card"><h3>Vui lòng tạo hoặc chọn một phiên báo cáo.</h3></div>`;
+    }
 
     return `<section class="page-section">
       <div class="card unified-locality-container">
@@ -963,7 +1000,7 @@ export class KtxhOfflineApp {
             <option value="SELECTED_FIRST" ${this.localitySortOption === 'SELECTED_FIRST' ? 'selected' : ''}>Đã chọn lên đầu</option>
           </select>
 
-          <span class="locality-count-pill">
+          <span class="locality-count-pill" id="unified-locality-count-pill">
             Đã chọn: <strong>${activeSession.selectedLocalityIds.length}</strong> / ${
       this.workspace.localities.length || 114
     }
@@ -979,8 +1016,8 @@ export class KtxhOfflineApp {
           <button type="button" class="btn btn-sm btn-primary" data-nav-tab="REPORT">Xem báo cáo A4 &rarr;</button>
         </div>
 
-        <div class="locality-items-list-box">
-          ${itemsHtml || '<p class="muted" style="padding:16px">Không tìm thấy địa phương nào khớp từ khóa.</p>'}
+        <div class="locality-items-list-box" id="unified-locality-items-box">
+          ${this.renderLocalityItemsHtml(activeSession)}
         </div>
       </div>
     </section>`;
@@ -1274,6 +1311,41 @@ export class KtxhOfflineApp {
         </div>
       </div>
     </section>`;
+  }
+
+  private bindLocalityCheckboxes(activeSession: Workspace['sessions'][number]): void {
+    const itemsBox = document.getElementById('unified-locality-items-box');
+    const chks = itemsBox
+      ? itemsBox.querySelectorAll('.chk-select-locality')
+      : document.querySelectorAll('.chk-select-locality');
+
+    chks.forEach((chkEl) => {
+      chkEl.addEventListener('change', () => {
+        const locId = chkEl.getAttribute('data-loc-id');
+        if (!locId) return;
+
+        const isChecked = (chkEl as HTMLInputElement).checked;
+        const set = new Set(activeSession.selectedLocalityIds);
+        if (isChecked) {
+          set.add(locId);
+        } else {
+          set.delete(locId);
+        }
+        setSessionLocalities(this.workspace, activeSession.id, Array.from(set));
+        this.triggerAutosave();
+
+        const pill = document.getElementById('unified-locality-count-pill');
+        if (pill) {
+          pill.innerHTML = `Đã chọn: <strong>${set.size}</strong> / ${
+            this.workspace.localities.length || 114
+          }`;
+        }
+        const parentLabel = chkEl.closest('.locality-row-item');
+        if (parentLabel) {
+          parentLabel.classList.toggle('checked', isChecked);
+        }
+      });
+    });
   }
 
   private bindDomEvents(
@@ -1618,24 +1690,10 @@ export class KtxhOfflineApp {
       setLocalitiesPreset([], 'Rỗng (0 địa phương)');
     });
 
-    // Checkbox toggle for localities
-    document.querySelectorAll('.chk-select-locality').forEach((chkEl) => {
-      chkEl.addEventListener('change', () => {
-        const activeSession = this.getActiveSession();
-        const locId = chkEl.getAttribute('data-loc-id');
-        if (!activeSession || !locId) return;
-
-        const set = new Set(activeSession.selectedLocalityIds);
-        if ((chkEl as HTMLInputElement).checked) {
-          set.add(locId);
-        } else {
-          set.delete(locId);
-        }
-        setSessionLocalities(this.workspace, activeSession.id, Array.from(set));
-        this.triggerAutosave();
-        this.render();
-      });
-    });
+    const activeSession = this.getActiveSession();
+    if (activeSession) {
+      this.bindLocalityCheckboxes(activeSession);
+    }
 
     // Locality search input
     const locSearchInput = document.getElementById(
@@ -1643,7 +1701,13 @@ export class KtxhOfflineApp {
     ) as HTMLInputElement | null;
     locSearchInput?.addEventListener('input', () => {
       this.localitySearchQuery = locSearchInput.value;
-      this.render();
+      const s = this.getActiveSession();
+      if (!s) return;
+      const box = document.getElementById('unified-locality-items-box');
+      if (box) {
+        box.innerHTML = this.renderLocalityItemsHtml(s);
+        this.bindLocalityCheckboxes(s);
+      }
     });
 
     // Locality type filter
@@ -1652,7 +1716,13 @@ export class KtxhOfflineApp {
     ) as HTMLSelectElement | null;
     locTypeSelect?.addEventListener('change', () => {
       this.localityTypeFilter = locTypeSelect.value as 'ALL' | LocalityType;
-      this.render();
+      const s = this.getActiveSession();
+      if (!s) return;
+      const box = document.getElementById('unified-locality-items-box');
+      if (box) {
+        box.innerHTML = this.renderLocalityItemsHtml(s);
+        this.bindLocalityCheckboxes(s);
+      }
     });
 
     // Locality sort option
@@ -1661,7 +1731,13 @@ export class KtxhOfflineApp {
     ) as HTMLSelectElement | null;
     locSortSelect?.addEventListener('change', () => {
       this.localitySortOption = locSortSelect.value as any;
-      this.render();
+      const s = this.getActiveSession();
+      if (!s) return;
+      const box = document.getElementById('unified-locality-items-box');
+      if (box) {
+        box.innerHTML = this.renderLocalityItemsHtml(s);
+        this.bindLocalityCheckboxes(s);
+      }
     });
 
     // Drag and drop zone

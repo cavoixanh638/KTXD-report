@@ -401,5 +401,35 @@ describe('KTXH Offline – A4 Report Studio & WYSIWYG Architecture Suite', () =>
     expect(studioHtml).not.toContain('THỦ TRƯỞNG ĐƠN VỊ');
     expect(studioHtml).toContain('<strong>(đến ngày');
     expect(studioHtml).toContain('tỷ');
+
+    // 7. Check updated row 7 name
+    const row7 = evalReport.rows.find((r) => r.rowConfig.rowNumber === 7)!;
+    expect(row7.rowConfig.customLabel).toBe('Kế hoạch vốn đầu tư công sau NQ điều chỉnh, bổ sung của HĐND');
+
+    // 8. Check GPMB comparison format (+X,XX%) or (-X,XX%)
+    const row16Comp = evalReport.rows.find((r) => r.rowConfig.rowNumber === 16)!;
+    const cellRow16 = row16Comp.cellsByLocalityId[firstLocId];
+    expect(cellRow16.displayedText).toMatch(/(cao hơn \(\+[0-9,]+%\)|thấp hơn \(\-[0-9,]+%\)|tương đương \(0,00%\))/i);
+    expect(cellRow16.displayedText).not.toContain('Chưa đủ cơ sở đánh giá');
+
+    // 9. Verify Locality classification removed from header and sub-row styling applied
+    expect(studioHtml).not.toContain('<span class="doc-loc-type">');
+    expect(studioHtml).toContain('doc-row doc-row-sub');
+
+    // 10. Verify Vertical mode has no "Loại" column
+    const vertSession = createReportSession(ws, { name: 'Test Vertical' });
+    vertSession.settings.tableLayoutMode = 'VERTICAL';
+    setSessionLocalities(ws, vertSession.id, [firstLocId]);
+    const evalVert = evaluateSessionReport({
+      session: vertSession,
+      baselineLocalities,
+      datasets: { DISB: disbDataset, REV: revDataset, GPMB: gpmbDataset },
+    });
+    const vertStudioHtml = renderA4DocumentStudioHtml({
+      evaluated: evalVert,
+      baselineLocalities,
+      datasets: { DISB: disbDataset, REV: revDataset, GPMB: gpmbDataset },
+    });
+    expect(vertStudioHtml).not.toContain('<th class="doc-th doc-th-loc-type">Loại</th>');
   });
 });

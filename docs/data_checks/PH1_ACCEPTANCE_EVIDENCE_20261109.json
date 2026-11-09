@@ -1,7 +1,7 @@
 {
   "phase": "PH1",
   "specVersion": "MASTER_V2.2_CURRENT",
-  "generatedAt": "2026-11-09T18:01:21.827Z",
+  "generatedAt": "2026-11-09T18:21:52.250Z",
   "sourceSha256": {
     "DISB_20261015": "3ba33b3efd579499500d956c2580a170e84dd38b8d700fdfaaf9a361ea7cb38c",
     "REV_10M_2026": "b41227d1444c581e6f3b65d761fad8918b65aedfbd8114443e6dee9d4938356f",
@@ -208,7 +208,7 @@
         "rowNumber": 7,
         "stt": "3",
         "indicatorId": "DISB_PLAN",
-        "label": "Kế hoạch vốn đầu tư công sau điều chỉnh",
+        "label": "Kế hoạch vốn đầu tư công sau NQ điều chỉnh, bổ sung của HĐND",
         "values": {
           "Phường Hưng Đạo": {
             "displayed": "45,62",
@@ -383,35 +383,35 @@
         "label": "Kết quả giải ngân so với tỷ lệ trung bình",
         "values": {
           "Phường Hưng Đạo": {
-            "displayed": "cao hơn",
+            "displayed": "cao hơn (+32,55%)",
             "exactDecimal": "32.55381563424188418440704652802063475136",
             "state": "VALUE",
             "quality": "COMPLETE",
             "traceId": "TRACE_DISB_COMPARISON_PHUONG_Phường_Hưng_Đạo_DISB_3ba33b3efd57"
           },
           "Xã Hồng Châu": {
-            "displayed": "cao hơn",
+            "displayed": "cao hơn (+30,77%)",
             "exactDecimal": "30.76619696317789565787111666019168600902",
             "state": "VALUE",
             "quality": "COMPLETE",
             "traceId": "TRACE_DISB_COMPARISON_XA_Xã_Hồng_Châu_DISB_3ba33b3efd57"
           },
           "Phường Trần Hưng Đạo": {
-            "displayed": "thấp hơn",
+            "displayed": "thấp hơn (-2,54%)",
             "exactDecimal": "-2.53500556627304861781647317499548809185",
             "state": "VALUE",
             "quality": "COMPLETE",
             "traceId": "TRACE_DISB_COMPARISON_PHUONG_Phường_Trần_Hưng_Đạo_DISB_3ba33b3efd57"
           },
           "Xã Trần Phú": {
-            "displayed": "thấp hơn",
+            "displayed": "thấp hơn (-18,83%)",
             "exactDecimal": "-18.82900096442506026025726939776100199462",
             "state": "VALUE",
             "quality": "COMPLETE",
             "traceId": "TRACE_DISB_COMPARISON_XA_Xã_Trần_Phú_DISB_3ba33b3efd57"
           },
           "Xã Cẩm Giang": {
-            "displayed": "cao hơn",
+            "displayed": "cao hơn (+27,68%)",
             "exactDecimal": "27.67977746763413122180337283668402841044",
             "state": "VALUE",
             "quality": "COMPLETE",
@@ -598,35 +598,35 @@
         "label": "Kết quả GPMB so với tỷ lệ trung bình",
         "values": {
           "Phường Hưng Đạo": {
-            "displayed": "Chưa đủ cơ sở đánh giá",
+            "displayed": "cao hơn (+38,94%)",
             "exactDecimal": "38.94262889184009210379419366825742942277",
             "state": "VALUE",
             "quality": "PARTIAL_AGGREGATE",
             "traceId": "TRACE_GPMB_COMPARISON_PHUONG_Phường_Hưng_Đạo_GPMB_d393c3c1f3f9"
           },
           "Xã Hồng Châu": {
-            "displayed": "Chưa đủ cơ sở đánh giá",
+            "displayed": "thấp hơn (-42,04%)",
             "exactDecimal": "-42.03845489405462026103933952351105711767",
             "state": "VALUE",
             "quality": "PARTIAL_AGGREGATE",
             "traceId": "TRACE_GPMB_COMPARISON_XA_Xã_Hồng_Châu_GPMB_d393c3c1f3f9"
           },
           "Phường Trần Hưng Đạo": {
-            "displayed": "Chưa đủ cơ sở đánh giá",
+            "displayed": "thấp hơn (-72,13%)",
             "exactDecimal": "-72.13318997118406358766576474148557086683",
             "state": "VALUE",
             "quality": "PARTIAL_AGGREGATE",
             "traceId": "TRACE_GPMB_COMPARISON_PHUONG_Phường_Trần_Hưng_Đạo_GPMB_d393c3c1f3f9"
           },
           "Xã Trần Phú": {
-            "displayed": "Chưa đủ cơ sở đánh giá",
+            "displayed": "thấp hơn (-27,53%)",
             "exactDecimal": "-27.53232470521521383774214649156448460862",
             "state": "VALUE",
             "quality": "PARTIAL_AGGREGATE",
             "traceId": "TRACE_GPMB_COMPARISON_XA_Xã_Trần_Phú_GPMB_d393c3c1f3f9"
           },
           "Xã Cẩm Giang": {
-            "displayed": "Chưa đủ cơ sở đánh giá",
+            "displayed": "cao hơn (+15,29%)",
             "exactDecimal": "15.29114237302958626396628273625923625483",
             "state": "VALUE",
             "quality": "PARTIAL_AGGREGATE",
@@ -880,7 +880,7 @@
         "rowNumber": 7,
         "stt": "3",
         "indicatorId": "DISB_PLAN",
-        "label": "Kế hoạch vốn đầu tư công sau điều chỉnh",
+        "label": "Kế hoạch vốn đầu tư công sau NQ điều chỉnh, bổ sung của HĐND",
         "values": {
           "Phường Hưng Đạo": {
             "displayed": "45,62",
@@ -1111,49 +1111,49 @@
         "label": "Kết quả giải ngân so với tỷ lệ trung bình",
         "values": {
           "Phường Hưng Đạo": {
-            "displayed": "cao hơn",
+            "displayed": "cao hơn (+32,55%)",
             "exactDecimal": "32.55381563424188418440704652802063475136",
             "state": "VALUE",
             "quality": "COMPLETE",
             "traceId": "TRACE_DISB_COMPARISON_PHUONG_Phường_Hưng_Đạo_DISB_3ba33b3efd57"
           },
           "Phường Trần Hưng Đạo": {
-            "displayed": "thấp hơn",
+            "displayed": "thấp hơn (-2,54%)",
             "exactDecimal": "-2.53500556627304861781647317499548809185",
             "state": "VALUE",
             "quality": "COMPLETE",
             "traceId": "TRACE_DISB_COMPARISON_PHUONG_Phường_Trần_Hưng_Đạo_DISB_3ba33b3efd57"
           },
           "Phường Dương Kinh": {
-            "displayed": "cao hơn",
+            "displayed": "cao hơn (+17,38%)",
             "exactDecimal": "17.37671153725396790717136565433504146636",
             "state": "VALUE",
             "quality": "COMPLETE",
             "traceId": "TRACE_DISB_COMPARISON_PHUONG_Phường_Dương_Kinh_DISB_3ba33b3efd57"
           },
           "Phường An Phong": {
-            "displayed": "cao hơn",
+            "displayed": "cao hơn (+26,27%)",
             "exactDecimal": "26.27427998130621327459426365004480390737",
             "state": "VALUE",
             "quality": "COMPLETE",
             "traceId": "TRACE_DISB_COMPARISON_PHUONG_Phường_An_Phong_DISB_3ba33b3efd57"
           },
           "Phường Nam Đồ Sơn": {
-            "displayed": "cao hơn",
+            "displayed": "cao hơn (+24,73%)",
             "exactDecimal": "24.73001470728091797868576216468605589633",
             "state": "VALUE",
             "quality": "COMPLETE",
             "traceId": "TRACE_DISB_COMPARISON_PHUONG_Phường_Nam_Đồ_Sơn_DISB_3ba33b3efd57"
           },
           "Phường Hồng An": {
-            "displayed": "cao hơn",
+            "displayed": "cao hơn (+23,67%)",
             "exactDecimal": "23.67421537233195879544429292396467792089",
             "state": "VALUE",
             "quality": "COMPLETE",
             "traceId": "TRACE_DISB_COMPARISON_PHUONG_Phường_Hồng_An_DISB_3ba33b3efd57"
           },
           "Phường Trần Nhân Tông": {
-            "displayed": "thấp hơn",
+            "displayed": "thấp hơn (-10,24%)",
             "exactDecimal": "-10.2444165240019603845481578968430661909",
             "state": "VALUE",
             "quality": "COMPLETE",
@@ -1396,49 +1396,49 @@
         "label": "Kết quả GPMB so với tỷ lệ trung bình",
         "values": {
           "Phường Hưng Đạo": {
-            "displayed": "Chưa đủ cơ sở đánh giá",
+            "displayed": "cao hơn (+38,94%)",
             "exactDecimal": "38.94262889184009210379419366825742942277",
             "state": "VALUE",
             "quality": "PARTIAL_AGGREGATE",
             "traceId": "TRACE_GPMB_COMPARISON_PHUONG_Phường_Hưng_Đạo_GPMB_d393c3c1f3f9"
           },
           "Phường Trần Hưng Đạo": {
-            "displayed": "Chưa đủ cơ sở đánh giá",
+            "displayed": "thấp hơn (-72,13%)",
             "exactDecimal": "-72.13318997118406358766576474148557086683",
             "state": "VALUE",
             "quality": "PARTIAL_AGGREGATE",
             "traceId": "TRACE_GPMB_COMPARISON_PHUONG_Phường_Trần_Hưng_Đạo_GPMB_d393c3c1f3f9"
           },
           "Phường Dương Kinh": {
-            "displayed": "Chưa đủ cơ sở đánh giá",
+            "displayed": "thấp hơn (-28,79%)",
             "exactDecimal": "-28.78505089098027165873334971968682974242",
             "state": "VALUE",
             "quality": "PARTIAL_AGGREGATE",
             "traceId": "TRACE_GPMB_COMPARISON_PHUONG_Phường_Dương_Kinh_GPMB_d393c3c1f3f9"
           },
           "Phường An Phong": {
-            "displayed": "Chưa đủ cơ sở đánh giá",
+            "displayed": "cao hơn (+24,53%)",
             "exactDecimal": "24.52784813292532287758355432567863822637",
             "state": "VALUE",
             "quality": "PARTIAL_AGGREGATE",
             "traceId": "TRACE_GPMB_COMPARISON_PHUONG_Phường_An_Phong_GPMB_d393c3c1f3f9"
           },
           "Phường Nam Đồ Sơn": {
-            "displayed": "Chưa đủ cơ sở đánh giá",
+            "displayed": "cao hơn (+14,49%)",
             "exactDecimal": "14.49169760243708127553671879348991292926",
             "state": "VALUE",
             "quality": "PARTIAL_AGGREGATE",
             "traceId": "TRACE_GPMB_COMPARISON_PHUONG_Phường_Nam_Đồ_Sơn_GPMB_d393c3c1f3f9"
           },
           "Phường Hồng An": {
-            "displayed": "Chưa đủ cơ sở đánh giá",
+            "displayed": "cao hơn (+2,77%)",
             "exactDecimal": "2.77044159708536225936202994303461578361",
             "state": "VALUE",
             "quality": "PARTIAL_AGGREGATE",
             "traceId": "TRACE_GPMB_COMPARISON_PHUONG_Phường_Hồng_An_GPMB_d393c3c1f3f9"
           },
           "Phường Trần Nhân Tông": {
-            "displayed": "Chưa đủ cơ sở đánh giá",
+            "displayed": "cao hơn (+27,87%)",
             "exactDecimal": "27.86681002881593641233423525851442913317",
             "state": "VALUE",
             "quality": "PARTIAL_AGGREGATE",

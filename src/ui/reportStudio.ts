@@ -243,7 +243,6 @@ function renderHorizontalPages(params: {
         .map(
           (loc) => `<th class="doc-th doc-th-locality" style="min-width:${session.settings.columnWidthPx || 120}px">
             <div class="doc-loc-name">${escapeHtmlUi(loc.displayName)}</div>
-            <span class="doc-loc-type">${escapeHtmlUi(loc.type)}</span>
           </th>`
         )
         .join('');
@@ -303,7 +302,8 @@ function renderHorizontalPages(params: {
             })
             .join('');
 
-          return `<tr class="doc-row" data-row-number="${r.rowConfig.rowNumber}">
+          const hasStt = Boolean(r.rowConfig.sttLabel && r.rowConfig.sttLabel.trim());
+          return `<tr class="doc-row ${hasStt ? 'doc-row-primary' : 'doc-row-sub'}" data-row-number="${r.rowConfig.rowNumber}">
             <td class="doc-td doc-td-stt">${escapeHtmlUi(r.rowConfig.sttLabel || '')}</td>
             <td class="doc-td doc-td-indicator">
               <div class="indicator-name-group">
@@ -384,6 +384,7 @@ function renderVerticalPages(params: {
   const displayRows = rows.filter((r) => r.indicator.id !== 'DISB_PLAN_VS_AVG_COMMENT');
   const indicatorHeadersHtml = displayRows
     .map((r) => {
+      const hasStt = Boolean(r.rowConfig.sttLabel && r.rowConfig.sttLabel.trim());
       const unitBadge =
         r.indicator.displayUnit === 'billion_vnd'
           ? session.settings.moneyUnit === 'billion'
@@ -398,7 +399,7 @@ function renderVerticalPages(params: {
           : '';
       const unitSuffix = unitBadge ? ` (${unitBadge})` : '';
 
-      return `<th class="doc-th doc-th-ind-vert" title="${escapeHtmlUi(
+      return `<th class="doc-th doc-th-ind-vert ${hasStt ? 'doc-th-primary' : 'doc-th-sub'}" title="${escapeHtmlUi(
         r.rowConfig.customLabel
       )}">
         <div class="ind-vert-name">${renderIndicatorLabelHtml(r.rowConfig.customLabel)}${escapeHtmlUi(unitSuffix)}</div>
@@ -450,9 +451,6 @@ function renderVerticalPages(params: {
             <td class="doc-td doc-td-loc-name">
               <strong>${escapeHtmlUi(loc.displayName)}</strong>
             </td>
-            <td class="doc-td doc-td-loc-type">
-              <span class="doc-loc-type">${escapeHtmlUi(loc.type)}</span>
-            </td>
             ${cellsHtml}
           </tr>`;
         })
@@ -467,7 +465,6 @@ function renderVerticalPages(params: {
                 <tr>
                   <th class="doc-th doc-th-stt">STT</th>
                   <th class="doc-th doc-th-loc-name">Tên địa phương</th>
-                  <th class="doc-th doc-th-loc-type">Loại</th>
                   ${indicatorHeadersHtml}
                 </tr>
               </thead>
