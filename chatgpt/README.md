@@ -1,3 +1,23 @@
+# KTXH Offline — Giao diện làm việc nhanh PH1
+
+**Bản chạy trực tiếp:** [`dist/index.html`](dist/index.html) — mở trên Chrome/Edge theo `file://`, không cần Internet, không cần máy chủ. Dữ liệu người dùng ở trên máy.
+
+**Quy trình 4 bước trên thanh trên cùng:**
+1. **Phiên làm việc:** Chọn phiên cũ trong danh sách; nút `+` tạo phiên mới (mặc định 0 địa phương), `⋯` để đổi tên/nhân bản/đóng/xóa và sao lưu/khôi phục.
+2. **Dữ liệu Excel:** Xem ba nhãn nguồn Giải ngân / Thu NSNN / GPMB; bấm **Nhập / cập nhật** để chọn các XLSX cùng lúc hoặc lần lượt, nhận dạng từ sheet. DISB/GPMB có ngày rõ ở tiêu đề A1 sẽ được điền căn cứ; REV bắt buộc kiểm chứng ngày chốt và căn cứ, không tự đoán theo tên file. Nguồn đã có cùng SHA được bỏ qua; nhập từng nguồn hợp lệ không bị cản bởi file khác chưa đủ ngày.
+3. **Địa phương:** Danh sách xã/phường/đặc khu chung cạnh bản xem trước. Tìm không dấu, chọn nhiều dòng hoặc **Chọn lọc**. Nút **Chọn / sửa** ở trên đưa con trỏ về bộ chọn; không xóa bộ lọc khi đánh dấu.
+4. **Xuất báo cáo:** Bấm **Excel** hoặc **In / PDF** ngay ở thanh trên. Bấm từng ô kết quả để xem nguồn, công thức và `CalculationTrace`.
+
+**Thiết lập ít sử dụng:** biểu tượng **⚙** mở trang thiết kế mẫu; mặc định chỉ hiển thị tiêu đề, khổ in và bố cục, các định dạng nâng cao/danh sách chỉ tiêu/chất lượng trong mục có thể mở rộng. Bấm **Lưu làm mẫu mặc định** để các phiên mới kế thừa thiết kế (không tự chọn địa phương). Không cần sửa mẫu mỗi khi lập báo cáo.
+
+**Lưu ý dữ liệu:** bốn workbook nguyên gốc ở `../data/reference/`, không đưa thêm nguồn nội bộ lên GitHub. REV ghi kỳ “10 tháng” nhưng ngày chốt hành chính chưa được xác minh; 19/10/2026 trong kiểm thử là giả định QA, không phải dữ liệu chính thức.
+
+**Chống mất dữ liệu:** IndexedDB tự lưu sau vài giây, nhưng vẫn cần sử dụng **`⋯` → Lưu toàn bộ hồ sơ** để tải bản `.kxh.json` SHA-256, đặc biệt trước khi thay tệp HTML. Giữ file sao lưu độc lập.
+
+**QA:** [Trạng thái kỹ thuật](docs/STUDIO_STATUS_20261109.md) · [Workflow GitHub Actions](../.github/workflows/ktxh-document-studio.yml) · [Draft PR #1](https://github.com/cavoixanh638/KTXD-report/pull/1). Chưa tuyên bố PH1/PH2 hoàn thành toàn bộ khi chưa đủ gate.
+
+---
+
 # ChatGPT PH1 — KTXH Offline (cô lập mã nguồn, dùng chung dữ liệu)
 
 Đây là vùng thực thi **Kế hoạch PH1** của ChatGPT trong repository `cavoixanh638/KTXD-report`. Mọi phần đã commit ở đây thuộc nhánh `chatgpt/ph1-20261109`, không sửa phần do AI khác sở hữu.
