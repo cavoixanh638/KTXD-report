@@ -65,6 +65,7 @@ function reportView(){
 function sessionPage(){
  return '<div class="studio-control-sheet"><div class="page-header"><div><h1>Quản lý phiên báo cáo</h1><p>Phiên mới bắt đầu với 0 địa phương. Dữ liệu và tùy chỉnh lưu độc lập theo từng phiên.</p></div><button class="primary" data-action="new">+ Phiên mới</button></div><div class="cards">'+(work.sessions.map(s=>'<article class="session-card '+(work.active===s.id?'active':'')+'"><h3>'+esc(s.name)+'</h3><small>'+new Date(s.updatedAt).toLocaleString('vi-VN')+' · '+s.selected.length+' địa phương</small><div class="actions"><button data-action="open-session" data-id="'+esc(s.id)+'">Mở phiên</button><button data-action="rename-session" data-id="'+esc(s.id)+'">Đổi tên</button><button data-action="copy-session" data-id="'+esc(s.id)+'">Nhân bản</button><button data-action="close-session" data-id="'+esc(s.id)+'">Đóng</button><button class="danger" data-action="delete-session" data-id="'+esc(s.id)+'">Xóa</button></div></article>').join('')||'<p>Chưa có phiên nào.</p>')+'</div><h2>Bản sao lưu</h2><p>Lưu tệp .kxh.json để không phụ thuộc bộ nhớ trình duyệt. Dữ liệu không gửi lên mạng.</p><div class="actions"><button data-action="backup">Lưu toàn bộ hồ sơ</button><button data-action="backup-session">Lưu riêng phiên</button><label class="file-button">Mở bộ hồ sơ <input id="restore-file" type="file" accept=".json,.kxh.json" hidden></label></div></div>';
 }
+function viDate(s){return /^\d{4}-\d{2}-\d{2}$/.test(s||'')?s.slice(8,10)+'/'+s.slice(5,7)+'/'+s.slice(0,4):'Chưa xác nhận';}
 function sourcesPage(){
  const pendingItems=pending.map((p,i)=>{
   const existing=p.alreadyPresent;
@@ -73,7 +74,7 @@ function sourcesPage(){
     p.error?'':('<p class="help">'+(p.dateAutomatic?
       'Ngày chốt được nhận diện từ tiêu đề sheet. Bạn kiểm tra lại trước khi nhập.':
       'Chưa xác định chắc chắn ngày chốt từ tiêu đề sheet. Hãy nhập ngày đã được xác minh và giải thích căn cứ; không suy luận từ tên file.')+'</p>');
-  const controls=p.error||existing?'':('<label>Ngày chốt dữ liệu <input data-pending-date="'+i+'" type="date" value="'+esc(p.date||'')+'"></label>'+
+  const controls=p.error||existing?'':('<label>Ngày chốt dữ liệu <input data-pending-date="'+i+'" type="date" value="'+esc(p.date||'')+'"><small data-date-vi="'+i+'">Ngày/tháng/năm: '+esc(viDate(p.date))+'</small></label>'+
     '<label>Căn cứ xác nhận ngày <input data-pending-reason="'+i+'" placeholder="Nêu tiêu đề, văn bản hoặc xác nhận của người dùng" value="'+esc(p.reason||'')+'" style="min-width:290px"></label>'+
     (p.dateEvidence?'<p class="help">Chứng cứ trong file: '+esc(p.dateEvidence)+'</p>':'')+
     (p.type==='REV'?'<p class="notice">Nguồn thu có kỳ “10 tháng” nhưng ngày chốt chưa rõ; ngày 19/10 hoặc 31/10 không tự được xác nhận.</p>':''));
@@ -257,6 +258,7 @@ function fieldChanged(e){
  const el=e.target,s=current();
  if(el.id==='session-switch'){work.active=el.value||null;mark();navigate('report');return}
  if(el.id==='source-files'){identifyFiles(el.files||[]);return}
+ if(el.dataset.pendingDate!==undefined){const t=$('[data-date-vi="'+el.dataset.pendingDate+'"]');if(t)t.textContent='Ngày/tháng/năm: '+viDate(el.value);return;}
  if(el.id==='restore-file'){restore(el.files?.[0]).catch(ex=>alertMessage(ex.message,true));return}
  if(el.id==='locality-type'){filterLoc();return}
  if(el.id==='studio-zoom'){zoom=el.value;render();return}
