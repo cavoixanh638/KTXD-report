@@ -1,5 +1,17 @@
 # Document Studio PH1 — kiểm thử và bàn giao ngày 09/11/2026
 
+## BỔ SUNG GIAO DIỆN 4 BƯỚC — 10/11/2026
+
+- **Code SHA đã chạy kiểm thử:** `36e792535309bd3d459d60a2aa3cfc1efd43cc6f`.
+- **CI [#42664445254](https://github.com/cavoixanh638/KTXD-report/actions/runs/42664445254) — SUCCESS**: build một file HTML khớp bản commit, 14 test lõi/định dạng, smoke `file://` ba XLSX gốc với nhập partial/duplicate/ngày nguồn, tạo 3 phiên và phục hồi, cùng phép đối chiếu độc lập 11 xã × 12 chỉ tiêu số bằng Decimal; [artifact #13696680078](https://github.com/cavoixanh638/KTXD-report/actions/runs/42664445254/artifacts/13696680078) gồm ảnh màn hình, PDF A4 và XLSX.
+- **UI:** bỏ điều hướng 7 tab, thay bằng 4 nhóm rõ ràng nằm ở thanh trên: Chọn phiên, Nhập/cập nhật Excel, Chọn địa phương, Xuất Excel/PDF. Bộ chọn địa phương và bản xem trước là không gian chính; trang quản lý phiên/nguồn vẫn truy cập trực tiếp bằng nút tương ứng, không cần tab.
+- **Thiết kế ít dùng:** ở biểu tượng ⚙, có nhóm định dạng nâng cao và chỉ tiêu thu gọn mặc định. Người dùng có thể lưu `work.studioDefaults` (settings + rows) để phiên mới kế thừa mẫu và vẫn khởi tạo 0 địa phương; thiết lập được tự lưu và đi cùng backup JSON.
+- **Nhập ngày nguồn:** ngày được xác minh trực tiếp trong `A1` của DISB/GPMB mới được tự điền kèm căn cứ; REV giữ thủ công. Trường căn cứ không cho nhập chỉ một chuỗi ngày. Các workbook đã nhập cùng SHA không yêu cầu nhập lại, có thể nhập riêng các nguồn hợp lệ rồi bổ sung phần thiếu.
+- **Chưa chốt PH1 DONE:** chưa nghiệm thu Edge Windows thật, kiểm tra trực quan phân trang nhiều số lượng địa phương, kịch bản đồng thời đa tab, các kiểm thử PH1 chưa chạy. Không đổi dữ liệu gốc, không merge PR.
+
+---
+
+
 **Nhánh triển khai:** `ai/ktxh-document-studio-20261109`. **SHA code và test đã kiểm:** `a82d5f3ed3f6a29e4f7c70cfe044816962ef9ae8`.
 **Kết quả CI:** [GitHub Actions #42657463064](https://github.com/cavoixanh638/KTXD-report/actions/runs/42657463064) — **SUCCESS**, kiểm thử Chromium `file://` với 3 workbook gốc; artifact trực tiếp trong [CI #42657463064](https://github.com/cavoixanh638/KTXD-report/actions/runs/42657463064) gồm ảnh màn hình 5 địa phương theo hai hướng, PDF A4 và XLSX. Bản build offline đã commit: `chatgpt/dist/index.html`.
 
