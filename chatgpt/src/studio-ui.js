@@ -3,7 +3,7 @@
 'use strict';const K=root.KTXH=root.KTXH||{},L=K.StudioLayout,S=K.StudioStorage;
 const $=q=>document.querySelector(q);
 const esc=v=>String(v??'').replace(/[&<>"']/g,x=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[x]));
-let work=K.emptyWorkspace(),tab='report',report=null,pending=[],saveTimer=null,saveSeq=0,lastSaved='',saving=false,saveError='',backupDirty=false,selectedTrace=null,zoom='fit';
+let work=K.emptyWorkspace(),tab='report',report=null,pending=[],saveTimer=null,saveSeq=0,lastSaved='',saving=false,saveError='',backupDirty=false,selectedTrace=null,zoom='fit',localityQuery='',localityKind='',localityScroll=0;
 function current(){return work.sessions.find(x=>x.id===work.active)||null}
 function alertMessage(message,isError=false){const el=$('#toast');el.textContent=message;el.className='toast '+(isError?'error':'success');el.hidden=false;clearTimeout(alertMessage.timer);alertMessage.timer=setTimeout(()=>el.hidden=true,5500);}
 function download(blob,filename){const link=document.createElement('a'),url=URL.createObjectURL(blob);link.href=url;link.download=filename;document.body.append(link);link.click();link.remove();setTimeout(()=>URL.revokeObjectURL(url),30000);}
@@ -23,44 +23,57 @@ function changed(session,reason){if(session)K.updateSession(session,reason);mark
 function normalizeSettings(s){if(!s)return;Object.assign(s.settings,{tableMode:s.settings.tableMode||'auto',agency:s.settings.agency||'',subtitle:s.settings.subtitle||''});}
 function navigate(next){tab=next;render();}
 function navbar(){
- const s=current();const items=[['report','▦','Báo cáo tổng hợp'],['sessions','▤','Quản lý phiên'],['sources','▣','Dữ liệu nguồn'],['localities','☷','Danh mục địa phương'],['settings','⚙','Chỉ tiêu & tùy chỉnh'],['quality','◉','Kiểm tra & truy vết'],['export','⇩','Xuất & in báo cáo']];
- const sessionOptions=work.sessions.map(x=>'<option value="'+esc(x.id)+'" '+(s?.id===x.id?'selected':'')+'>'+esc(x.name)+'</option>').join('');
- $('#studio-header').innerHTML='<div class="studio-top"><div class="brand">▦ Báo cáo Kinh tế – Xã hội <small>OFFLINE</small><em>A4 Report Studio</em></div><div class="top-group"><select class="studio-session-select" id="session-switch" aria-label="Phiên đang mở"><option value="">Chọn phiên báo cáo</option>'+sessionOptions+'</select><button data-action="new">+ Phiên mới</button><button data-action="sessions">Quản lý phiên</button></div><div class="top-group"><span class="autosave-state" id="studio-save"></span><span id="studio-backup" class="backup-note"></span></div><div class="top-group"><button data-action="xlsx">Xuất Excel</button><button data-action="print">In / PDF</button><button class="primary" data-action="backup">Sao lưu hồ sơ</button></div></div>';
- $('#studio-rail').innerHTML='<nav><button data-action="toggle-rail" title="Thu gọn thanh điều hướng"><span class="rail-icon">☰</span><span class="rail-label">Thu gọn</span></button>'+items.map(([id,ico,label])=>'<button class="'+(tab===id?'selected':'')+'" data-action="nav" data-tab="'+id+'" title="'+label+'"><span class="rail-icon">'+ico+'</span><span class="rail-label">'+label+'</span></button>').join('')+'</nav>';badge();
+ const s=current(),types=['DISB','REV','GPMB'];
+ const sourceItems=types.map(type=>{
+  const d=s?K.bound(work,s,type):work.datasets.filter(x=>x.type===type).at(-1);
+  const label={DISB:'Giải ngân',REV:'Thu NSNN',GPMB:'GPMB'}[type];
+  return '<span class="source-status '+(d?'ok':'missing')+'" title="'+(d?esc(d.fileName+' · '+viDate(d.asOfDate)):'Chưa có nguồn '+label)+'">'+
+   '<span class="source-status-dot"></span>'+label+'</span>';
+ }).join('');
+ const activeName=s?esc(s.name):'Chưa chọn phiên';
+ const options=work.sessions.map(x=>'<option value="'+esc(x.id)+'" '+(s?.id===x.id?'selected':'')+'>'+esc(x.name)+'</option>').join('');
+ $('#studio-header').innerHTML='<header class="studio-top compact-top"><div class="compact-brand"><strong>▦ KTXH <span>Report Studio</span></strong><small>Offline · dữ liệu trên thiết bị</small></div>'+
+ '<div class="workflow-bar" role="group" aria-label="Quy trình lập báo cáo">'+
+ '<div class="workflow-task session-task"><span class="step-number">1</span><div class="task-content"><span class="task-label">Phiên làm việc</span><div class="task-controls"><select id="session-switch" class="studio-session-select" aria-label="Chọn phiên làm việc"><option value="">Chọn phiên</option>'+options+'</select><button type="button" data-action="new" title="Tạo phiên mới">+</button><button type="button" data-action="sessions" title="Mở danh sách, nhân bản, đổi tên và sao lưu phiên" aria-label="Quản lý phiên">⋯</button></div></div></div>'+
+ '<div class="workflow-task source-task"><span class="step-number">2</span><div class="task-content"><span class="task-label">Dữ liệu Excel</span><div class="task-controls source-controls"><div class="source-statuses">'+sourceItems+'</div><button type="button" data-action="sources" class="import-action">Nhập / cập nhật</button></div></div></div>'+
+ '<div class="workflow-task locality-task"><span class="step-number">3</span><div class="task-content"><span class="task-label">Địa phương</span><div class="task-controls"><button type="button" data-action="show-localities" class="locality-count">'+(s?s.selected.length:'0')+' đã chọn · Chọn / sửa</button></div></div></div>'+
+ '<div class="workflow-task export-task"><span class="step-number">4</span><div class="task-content"><span class="task-label">Xuất báo cáo</span><div class="task-controls"><button type="button" data-action="xlsx" '+(!s?'disabled':'')+'>Excel</button><button type="button" data-action="print" class="primary" '+(!s?'disabled':'')+'>In / PDF</button></div></div></div></div>'+
+ '<div class="header-utilities"><button type="button" class="settings-icon" data-action="settings" title="Thiết lập mẫu bảng, chỉ tiêu, khổ giấy (ít dùng)" aria-label="Thiết lập mẫu báo cáo">⚙</button><span class="autosave-state" id="studio-save"></span><span class="backup-note" id="studio-backup"></span></div></header>';
+ $('#studio-rail').innerHTML='';
+ badge();
 }
 function localities(){
- const s=current();if(!s)return '<section class="panel"><button data-action="new">+ Tạo phiên</button></section>';
+ const s=current();if(!s)return '<section class="panel"><h2>Địa phương</h2><p>Chọn hoặc tạo phiên để lập báo cáo.</p><button data-action="new">+ Phiên mới</button></section>';
  const all=K.availableLocalities(work),selected=new Set(s.selected);
- return '<section class="panel selectors"><div class="section-head"><h2>Danh sách địa phương ('+all.length+')</h2><small>Đã chọn: '+s.selected.length+'</small></div>'+
- '<input id="locality-search" placeholder="Tìm không dấu hoặc có dấu..." aria-label="Tìm địa phương">'+
- '<div class="actions compact"><select id="locality-type"><option value="">Tất cả</option><option value="Xã ">Xã</option><option value="Phường ">Phường</option><option value="Đặc khu ">Đặc khu</option></select><button data-action="select-visible">Chọn lọc</button><button data-action="clear-localities">Bỏ chọn</button></div>'+
+ return '<section class="panel selectors"><div class="section-head"><h2>Chọn địa phương</h2><small>'+s.selected.length+' / '+all.length+' đã chọn</small></div>'+
+ '<input id="locality-search" value="'+esc(localityQuery)+'" placeholder="Tìm xã, phường, đặc khu..." aria-label="Tìm địa phương không dấu">'+
+ '<div class="actions compact"><select id="locality-type" aria-label="Loại địa phương"><option value="" '+(!localityKind?'selected':'')+'>Tất cả</option><option value="Xã " '+(localityKind==='Xã '?'selected':'')+'>Xã</option><option value="Phường " '+(localityKind==='Phường '?'selected':'')+'>Phường</option><option value="Đặc khu " '+(localityKind==='Đặc khu '?'selected':'')+'>Đặc khu</option></select><button type="button" data-action="select-visible">Chọn lọc</button><button type="button" data-action="clear-localities">Bỏ chọn</button></div>'+
  '<div class="locality-list" id="locality-list">'+all.map(loc=>{
  const type=loc.name.startsWith('Đặc khu')?'Đặc khu ':loc.name.split(' ')[0]+' ';
  const missing=['REV','GPMB'].filter(t=>{const d=K.bound(work,s,t);return d&&!d.localities.some(name=>K.localityId(name)===loc.id)});
  return '<label class="locality-item" data-search="'+esc(K.plain(loc.name))+'" data-type="'+esc(type)+'"><input type="checkbox" data-loc="'+esc(loc.id)+'" '+(selected.has(loc.id)?'checked':'')+'>'+esc(loc.name)+(missing.length?'<span title="Thiếu bản ghi '+missing.join(', ')+'" class="warning"> ⚠</span>':'')+'</label>';
- }).join('')+'</div></section>';
+ }).join('')+'</div><p class="locality-help">Danh sách chung cho xã, phường và đặc khu; dấu ⚠ chỉ nguồn thiếu bản ghi, không có nghĩa không phát sinh.</p></section>';
 }
 function filterLoc(){
- const query=K.plain($('#locality-search')?.value||''),type=$('#locality-type')?.value||'';
+ const query=K.plain(localityQuery),type=localityKind;
  document.querySelectorAll('.locality-item').forEach(el=>el.hidden=!(el.dataset.search.includes(query)&&(!type||el.dataset.type===type)));
+ const list=$('#locality-list');if(list)list.scrollTop=localityScroll;
 }
 function tools(){
  const s=current();if(!s)return '';
- const selected=s.settings.tableMode||'auto';
- const mode='<select id="studio-mode" aria-label="Hướng trình bày"><option value="auto" '+(selected==='auto'?'selected':'')+'>Tự động tối ưu A4</option><option value="horizontal" '+(selected==='horizontal'?'selected':'')+'>Địa phương ngang</option><option value="vertical" '+(selected==='vertical'?'selected':'')+'>Địa phương dọc</option></select>';
- return '<div class="studio-tools"><label>Bố cục '+mode+'</label><label>Khổ giấy <select data-setting="paperSize"><option '+(s.settings.paperSize==='A4'?'selected':'')+'>A4</option><option '+(s.settings.paperSize==='A3'?'selected':'')+'>A3</option></select></label>'+
- '<label>Hướng giấy <select data-setting="orientation"><option value="landscape" '+(s.settings.orientation==='landscape'?'selected':'')+'>Ngang</option><option value="portrait" '+(s.settings.orientation==='portrait'?'selected':'')+'>Dọc</option></select></label>'+
- '<label>Phóng to <select id="studio-zoom"><option value="fit" '+(zoom==='fit'?'selected':'')+'>Vừa trang</option>'+[100,125,150].map(v=>'<option value="'+v+'" '+(zoom==v?'selected':'')+'>'+v+'%</option>').join('')+'</select></label>'+
- '<button data-action="edit-title">Sửa tiêu đề</button><button data-action="settings">Tùy chỉnh</button><button data-action="toggle-wide">Xem rộng</button><button data-action="print">Xem trước / In</button><span class="description" id="layout-message"></span></div>';
+ return '<div class="studio-tools compact-preview-bar"><div><strong>Xem trước báo cáo</strong><span class="preview-meta" id="layout-message"> · '+esc(s.settings.paperSize||'A4')+' '+(s.settings.orientation==='portrait'?'dọc':'ngang')+' · '+s.rows.filter(x=>x.visible).length+' chỉ tiêu</span></div>'+
+ '<div class="preview-actions"><button type="button" data-action="toggle-localities">Ẩn / hiện bộ chọn</button><button type="button" data-action="settings">⚙ Thiết kế mẫu</button></div></div>';
 }
 function reportView(){
  const s=current();
- if(!s)return '<div class="studio-control-sheet"><h1>Báo cáo Kinh tế – Xã hội</h1><p>Tạo phiên mới, nhập ba nguồn, chọn địa phương để lập báo cáo.</p><button class="primary" data-action="new">+ Tạo phiên báo cáo</button></div>';
+ if(!s)return '<div class="studio-control-sheet start-panel"><h1>Lập báo cáo Kinh tế – Xã hội</h1><p>Một quy trình làm việc: chọn phiên → nhập Excel → chọn địa phương → xuất Excel hoặc PDF.</p><button class="primary" data-action="new">+ Tạo phiên đầu tiên</button></div>';
  normalizeSettings(s);report=K.buildReport(work,s);
  const {html,pagination,totalPages}=L.renderDocument(report,s.settings,s,esc);
  const factor=zoom==='fit'?.82:Number(zoom)/100;
- const info='Đã chọn '+L.description(pagination.direction).toLowerCase()+' · '+totalPages+' trang · '+(pagination.requested==='auto'?'Tự động':'Thủ công');
- return tools()+'<div class="studio-body"><div class="studio-left">'+localities()+'<div class="studio-view-hint">Một danh sách chung cho xã, phường và đặc khu. Chọn nhiều địa phương theo nhu cầu.</div></div><div class="studio-right"><div class="studio-note">'+esc(info)+'. Xem trước được phân trang trước khi in; bấm vào số để xem nguồn và công thức.</div><div class="studio-zoom" style="zoom:'+factor+'"><div class="studio-pages" id="print-area">'+html+'</div></div></div></div>';
+ const missing=['DISB','REV','GPMB'].filter(type=>!K.bound(work,s,type));
+ const helper=missing.length?'<div class="source-onboarding"><b>Chưa đủ dữ liệu nguồn</b> · cần thêm '+missing.join(', ')+'. <button data-action="sources">Nhập file Excel</button></div>':'';
+ const info=totalPages+' trang · '+L.description(pagination.direction)+' · '+(pagination.requested==='auto'?'Bố cục tự động':'Bố cục đã chọn');
+ return tools()+helper+'<div class="studio-body"><div class="studio-left">'+localities()+'</div><div class="studio-right"><div class="studio-note">'+esc(info)+'. Bấm một ô số để xem dữ liệu và phép tính.</div><div class="studio-zoom" style="zoom:'+factor+'"><div class="studio-pages" id="print-area">'+html+'</div></div></div></div>';
 }
 function sessionPage(){
  return '<div class="studio-control-sheet"><div class="page-header"><div><h1>Quản lý phiên báo cáo</h1><p>Phiên mới bắt đầu với 0 địa phương. Dữ liệu và tùy chỉnh lưu độc lập theo từng phiên.</p></div><button class="primary" data-action="new">+ Phiên mới</button></div><div class="cards">'+(work.sessions.map(s=>'<article class="session-card '+(work.active===s.id?'active':'')+'"><h3>'+esc(s.name)+'</h3><small>'+new Date(s.updatedAt).toLocaleString('vi-VN')+' · '+s.selected.length+' địa phương</small><div class="actions"><button data-action="open-session" data-id="'+esc(s.id)+'">Mở phiên</button><button data-action="rename-session" data-id="'+esc(s.id)+'">Đổi tên</button><button data-action="copy-session" data-id="'+esc(s.id)+'">Nhân bản</button><button data-action="close-session" data-id="'+esc(s.id)+'">Đóng</button><button class="danger" data-action="delete-session" data-id="'+esc(s.id)+'">Xóa</button></div></article>').join('')||'<p>Chưa có phiên nào.</p>')+'</div><h2>Bản sao lưu</h2><p>Lưu tệp .kxh.json để không phụ thuộc bộ nhớ trình duyệt. Dữ liệu không gửi lên mạng.</p><div class="actions"><button data-action="backup">Lưu toàn bộ hồ sơ</button><button data-action="backup-session">Lưu riêng phiên</button><label class="file-button">Mở bộ hồ sơ <input id="restore-file" type="file" accept=".json,.kxh.json" hidden></label></div></div>';
