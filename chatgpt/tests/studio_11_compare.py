@@ -164,16 +164,18 @@ with sync_playwright() as play:
  assert page.url.startswith('file://')
  page.locator('[data-action="new"]').first.click()
  assert page.locator('.locality-item input:checked').count()==0
- page.locator('[data-action="nav"][data-tab="sources"]').click()
+ page.locator('[data-action="sources"]').click()
  page.locator('#source-files').set_input_files([str(FILES[x]) for x in ['DISB_20261015','REV_10M_2026','GPMB_20261026']])
  page.wait_for_function("document.querySelectorAll('[data-pending-date]').length===3",timeout=90000)
  for i,date in enumerate(['2026-10-15','2026-10-19','2026-10-26']):
   page.locator(f'[data-pending-date="{i}"]').fill(date)
   page.locator(f'[data-pending-reason="{i}"]').fill('Giả định QA, KHÔNG xác nhận ngày chốt chính thức' if i==1 else 'Tiêu đề A1')
  page.locator('[data-action="commit-sources"]').click()
- page.wait_for_function("document.querySelector('#toast')?.textContent?.includes('Nhập 3')",timeout=120000)
- page.locator('[data-action="nav"][data-tab="report"]').click()
- page.locator('#studio-mode').select_option('horizontal')
+ page.wait_for_function("document.querySelector('#toast')?.textContent?.includes('Đã nhập 3 nguồn mới')",timeout=120000)
+ page.locator('[data-action="report"]').first.click()
+ page.locator('[data-action="settings"]').first.click()
+ page.locator('[data-setting="tableMode"]').select_option('horizontal')
+ page.locator('[data-action="report"]').last.click()
  for name in localities:
   match=page.locator('.locality-item').filter(has_text=name)
   assert match.count()==1,(name,match.count())
@@ -182,7 +184,7 @@ with sync_playwright() as play:
  observed=page.locator('.doc-cell').evaluate_all("els => els.map(e=>({r:Number(e.dataset.row),c:Number(e.dataset.col),value:e.textContent.trim()}))")
  assert len(set((x['r'],x['c']) for x in observed))==154
  with page.expect_download(timeout=60000) as d:
-  page.get_by_role('button',name='Xuất Excel').click()
+  page.locator('[data-action="xlsx"]').click()
  dest=OUT/'studio_11_independent.xlsx'
  d.value.save_as(dest)
  wb=load_workbook(dest,read_only=True,data_only=True)
