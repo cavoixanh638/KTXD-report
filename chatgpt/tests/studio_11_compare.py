@@ -164,7 +164,7 @@ with sync_playwright() as play:
  assert page.url.startswith('file://')
  page.locator('[data-action="new"]').first.click()
  assert page.locator('.locality-item input:checked').count()==0
- page.locator('[data-action="sources"]').click()
+ page.locator('[data-action="sources"]').first.click()
  page.locator('#source-files').set_input_files([str(FILES[x]) for x in ['DISB_20261015','REV_10M_2026','GPMB_20261026']])
  page.wait_for_function("document.querySelectorAll('[data-pending-date]').length===3",timeout=90000)
  for i,date in enumerate(['2026-10-15','2026-10-19','2026-10-26']):
