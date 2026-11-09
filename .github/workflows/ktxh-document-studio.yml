@@ -30,6 +30,8 @@ jobs:
           python -m playwright install --with-deps chromium
       - name: Offline Chrome and original three workbook smoke
         run: python chatgpt/tests/studio_browser_test.py
+      - name: Independent Decimal regression for 11 reference localities
+        run: python chatgpt/tests/studio_11_compare.py
       - name: Store browser screenshots and XLSX
         if: always()
         uses: actions/upload-artifact@v4
