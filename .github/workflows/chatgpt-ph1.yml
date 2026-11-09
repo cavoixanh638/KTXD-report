@@ -1,0 +1,40 @@
+name: ChatGPT PH1 - Original 11 xa offline report
+on:
+  push:
+    branches: ["chatgpt/ph1-20261109"]
+    paths: ["chatgpt/**", ".github/workflows/chatgpt-ph1.yml"]
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  verify-11-localities:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Verify original private workbook checksums
+        run: python tools/verify_reference_files.py
+      - name: Build fully offline single-file application
+        run: node chatgpt/build.mjs
+      - name: Core unit and decimal tests
+        run: node --test chatgpt/tests/core.test.cjs
+      - name: Install offline Chrome test dependencies
+        run: |
+          python -m pip install openpyxl playwright
+          python -m playwright install --with-deps chromium
+      - name: Test PH1 using exact 11 localities from original template
+        run: python chatgpt/tests/report_11_reference_browser.py
+      - name: Save derived report for authorized repository members
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ktxh-ph1-11-xa-real-report
+          path: chatgpt/tests/tmp/template_11/
+          if-no-files-found: warn
+          retention-days: 14
