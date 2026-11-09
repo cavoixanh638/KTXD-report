@@ -506,23 +506,6 @@ function renderPaperSheetHtml(params: {
   const titleFontSize = session.settings.titleFontSizePx || 16;
   const isLastPage = pageIdx === totalPages;
 
-  const signaturesHtml =
-    session.settings.showSignatures && isLastPage
-      ? `<div class="doc-signatures">
-          <div class="sig-column sig-left">
-            <div class="sig-title">${escapeHtmlUi(session.settings.signatoryLeftTitle || 'NGƯỜI LẬP BIỂU')}</div>
-            <div class="sig-note">${escapeHtmlUi(session.settings.signatoryLeftName || '(Ký, ghi rõ họ tên)')}</div>
-            <div class="sig-placeholder"></div>
-          </div>
-          <div class="sig-column sig-right">
-            <div class="sig-place-date"><em>Hải Phòng, ngày ... tháng ... năm 2026</em></div>
-            <div class="sig-title">${escapeHtmlUi(session.settings.signatoryRightTitle || 'THỦ TRƯỞNG ĐƠN VỊ')}</div>
-            <div class="sig-note">${escapeHtmlUi(session.settings.signatoryRightName || '(Ký, ghi rõ họ tên và đóng dấu)')}</div>
-            <div class="sig-placeholder"></div>
-          </div>
-        </div>`
-      : '';
-
   return `<div class="a4-paper-sheet a4-landscape" data-page-number="${pageIdx}">
     <!-- TIÊU ĐỀ BÁO CÁO (CĂN GIỮA) -->
     <div class="doc-title-block text-center">
@@ -537,19 +520,8 @@ function renderPaperSheetHtml(params: {
       ${contentHtml}
     </div>
 
-    <!-- CHÚ THÍCH PHƯƠNG PHÁP & NGUỒN DỮ LIỆU BẮT BUỘC (MASTER V2.2) -->
+    <!-- CHÂN TRANG (SỐ TRANG) -->
     <footer class="doc-footer">
-      <div class="doc-notes">
-        <div class="doc-note-title">Ghi chú phương pháp tính &amp; Dữ liệu nguồn (MASTER V2.2 &amp; R06):</div>
-        <ul class="doc-note-list">
-          <li><strong>Giải phóng mặt bằng:</strong> Chỉ tính tỷ lệ theo diện tích <code>SUM(I ghi nhận) / SUM(D)</code>; đã loại bỏ hoàn toàn bình quân tỷ lệ dự án theo Quyết định R06. 108/114 địa bàn có dữ liệu (tỷ lệ toàn danh mục = 72,13%, <code>PARTIAL_AGGREGATE</code>). Địa phương chưa có bản ghi: <strong>${escapeHtmlUi(gpmbMissingNames)}</strong>.</li>
-          <li><strong>Giải ngân ĐTC (15/10/2026):</strong> Phạm vi 114/114 địa phương; mốc chuẩn tỷ lệ chung = <strong>67,10%</strong> (tổng giải ngân / tổng vốn sau điều chỉnh); vốn giao bình quân = <strong>136,41 tỷ đồng/đơn vị</strong>.</li>
-          <li><strong>Thu NSNN (10 tháng/2026, ngày chốt: ${escapeHtmlUi(revDate)}):</strong> Phạm vi 113/114 địa phương; mốc tham khảo = <strong>111,30%</strong>. Địa phương chưa có bản ghi: <strong>${escapeHtmlUi(revMissingNames)}</strong>.</li>
-        </ul>
-      </div>
-
-      ${signaturesHtml}
-
       <div class="doc-page-counter">
         <span>Trang ${pageIdx} / ${totalPages}</span>
       </div>

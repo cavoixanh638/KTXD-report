@@ -165,8 +165,9 @@ describe('KTXH Offline – A4 Report Studio & WYSIWYG Architecture Suite', () =>
     expect(html5).not.toContain('doc-period-badge');
     expect(html5).toContain('doc-table-horizontal');
     expect(html5).toContain('Tỷ lệ GPMB địa phương theo diện tích');
-    expect(html5).toContain('NGƯỜI LẬP BIỂU');
-    expect(html5).toContain('THỦ TRƯỞNG ĐƠN VỊ');
+    expect(html5).not.toContain('Ghi chú phương pháp tính & Dữ liệu nguồn');
+    expect(html5).not.toContain('NGƯỜI LẬP BIỂU');
+    expect(html5).not.toContain('THỦ TRƯỞNG ĐƠN VỊ');
     expect(html5).toContain('Trang 1 / 1');
 
     // Render in Vertical mode (Transposed table)
@@ -356,7 +357,13 @@ describe('KTXH Offline – A4 Report Studio & WYSIWYG Architecture Suite', () =>
     const formattedRow3 = formatReportCellValue(cellRow3, row3.indicator.displayUnit, 'billion');
     expect(formattedRow3).toMatch(/tỷ$/);
 
-    // 4. Render Studio HTML and check absence of row-level notes and presence of "tỷ"
+    // 4. Check renamed indicators
+    const row11 = evalReport.rows.find((r) => r.rowConfig.rowNumber === 11)!;
+    expect(row11.rowConfig.customLabel).toBe('Kết quả giải ngân so với tỷ lệ trung bình');
+    const row16 = evalReport.rows.find((r) => r.rowConfig.rowNumber === 16)!;
+    expect(row16.rowConfig.customLabel).toBe('Kết quả GPMB so với tỷ lệ trung bình');
+
+    // 5. Render Studio HTML and check absence of row-level notes, absence of footer notes/signatures, and presence of "tỷ"
     const studioHtml = renderA4DocumentStudioHtml({
       evaluated: evalReport,
       baselineLocalities,
@@ -364,6 +371,9 @@ describe('KTXH Offline – A4 Report Studio & WYSIWYG Architecture Suite', () =>
     });
     expect(studioHtml).not.toContain('indicator-unit-sub');
     expect(studioHtml).not.toContain('ind-vert-stt');
+    expect(studioHtml).not.toContain('Ghi chú phương pháp tính & Dữ liệu nguồn');
+    expect(studioHtml).not.toContain('NGƯỜI LẬP BIỂU');
+    expect(studioHtml).not.toContain('THỦ TRƯỞNG ĐƠN VỊ');
     expect(studioHtml).toContain('tỷ');
   });
 });

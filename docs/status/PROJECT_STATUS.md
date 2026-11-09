@@ -28,12 +28,14 @@
 - **Bộ kiểm thử runtime:** 2 test suites, **25/25 tests PASS** (`tests/ph1.spec.ts` 18 tests, `tests/studio.spec.ts` 7 tests bao gồm cả các kiểm thử định dạng và tinh chỉnh theo phản hồi người dùng).
 - **Tinh chỉnh giao diện và hiển thị đã hoàn thiện:**
   1. Loại bỏ hoàn toàn khối cơ quan chủ quản (Sở KH&ĐT), quốc hiệu tiêu ngữ và dòng ngày chốt số liệu meta ở đầu trang báo cáo.
-  2. Loại bỏ phụ đề và huy hiệu phiên ở đầu báo cáo.
-  3. Căn giữa tiêu đề chính `TÌNH HÌNH THỰC HIỆN MỘT SỐ CHỈ TIÊU KINH TẾ - XÃ HỘI CỦA CÁC ĐỊA PHƯƠNG`.
-  4. Loại bỏ các dòng ghi chú phụ/dòng mẫu dưới tên chỉ tiêu trong các bảng.
-  5. Dòng STT 7 (chỉ tiêu `GPMB_BENCHMARK_AREA_RATE`) hiển thị gọn gàng `72,13%`, không còn chuỗi phụ cảnh báo.
-  6. Các số gốc Decimal chưa làm tròn trên popover và inspector hiển thị tối đa 4 chữ số sau dấu thập phân.
-  7. Các chỉ tiêu có đơn vị tỷ đồng hiển thị kèm chữ `tỷ` ngay bên cạnh số liệu (`formatReportCellValue`).
+  2. Loại bỏ phụ đề và huy hiệu phiên ở đầu báo cáo; căn giữa tiêu đề chính `TÌNH HÌNH THỰC HIỆN MỘT SỐ CHỈ TIÊU KINH TẾ - XÃ HỘI CỦA CÁC ĐỊA PHƯƠNG`.
+  3. Loại bỏ các dòng ghi chú phụ/dòng mẫu dưới tên chỉ tiêu trong các bảng.
+  4. Loại bỏ phần chân trang: ghi chú phương pháp tính & dữ liệu nguồn (Master V2.2 & R06) và khối chữ ký (Người lập biểu, Thủ trưởng đơn vị), chỉ giữ đánh số trang gọn gàng.
+  5. Đổi tên chỉ tiêu `DISB_COMPARISON_LABEL`: "Nhận xét tỷ lệ giải ngân" $\to$ **"Kết quả giải ngân so với tỷ lệ trung bình"**.
+  6. Đổi tên chỉ tiêu `GPMB_COMPARISON_LABEL`: "Đánh giá GPMB" $\to$ **"Kết quả GPMB so với tỷ lệ trung bình"**.
+  7. Dòng STT 7 (chỉ tiêu `GPMB_BENCHMARK_AREA_RATE`) hiển thị gọn gàng `72,13%`, không còn chuỗi phụ cảnh báo.
+  8. Các số gốc Decimal chưa làm tròn trên popover và inspector hiển thị tối đa 4 chữ số sau dấu thập phân.
+  9. Các chỉ tiêu có đơn vị tỷ đồng hiển thị kèm chữ `tỷ` ngay bên cạnh số liệu (`formatReportCellValue`).
 - **Bằng chứng JSON xuất tự động từ runtime:** [`docs/data_checks/PH1_ACCEPTANCE_EVIDENCE_20261109.json`](../data_checks/PH1_ACCEPTANCE_EVIDENCE_20261109.json) (chứa bảng đối chiếu 14 dòng cho Phiên A 5 xã và Phiên B 7 phường cùng trạng thái từng mã `T01`–`T66`).
 - **Minh chứng Microsoft Edge Headless Offline (`file://`):**
   - [`docs/evidence/EDGE_HEADLESS_DOM_DUMP.html`](../evidence/EDGE_HEADLESS_DOM_DUMP.html) (2.04 MB DOM dump xác nhận khởi chạy JS & Document Studio hoàn chỉnh).
