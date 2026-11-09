@@ -22,15 +22,17 @@ import {
 import { analyzeSourceCoverage } from '../core/coverage';
 import { summarizeDatasetWarnings, filterWarningsForSession } from '../core/warnings';
 import { searchLocalities } from '../core/localities';
+import { renderA4DocumentStudioHtml, computeAutoLayoutMode } from '../ui/reportStudio';
 import { renderReportGridHtml } from '../ui/reportGrid';
-import { renderTraceInspectorHtml, escapeHtmlUi } from '../ui/cellInspector';
+import { renderTraceInspectorHtml, renderCellTracePopoverHtml, escapeHtmlUi } from '../ui/cellInspector';
 import { exportSessionReportToXlsxBytes } from '../export/xlsx';
 import { generatePrintableReportHtml } from '../export/print';
 import {
   exportWorkspaceBackupJson,
   restoreWorkspaceFromBackupJson,
 } from '../backup/workspace';
-import { CalculationTrace, LocalityType, Workspace } from '../core/types';
+import { saveWorkspacePersistent, loadWorkspacePersistent } from '../core/storage';
+import { CalculationTrace, LocalityType, Workspace, QualityIssue } from '../core/types';
 
 declare global {
   interface Window {
@@ -53,32 +55,67 @@ function base64ToUint8Array(b64: string): Uint8Array {
   return bytes;
 }
 
+export type RightPanelMode = 'NONE' | 'TRACE' | 'TITLE' | 'INDICATORS' | 'WARNINGS';
+
 export class KtxhOfflineApp {
   public workspace: Workspace;
   public activeTab:
+    | 'STUDIO'
     | 'SESSIONS'
     | 'IMPORT'
     | 'LOCALITIES'
     | 'REPORT'
     | 'INSPECTOR'
     | 'BENCHMARKS'
-    | 'EXPORT' = 'SESSIONS';
+    | 'EXPORT' = 'REPORT';
+
+  public isSidebarCollapsed = false;
+  public rightPanelMode: RightPanelMode = 'NONE';
   public activeTraceId: string | undefined;
   public activeTrace: CalculationTrace | null = null;
   public activeTraceExtraMeta?: {
     officialNote?: string | null;
     inspectionMarker?: string | null;
   };
+
+  // Popover state
+  public popoverCell: {
+    traceId: string;
+    localityId: string;
+    indicatorId: string;
+    clientX: number;
+    clientY: number;
+  } | null = null;
+
+  // Filter & Search states
   public localitySearchQuery = '';
   public localityTypeFilter: 'ALL' | LocalityType = 'ALL';
+  public localityCoverageFilter: 'ALL' | 'COMPLETE' | 'MISSING' = 'ALL';
+  public localitySortOption: 'DEFAULT' | 'NAME_ASC' | 'NAME_DESC' | 'TYPE' | 'SELECTED_FIRST' = 'DEFAULT';
   public warningRuleFilter = 'ALL';
+
+  // Status & Autosave states
   public statusBannerMessage = '';
   public statusBannerType: 'info' | 'warning' | 'error' | 'success' = 'info';
+  public lastSavedTimestamp = '';
+  public isSaving = false;
+  public autosaveTimer: number | null = null;
+  public zoomScale = 1;
+  public isPrintPreviewActive = false;
 
   constructor() {
     this.workspace = createEmptyWorkspace('Hồ sơ Báo cáo KTXH Offline (MASTER V2.2)');
-    this.tryRestoreFromLocalStorageCache();
+    this.initWorkspace();
+  }
+
+  private async initWorkspace(): Promise<void> {
+    const loaded = await loadWorkspacePersistent();
+    if (loaded && loaded.formatVersion === 2 && Array.isArray(loaded.sessions)) {
+      this.workspace = loaded;
+    }
     this.ensureInitialDatasetsAndEmptySession();
+    this.lastSavedTimestamp = new Date().toLocaleTimeString('vi-VN');
+    this.render();
   }
 
   private ensureInitialDatasetsAndEmptySession(): void {
@@ -124,35 +161,35 @@ export class KtxhOfflineApp {
     if (this.workspace.sessions.length === 0) {
       createReportSession(this.workspace, { name: 'Báo cáo KTXH phiên mới' });
     }
-    this.saveToLocalStorageCache();
   }
 
-  private saveToLocalStorageCache(): void {
-    try {
-      if (typeof localStorage !== 'undefined') {
-        localStorage.setItem(
-          'KTXH_OFFLINE_WORKSPACE_CACHE_V2_2',
-          JSON.stringify(this.workspace)
-        );
-      }
-    } catch {
-      // Ignore storage quota or file:// restrictions; file backup (.kxh.json) is primary
+  public triggerAutosave(): void {
+    this.workspace.unsavedChanges = true;
+    this.workspace.updatedAt = new Date().toISOString();
+    this.isSaving = true;
+    this.renderAutosavePill();
+
+    if (this.autosaveTimer !== null) {
+      clearTimeout(this.autosaveTimer);
     }
+
+    this.autosaveTimer = window.setTimeout(async () => {
+      await saveWorkspacePersistent(this.workspace);
+      this.isSaving = false;
+      this.lastSavedTimestamp = new Date().toLocaleTimeString('vi-VN');
+      this.renderAutosavePill();
+    }, 3000);
   }
 
-  private tryRestoreFromLocalStorageCache(): void {
-    try {
-      if (typeof localStorage !== 'undefined') {
-        const cached = localStorage.getItem('KTXH_OFFLINE_WORKSPACE_CACHE_V2_2');
-        if (cached) {
-          const parsed = JSON.parse(cached);
-          if (parsed && parsed.formatVersion === 2 && Array.isArray(parsed.sessions)) {
-            this.workspace = parsed;
-          }
-        }
-      }
-    } catch {
-      // Ignore
+  private renderAutosavePill(): void {
+    const pill = document.getElementById('autosave-status-pill');
+    if (!pill) return;
+    if (this.isSaving) {
+      pill.className = 'autosave-pill autosave-saving';
+      pill.innerHTML = `<span class="spinner-dot"></span> Đang lưu...`;
+    } else {
+      pill.className = 'autosave-pill autosave-saved';
+      pill.innerHTML = `✓ Đã tự động lưu lúc ${escapeHtmlUi(this.lastSavedTimestamp)}`;
     }
   }
 
@@ -209,7 +246,7 @@ export class KtxhOfflineApp {
       s.dataBindings.GPMB = gpmbDs.id;
     }
 
-    this.saveToLocalStorageCache();
+    this.triggerAutosave();
     this.setStatus(
       revConfirmedDate
         ? `Đã nạp đủ 3 nguồn tham chiếu (DISB 114, REV 113 chốt ${revConfirmedDate}, GPMB 108/422 dự án).`
@@ -225,14 +262,11 @@ export class KtxhOfflineApp {
       for (const s of visibleSheets) {
         const fp = detectSheetFingerprint(s);
         if (fp === 'DISB_V1') {
-          const { dataset, localities } = importDisbursementWorkbook(
-            bytes,
-            filename
-          );
+          const { dataset, localities } = importDisbursementWorkbook(bytes, filename);
           registerDatasetInWorkspace(this.workspace, dataset, localities);
-          this.saveToLocalStorageCache();
+          this.triggerAutosave();
           this.setStatus(
-            `Đã nhập nguồn Giải ngân "${filename}" (${dataset.unitCount} địa phương, ngày chốt ${dataset.asOfDate}).`,
+            `Đã nhận diện & nhập nguồn Giải ngân "${filename}" (${dataset.unitCount} địa phương, ngày chốt ${dataset.asOfDate}).`,
             'success'
           );
           return;
@@ -240,9 +274,9 @@ export class KtxhOfflineApp {
         if (fp === 'REV_V1') {
           const { dataset } = importRevenueWorkbook(bytes, filename);
           registerDatasetInWorkspace(this.workspace, dataset);
-          this.saveToLocalStorageCache();
+          this.triggerAutosave();
           this.setStatus(
-            `Đã nhập nguồn Thu NSNN "${filename}" (${dataset.unitCount} địa phương). Vui lòng xác nhận ngày chốt thực tế!`,
+            `Đã nhận diện & nhập nguồn Thu NSNN "${filename}" (${dataset.unitCount} địa phương). Vui lòng xác nhận ngày chốt thực tế!`,
             'warning'
           );
           return;
@@ -250,9 +284,9 @@ export class KtxhOfflineApp {
         if (fp === 'GPMB_V1') {
           const { dataset } = importGpmbWorkbook(bytes, filename);
           registerDatasetInWorkspace(this.workspace, dataset);
-          this.saveToLocalStorageCache();
+          this.triggerAutosave();
           this.setStatus(
-            `Đã nhập nguồn GPMB "${filename}" (${dataset.unitCount} địa bàn, ${dataset.projectRowCount} dòng dự án, ngày chốt ${dataset.asOfDate}).`,
+            `Đã nhận diện & nhập nguồn GPMB "${filename}" (${dataset.unitCount} địa bàn, ${dataset.projectRowCount} dòng dự án, ngày chốt ${dataset.asOfDate}).`,
             'success'
           );
           return;
@@ -266,14 +300,11 @@ export class KtxhOfflineApp {
         }
       }
       this.setStatus(
-        `BLOCKER: Không nhận diện được cấu trúc chuẩn của "${filename}". Yêu cầu mở Mapping Wizard (PH2-01).`,
+        `Không nhận diện được cấu trúc nguồn chuẩn của "${filename}". Yêu cầu nạp tệp đúng profile hoặc mở Mapping Wizard.`,
         'error'
       );
     } catch (err) {
-      this.setStatus(
-        `Lỗi khi đọc tệp "${filename}": ${(err as Error).message}`,
-        'error'
-      );
+      this.setStatus(`Lỗi khi đọc tệp "${filename}": ${(err as Error).message}`, 'error');
     }
   }
 
@@ -316,28 +347,28 @@ export class KtxhOfflineApp {
       });
     }
 
-    const navTabs: Array<{ id: KtxhOfflineApp['activeTab']; label: string }> = [
-      { id: 'SESSIONS', label: '1. Quản lý phiên' },
-      { id: 'IMPORT', label: '2. Nhập nguồn & QC' },
-      { id: 'LOCALITIES', label: `3. Chọn địa phương (${activeSession?.selectedLocalityIds.length ?? 0}/114)` },
-      { id: 'REPORT', label: '4. Bảng báo cáo 14 dòng' },
-      { id: 'INSPECTOR', label: '5. Chi tiết ô & Trace' },
-      { id: 'BENCHMARKS', label: '6. Mốc so sánh & Tùy chỉnh' },
-      { id: 'EXPORT', label: '7. Xuất & Sao lưu' },
-    ];
+    // Top Bar Render
+    const topBarHtml = this.renderTopBar(activeSession);
 
-    const navHtml = navTabs
-      .map(
-        (t) => `<button type="button" class="nav-tab-btn ${
-          this.activeTab === t.id ? 'active' : ''
-        }" data-nav-tab="${t.id}">${escapeHtmlUi(t.label)}</button>`
-      )
-      .join('');
+    // Left Navigation Items
+    const leftNavHtml = this.renderLeftNav(activeSession);
 
-    const backupBadge = this.workspace.unsavedChanges
-      ? `<span class="badge badge-WARNING" title="Dữ liệu mới chỉnh sửa chỉ lưu tạm trong bộ nhớ trình duyệt; hãy xuất file .kxh.json">Chưa sao lưu (.kxh.json)</span>`
-      : `<span class="badge badge-COMPLETE">Đã đồng bộ bản sao lưu</span>`;
+    // Center Workspace Content
+    const centerWorkspaceHtml = this.renderCenterContent(
+      activeSession,
+      evaluatedReport,
+      datasets,
+      Boolean(revNeedsDateConfirm)
+    );
 
+    // Right Context Panel
+    const rightPanelHtml = this.renderRightContextPanel(
+      activeSession,
+      evaluatedReport,
+      datasets
+    );
+
+    // Status Banner
     const statusBannerHtml = this.statusBannerMessage
       ? `<div class="status-banner status-${this.statusBannerType} no-print">
           <span>${escapeHtmlUi(this.statusBannerMessage)}</span>
@@ -345,57 +376,41 @@ export class KtxhOfflineApp {
         </div>`
       : '';
 
-    let mainViewHtml = '';
-    if (this.activeTab === 'SESSIONS') {
-      mainViewHtml = this.renderSessionsPage(datasets);
-    } else if (this.activeTab === 'IMPORT') {
-      mainViewHtml = this.renderImportPage(datasets);
-    } else if (this.activeTab === 'LOCALITIES') {
-      mainViewHtml = this.renderLocalitiesPage(activeSession);
-    } else if (this.activeTab === 'REPORT') {
-      mainViewHtml = this.renderReportPage(
-        activeSession,
-        evaluatedReport,
-        datasets,
-        Boolean(revNeedsDateConfirm)
-      );
-    } else if (this.activeTab === 'INSPECTOR') {
-      mainViewHtml = `<section class="page-section"><div class="card">${renderTraceInspectorHtml(
-        this.activeTrace,
-        this.activeTraceExtraMeta
-      )}</div></section>`;
-    } else if (this.activeTab === 'BENCHMARKS') {
-      mainViewHtml = this.renderBenchmarksAndSettingsPage(
-        activeSession,
-        evaluatedReport,
-        datasets
-      );
-    } else if (this.activeTab === 'EXPORT') {
-      mainViewHtml = this.renderExportAndBackupPage(
-        activeSession,
-        evaluatedReport,
-        datasets
-      );
+    // Cell Popover
+    let popoverHtml = '';
+    if (this.popoverCell && evaluatedReport) {
+      const trace = evaluatedReport.tracesById.get(this.popoverCell.traceId);
+      if (trace) {
+        popoverHtml = `<div id="active-cell-popover" style="position:fixed; left:${Math.min(
+          this.popoverCell.clientX + 10,
+          window.innerWidth - 360
+        )}px; top:${Math.min(this.popoverCell.clientY + 10, window.innerHeight - 300)}px;">
+          ${renderCellTracePopoverHtml(trace, this.activeTraceExtraMeta)}
+        </div>`;
+      }
     }
 
     root.innerHTML = `
-      <header class="app-header no-print">
-        <div class="header-brand">
-          <h1>KTXH Offline Report — Báo cáo KTXH Xã/Phường/Đặc khu (MASTER V2.2 — PH1)</h1>
-          <div class="header-meta">
-            <span>Phiên đang mở: <strong>${escapeHtmlUi(
-              activeSession ? `${activeSession.name} (${activeSession.selectedLocalityIds.length} địa phương)` : 'Chưa chọn phiên'
-            )}</strong></span>
-            ${backupBadge}
-            <span class="badge badge-primary">Offline 100% (file://)</span>
-          </div>
+      <div class="studio-app-shell">
+        ${topBarHtml}
+        ${statusBannerHtml}
+        <div class="studio-main-body">
+          <aside class="studio-sidebar no-print ${this.isSidebarCollapsed ? 'collapsed' : ''}">
+            ${leftNavHtml}
+            <div class="sidebar-footer">
+              <button type="button" class="btn-toggle-sidebar" id="btn-toggle-sidebar" title="Thu gọn / Mở rộng thanh điều hướng">
+                <span>${this.isSidebarCollapsed ? '▶' : '◀'}</span>
+                <span class="sidebar-nav-label">Thu gọn</span>
+              </button>
+            </div>
+          </aside>
+          <main class="studio-center-workspace">
+            ${centerWorkspaceHtml}
+          </main>
+          ${rightPanelHtml}
         </div>
-        <nav class="app-nav">${navHtml}</nav>
-      </header>
-      ${statusBannerHtml}
-      <main class="app-main no-print">
-        ${mainViewHtml}
-      </main>
+      </div>
+      ${popoverHtml}
       <div id="print-mount-area" class="print-only">
         ${
           evaluatedReport && activeSession?.settings.showScopeFootnotes
@@ -411,6 +426,564 @@ export class KtxhOfflineApp {
     `;
 
     this.bindDomEvents(evaluatedReport, datasets);
+  }
+
+  private renderTopBar(activeSession: Workspace['sessions'][number] | undefined): string {
+    const sessionOptionsHtml = this.workspace.sessions
+      .map(
+        (s) => `<option value="${escapeHtmlUi(s.id)}" ${
+          s.id === activeSession?.id ? 'selected' : ''
+        }>${escapeHtmlUi(s.name)} (${s.selectedLocalityIds.length} ĐP)</option>`
+      )
+      .join('');
+
+    const backupStatusBadge = this.workspace.unsavedChanges
+      ? `<span class="badge badge-WARNING" title="Có chỉnh sửa chưa xuất file .kxh.json">Chưa sao lưu (.kxh.json)</span>`
+      : `<span class="badge badge-COMPLETE" title="Đã lưu an toàn">Đã sao lưu</span>`;
+
+    return `<header class="studio-topbar no-print">
+      <div class="topbar-group-brand">
+        <span class="topbar-logo">🏛️</span>
+        <div class="topbar-title-wrap">
+          <span class="topbar-title">Báo cáo Kinh tế – Xã hội</span>
+          <span class="topbar-badge-offline">Offline 100%</span>
+        </div>
+      </div>
+
+      <div class="topbar-group-session">
+        <select class="session-select-box" id="select-active-session" title="Chuyển đổi phiên làm việc">
+          ${sessionOptionsHtml}
+        </select>
+        <button type="button" class="btn btn-sm btn-secondary" id="btn-topbar-new-session" title="Tạo phiên mới với 0 địa phương mặc định">+ Phiên mới</button>
+        <button type="button" class="btn btn-sm" id="btn-topbar-clone-session" title="Nhân bản phiên hiện tại">Nhân bản</button>
+      </div>
+
+      <div class="topbar-group-autosave">
+        <span id="autosave-status-pill" class="autosave-pill ${
+          this.isSaving ? 'autosave-saving' : 'autosave-saved'
+        }">
+          ${
+            this.isSaving
+              ? 'Đang lưu...'
+              : `✓ Đã tự động lưu lúc ${escapeHtmlUi(this.lastSavedTimestamp)}`
+          }
+        </span>
+        ${backupStatusBadge}
+      </div>
+
+      <div class="topbar-group-export">
+        <button type="button" class="btn btn-sm btn-primary" id="btn-topbar-export-xlsx" title="Tải xuống tệp Excel đúng kiểu số numeric kèm 5 sheet audit">
+          <span>📊</span> Xuất Excel
+        </button>
+        <button type="button" class="btn btn-sm btn-secondary" id="btn-topbar-print" title="Xem trước in hoặc lưu PDF theo chuẩn văn bản hành chính">
+          <span>🖨️</span> Xuất PDF / In
+        </button>
+      </div>
+    </header>`;
+  }
+
+  private renderLeftNav(activeSession: Workspace['sessions'][number] | undefined): string {
+    const navItems: Array<{ id: KtxhOfflineApp['activeTab']; icon: string; label: string }> = [
+      { id: 'REPORT', icon: '📄', label: 'Báo cáo tổng hợp' },
+      { id: 'SESSIONS', icon: '📁', label: `Quản lý phiên (${this.workspace.sessions.length})` },
+      { id: 'IMPORT', icon: '📥', label: 'Dữ liệu nguồn' },
+      {
+        id: 'LOCALITIES',
+        icon: '📍',
+        label: `Danh mục địa phương (${activeSession?.selectedLocalityIds.length ?? 0}/114)`,
+      },
+      { id: 'BENCHMARKS', icon: '⚙️', label: 'Chỉ tiêu & tùy chỉnh' },
+      { id: 'INSPECTOR', icon: '🔍', label: 'Kiểm tra & truy vết' },
+      { id: 'EXPORT', icon: '📤', label: 'Xuất & in báo cáo' },
+    ];
+
+    return `<nav class="sidebar-nav-list">
+      ${navItems
+        .map(
+          (item) => `<button type="button" class="sidebar-nav-item ${
+            this.activeTab === item.id || (this.activeTab === 'STUDIO' && item.id === 'REPORT') ? 'active' : ''
+          }" data-nav-tab="${item.id}" title="${escapeHtmlUi(item.label)}">
+            <span class="sidebar-nav-icon">${item.icon}</span>
+            <span class="sidebar-nav-label">${escapeHtmlUi(item.label)}</span>
+          </button>`
+        )
+        .join('')}
+    </nav>`;
+  }
+
+  private renderCenterContent(
+    activeSession: Workspace['sessions'][number] | undefined,
+    evaluatedReport: EvaluatedSessionReport | null,
+    datasets: {
+      REV?: Workspace['datasets'][number];
+      DISB?: Workspace['datasets'][number];
+      GPMB?: Workspace['datasets'][number];
+    },
+    revNeedsDateConfirm: boolean
+  ): string {
+    // If not in primary report studio tab, render dedicated tab views
+    if (this.activeTab === 'SESSIONS') {
+      return this.renderSessionsPage(datasets);
+    }
+    if (this.activeTab === 'IMPORT') {
+      return this.renderImportPage(datasets);
+    }
+    if (this.activeTab === 'LOCALITIES') {
+      return this.renderUnifiedLocalitiesPage(activeSession);
+    }
+    if (this.activeTab === 'BENCHMARKS') {
+      return this.renderBenchmarksAndSettingsPage(activeSession, evaluatedReport, datasets);
+    }
+    if (this.activeTab === 'INSPECTOR') {
+      return `<section class="page-section"><div class="card">${renderTraceInspectorHtml(
+        this.activeTrace,
+        this.activeTraceExtraMeta
+      )}</div></section>`;
+    }
+    if (this.activeTab === 'EXPORT') {
+      return this.renderExportAndBackupPage(activeSession, evaluatedReport, datasets);
+    }
+
+    // Default primary view: REPORT (WYSIWYG A4 Document Studio)
+    if (!activeSession) {
+      return `<div class="card empty-state-card"><h3>Vui lòng tạo hoặc chọn một phiên báo cáo ở trên.</h3></div>`;
+    }
+    if (!evaluatedReport) {
+      return `<div class="card empty-state-card">
+        <h3>Chưa có đủ 3 nguồn dữ liệu</h3>
+        <p>Hệ thống cần đủ 3 nguồn: Giải ngân (DISB), Thu NSNN (REV) và GPMB để đánh giá 14 dòng chỉ tiêu.</p>
+        <button type="button" class="btn btn-primary" data-nav-tab="IMPORT">Chuyển tới Nhập nguồn</button>
+      </div>`;
+    }
+
+    const layoutDecision = computeAutoLayoutMode({
+      session: activeSession,
+      selectedCount: activeSession.selectedLocalityIds.length,
+      indicatorCount: evaluatedReport.rows.length,
+    });
+
+    const currentLayoutPref = activeSession.settings.tableLayoutMode || 'AUTO';
+
+    const studioToolbarHtml = `<div class="studio-canvas-toolbar no-print">
+      <div class="toolbar-left">
+        <span class="toolbar-group-label">Bố cục bảng:</span>
+        <div class="layout-segmented-control">
+          <button type="button" class="segmented-btn ${
+            currentLayoutPref === 'AUTO' ? 'active' : ''
+          }" data-set-layout-mode="AUTO" title="Tự động tính toán theo kích thước A4 ngang">
+            Tự động (khuyến nghị)
+          </button>
+          <button type="button" class="segmented-btn ${
+            currentLayoutPref === 'HORIZONTAL' ? 'active' : ''
+          }" data-set-layout-mode="HORIZONTAL" title="Địa phương theo chiều ngang (Cột = Địa phương, Dòng = Chỉ tiêu)">
+            Địa phương ngang
+          </button>
+          <button type="button" class="segmented-btn ${
+            currentLayoutPref === 'VERTICAL' ? 'active' : ''
+          }" data-set-layout-mode="VERTICAL" title="Địa phương theo chiều dọc (Dòng = Địa phương, Cột = Chỉ tiêu)">
+            Địa phương dọc
+          </button>
+        </div>
+        <span class="auto-explanation-badge" title="${escapeHtmlUi(layoutDecision.reason)}">
+          ℹ️ ${escapeHtmlUi(layoutDecision.reason)}
+        </span>
+      </div>
+
+      <div class="toolbar-center">
+        <button type="button" class="btn btn-sm btn-secondary" id="btn-studio-edit-title" title="Chỉnh sửa tên báo cáo, cơ quan, kỳ, căn lề">
+          ✏️ Sửa tiêu đề
+        </button>
+        <button type="button" class="btn btn-sm btn-secondary" data-nav-tab="LOCALITIES" title="Chọn xã, phường, đặc khu">
+          📍 Địa phương (${activeSession.selectedLocalityIds.length}/114)
+        </button>
+      </div>
+
+      <div class="toolbar-right">
+        <div class="zoom-controls">
+          <button type="button" class="btn btn-sm" id="btn-zoom-out" title="Thu nhỏ">-</button>
+          <span class="zoom-level-label" style="min-width:44px; text-align:center">${Math.round(
+            this.zoomScale * 100
+          )}%</span>
+          <button type="button" class="btn btn-sm" id="btn-zoom-in" title="Phóng to">+</button>
+          <button type="button" class="btn btn-sm" id="btn-zoom-reset" title="Khôi phục 100%">100%</button>
+        </div>
+        <button type="button" class="btn btn-sm btn-secondary" id="btn-open-warnings-panel" title="Xem danh sách cảnh báo chất lượng">
+          ⚠️ Cảnh báo (${evaluatedReport.sessionIssues.length})
+        </button>
+      </div>
+    </div>`;
+
+    const a4DocumentHtml = renderA4DocumentStudioHtml({
+      evaluated: evaluatedReport,
+      baselineLocalities: this.workspace.localities,
+      datasets,
+      activeTraceId: this.activeTraceId,
+      zoomScale: this.zoomScale,
+    });
+
+    return `<div class="studio-document-container">
+      ${studioToolbarHtml}
+      <div class="studio-canvas-scroll">
+        ${a4DocumentHtml}
+      </div>
+    </div>`;
+  }
+
+  private renderRightContextPanel(
+    activeSession: Workspace['sessions'][number] | undefined,
+    evaluatedReport: EvaluatedSessionReport | null,
+    datasets: {
+      REV?: Workspace['datasets'][number];
+      DISB?: Workspace['datasets'][number];
+      GPMB?: Workspace['datasets'][number];
+    }
+  ): string {
+    if (this.rightPanelMode === 'NONE') {
+      return '';
+    }
+
+    let panelContent = '';
+    let panelTitle = '';
+
+    if (this.rightPanelMode === 'TRACE') {
+      panelTitle = 'Hồ sơ giải trình phép tính (CalculationTrace)';
+      panelContent = renderTraceInspectorHtml(
+        this.activeTrace,
+        this.activeTraceExtraMeta
+      );
+    } else if (this.rightPanelMode === 'TITLE') {
+      panelTitle = 'Tùy chỉnh tiêu đề & Văn bản hành chính';
+      panelContent = this.renderTitleSettingsForm(activeSession);
+    } else if (this.rightPanelMode === 'INDICATORS') {
+      panelTitle = 'Quản lý 14 dòng chỉ tiêu mẫu';
+      panelContent = this.renderIndicatorsManager(activeSession);
+    } else if (this.rightPanelMode === 'WARNINGS') {
+      panelTitle = 'Cảnh báo chất lượng & Kiểm toán nguồn';
+      panelContent = this.renderQualityWarningsList(activeSession, evaluatedReport, datasets);
+    }
+
+    return `<aside class="studio-context-panel no-print">
+      <div class="context-panel-header">
+        <span class="context-panel-title">${escapeHtmlUi(panelTitle)}</span>
+        <button type="button" class="btn-close-context-panel" id="btn-close-context-panel" title="Đóng panel">&times;</button>
+      </div>
+      <div class="context-panel-tabs">
+        <button type="button" class="context-tab-btn ${
+          this.rightPanelMode === 'TRACE' ? 'active' : ''
+        }" data-open-panel-mode="TRACE">Truy vết</button>
+        <button type="button" class="context-tab-btn ${
+          this.rightPanelMode === 'TITLE' ? 'active' : ''
+        }" data-open-panel-mode="TITLE">Tiêu đề</button>
+        <button type="button" class="context-tab-btn ${
+          this.rightPanelMode === 'INDICATORS' ? 'active' : ''
+        }" data-open-panel-mode="INDICATORS">Chỉ tiêu</button>
+        <button type="button" class="context-tab-btn ${
+          this.rightPanelMode === 'WARNINGS' ? 'active' : ''
+        }" data-open-panel-mode="WARNINGS">Cảnh báo</button>
+      </div>
+      <div class="context-panel-body">
+        ${panelContent}
+      </div>
+    </aside>`;
+  }
+
+  private renderTitleSettingsForm(activeSession: Workspace['sessions'][number] | undefined): string {
+    if (!activeSession) return '<p>Chưa chọn phiên.</p>';
+    const s = activeSession.settings;
+
+    return `<form id="form-edit-title-settings" class="settings-form">
+      <div class="form-group">
+        <label>Tiêu đề báo cáo chính:</label>
+        <textarea id="setting-report-title" class="form-input" rows="2">${escapeHtmlUi(
+          s.reportTitle
+        )}</textarea>
+      </div>
+
+      <div class="form-group">
+        <label>Dòng phụ đề:</label>
+        <input type="text" id="setting-subtitle" class="form-input" value="${escapeHtmlUi(
+          s.subtitle || ''
+        )}"/>
+      </div>
+
+      <div class="form-group">
+        <label>Cơ quan cấp trên:</label>
+        <input type="text" id="setting-agency-name" class="form-input" value="${escapeHtmlUi(
+          s.agencyName || 'ỦY BAN NHÂN DÂN THÀNH PHỐ'
+        )}"/>
+      </div>
+
+      <div class="form-group">
+        <label>Đơn vị ban hành:</label>
+        <input type="text" id="setting-sub-agency-name" class="form-input" value="${escapeHtmlUi(
+          s.subAgencyName || 'SỞ KẾ HOẠCH VÀ ĐẦU TƯ'
+        )}"/>
+      </div>
+
+      <div class="form-group">
+        <label>Căn lề tiêu đề:</label>
+        <select id="setting-title-align" class="form-select">
+          <option value="center" ${s.titleAlign === 'center' ? 'selected' : ''}>Căn giữa (Center)</option>
+          <option value="left" ${s.titleAlign === 'left' ? 'selected' : ''}>Căn trái (Left)</option>
+        </select>
+      </div>
+
+      <div class="form-group">
+        <label>Cỡ chữ tiêu đề (px):</label>
+        <input type="number" id="setting-title-size" class="form-input-sm" value="${
+          s.titleFontSizePx || 16
+        }" min="12" max="24"/>
+      </div>
+
+      <div class="form-group">
+        <label class="checkbox-label">
+          <input type="checkbox" id="setting-title-uppercase" ${
+            s.titleUppercase !== false ? 'checked' : ''
+          }/>
+          In hoa toàn bộ tiêu đề (UPPERCASE)
+        </label>
+      </div>
+
+      <div class="form-group">
+        <label class="checkbox-label">
+          <input type="checkbox" id="setting-show-signatures" ${
+            s.showSignatures !== false ? 'checked' : ''
+          }/>
+          Hiển thị khu vực chữ ký ở trang cuối
+        </label>
+      </div>
+
+      <button type="submit" class="btn btn-primary" style="width:100%; margin-top:10px">Lưu thay đổi tiêu đề</button>
+    </form>`;
+  }
+
+  private renderIndicatorsManager(activeSession: Workspace['sessions'][number] | undefined): string {
+    if (!activeSession) return '<p>Chưa chọn phiên.</p>';
+
+    const rowsHtml = activeSession.templateRows
+      .sort((a, b) => a.order - b.order)
+      .map(
+        (r) => `<div class="indicator-config-item" data-row-num="${r.rowNumber}">
+          <div class="ind-config-header">
+            <span class="badge badge-sm">Dòng ${r.rowNumber}</span>
+            <code class="ind-config-code">${escapeHtmlUi(r.indicatorId)}</code>
+            <label class="toggle-eye" title="Ẩn / Hiện chỉ tiêu">
+              <input type="checkbox" class="chk-toggle-row-visibility" data-row-num="${
+                r.rowNumber
+              }" ${r.visible ? 'checked' : ''}/> Hiển thị
+            </label>
+          </div>
+          <div class="ind-config-inputs">
+            <input type="text" class="form-input-sm input-ind-custom-label" data-row-num="${
+              r.rowNumber
+            }" value="${escapeHtmlUi(r.customLabel)}" placeholder="Tên chỉ tiêu..."/>
+          </div>
+        </div>`
+      )
+      .join('');
+
+    return `<div class="indicators-manager-container">
+      <p class="muted">Tùy chỉnh nhãn hiển thị và ẩn/hiện cho từng dòng trong 14 dòng mẫu. Việc đổi nhãn không làm thay đổi ID, công thức và dữ liệu nguồn.</p>
+      <div class="indicators-list-scroll">
+        ${rowsHtml}
+      </div>
+      <button type="button" class="btn btn-secondary" id="btn-restore-default-indicator-labels" style="width:100%; margin-top:10px">
+        Khôi phục tên chỉ tiêu mặc định
+      </button>
+    </div>`;
+  }
+
+  private renderQualityWarningsList(
+    activeSession: Workspace['sessions'][number] | undefined,
+    evaluatedReport: EvaluatedSessionReport | null,
+    datasets: {
+      REV?: Workspace['datasets'][number];
+      DISB?: Workspace['datasets'][number];
+      GPMB?: Workspace['datasets'][number];
+    }
+  ): string {
+    const sessionWarnList = evaluatedReport
+      ? filterWarningsForSession(
+          evaluatedReport.sessionIssues,
+          activeSession?.selectedLocalityIds || []
+        )
+      : [];
+
+    const mMismatchIssues = (datasets.GPMB?.issues || []).filter(
+      (i) => i.ruleId === 'WARNING_M_RATIO_MISMATCH'
+    );
+
+    return `<div class="quality-warnings-container">
+      <h4>Cảnh báo liên quan (${sessionWarnList.length})</h4>
+      <div class="warnings-scroll-list">
+        ${
+          sessionWarnList.length === 0
+            ? '<p class="muted">Không có cảnh báo chất lượng nào đối với các địa phương đang chọn.</p>'
+            : sessionWarnList
+                .map(
+                  (w) => `<div class="warning-alert-item warning-severity-${escapeHtmlUi(
+                    w.severity
+                  )}">
+                    <div class="warn-title-row">
+                      <strong>${escapeHtmlUi(w.localityName)}</strong>
+                      <span class="badge badge-sm badge-${escapeHtmlUi(w.severity)}">${escapeHtmlUi(
+                    w.ruleId
+                  )}</span>
+                    </div>
+                    <div class="warn-desc">${escapeHtmlUi(w.explanation)}</div>
+                    <div class="warn-source">Ô: <code>${escapeHtmlUi(w.sourceCell)}</code></div>
+                  </div>`
+                )
+                .join('')
+        }
+      </div>
+
+      <h4 style="margin-top:16px">12 dự án GPMB có cột M lệch 100*I/D > 0,1 điểm %</h4>
+      <div class="warnings-scroll-list">
+        ${mMismatchIssues
+          .map(
+            (iss) => `<div class="m-mismatch-item">
+              <div>DA STT <strong>${iss.projectStt}</strong> (dòng ${iss.sourceRow}) — <strong>${escapeHtmlUi(
+              iss.localityName
+            )}</strong></div>
+              <div>M nguồn: <strong>${escapeHtmlUi(String(iss.observed))}%</strong> | Tính lại: <strong>${Number(
+              iss.expected
+            ).toFixed(2)}%</strong> (chênh lệch: <span class="text-danger">${Number(
+              iss.delta
+            ).toFixed(2)} điểm %</span>)</div>
+            </div>`
+          )
+          .join('')}
+      </div>
+    </div>`;
+  }
+
+  private renderUnifiedLocalitiesPage(
+    activeSession: Workspace['sessions'][number] | undefined
+  ): string {
+    if (!activeSession) {
+      return `<div class="card"><h3>Vui lòng tạo hoặc chọn một phiên báo cáo.</h3></div>`;
+    }
+
+    const filtered = searchLocalities(
+      this.workspace.localities,
+      this.localitySearchQuery,
+      this.localityTypeFilter
+    );
+
+    const selectedSet = new Set(activeSession.selectedLocalityIds);
+
+    // Filter by coverage status if chosen
+    const coverageFiltered = filtered.filter((loc) => {
+      if (this.localityCoverageFilter === 'ALL') return true;
+      const isMissing =
+        loc.displayName === 'Đặc khu Bạch Long Vĩ' ||
+        ['Phường Lưu Kiếm', 'Phường Ái Quốc', 'Xã Hùng Thắng', 'Xã Thái Tân', 'Xã Tân Minh'].includes(
+          loc.displayName
+        );
+      return this.localityCoverageFilter === 'MISSING' ? isMissing : !isMissing;
+    });
+
+    // Sorting
+    const sorted = [...coverageFiltered].sort((a, b) => {
+      if (this.localitySortOption === 'NAME_ASC') return a.displayName.localeCompare(b.displayName, 'vi');
+      if (this.localitySortOption === 'NAME_DESC') return b.displayName.localeCompare(a.displayName, 'vi');
+      if (this.localitySortOption === 'TYPE') return a.type.localeCompare(b.type);
+      if (this.localitySortOption === 'SELECTED_FIRST') {
+        const aSel = selectedSet.has(a.id) ? 1 : 0;
+        const bSel = selectedSet.has(b.id) ? 1 : 0;
+        return bSel - aSel;
+      }
+      return 0; // Default order
+    });
+
+    const itemsHtml = sorted
+      .map((loc) => {
+        const isChecked = selectedSet.has(loc.id);
+        const isMissingGpmb = [
+          'Phường Lưu Kiếm',
+          'Phường Ái Quốc',
+          'Xã Hùng Thắng',
+          'Xã Thái Tân',
+          'Xã Tân Minh',
+          'Đặc khu Bạch Long Vĩ',
+        ].includes(loc.displayName);
+        const isMissingRev = loc.displayName === 'Đặc khu Bạch Long Vĩ';
+
+        let warnTag = '';
+        if (isMissingRev && isMissingGpmb) {
+          warnTag = `<span class="missing-source-tag" title="Chưa có bản ghi Thu NSNN và GPMB trong nguồn hiện tại (NO_LOCALITY_RECORD)">⚠️ Thiếu Thu &amp; GPMB</span>`;
+        } else if (isMissingGpmb) {
+          warnTag = `<span class="missing-source-tag" title="Chưa có bản ghi GPMB trong nguồn hiện tại (NO_LOCALITY_RECORD)">⚠️ Thiếu GPMB</span>`;
+        }
+
+        return `<label class="locality-row-item ${isChecked ? 'checked' : ''}">
+          <div class="locality-row-left">
+            <input type="checkbox" class="chk-select-locality" data-loc-id="${escapeHtmlUi(
+              loc.id
+            )}" ${isChecked ? 'checked' : ''}/>
+            <span class="locality-name-bold">${escapeHtmlUi(loc.displayName)}</span>
+            <span class="badge badge-sm">${escapeHtmlUi(loc.type)}</span>
+          </div>
+          <div class="locality-row-right">
+            ${warnTag}
+          </div>
+        </label>`;
+      })
+      .join('');
+
+    return `<section class="page-section">
+      <div class="card unified-locality-container">
+        <div class="locality-header-title">
+          <h2>Danh sách địa phương (${this.workspace.localities.length || 114} đơn vị)</h2>
+          <p>
+            Theo quy tắc chuẩn hành chính MASTER V2.2: Phiên mới bắt đầu với <strong>0 địa phương được chọn</strong>.
+            Gộp chung xã, phường, đặc khu trong <strong>một danh sách duy nhất</strong> để dễ dàng tìm kiếm và lựa chọn tùy ý.
+          </p>
+        </div>
+
+        <div class="locality-filter-toolbar">
+          <input type="text" id="input-unified-loc-search" class="form-input locality-search-input" placeholder="Tìm kiếm xã, phường, đặc khu (có dấu hoặc không dấu, ví dụ: 'cam giang', 'bach long vi')..." value="${escapeHtmlUi(
+            this.localitySearchQuery
+          )}"/>
+
+          <select id="select-unified-loc-type" class="form-select-sm">
+            <option value="ALL" ${this.localityTypeFilter === 'ALL' ? 'selected' : ''}>Tất cả loại (${
+      this.workspace.localities.length
+    })</option>
+            <option value="XA" ${this.localityTypeFilter === 'XA' ? 'selected' : ''}>Xã</option>
+            <option value="PHUONG" ${this.localityTypeFilter === 'PHUONG' ? 'selected' : ''}>Phường</option>
+            <option value="DAC_KHU" ${this.localityTypeFilter === 'DAC_KHU' ? 'selected' : ''}>Đặc khu</option>
+          </select>
+
+          <select id="select-unified-loc-sort" class="form-select-sm">
+            <option value="DEFAULT" ${this.localitySortOption === 'DEFAULT' ? 'selected' : ''}>Thứ tự gốc</option>
+            <option value="NAME_ASC" ${this.localitySortOption === 'NAME_ASC' ? 'selected' : ''}>Tên A &rarr; Z</option>
+            <option value="NAME_DESC" ${this.localitySortOption === 'NAME_DESC' ? 'selected' : ''}>Tên Z &rarr; A</option>
+            <option value="SELECTED_FIRST" ${this.localitySortOption === 'SELECTED_FIRST' ? 'selected' : ''}>Đã chọn lên đầu</option>
+          </select>
+
+          <span class="locality-count-pill">
+            Đã chọn: <strong>${activeSession.selectedLocalityIds.length}</strong> / ${
+      this.workspace.localities.length || 114
+    }
+          </span>
+        </div>
+
+        <div class="toolbar-row">
+          <button type="button" class="btn btn-sm btn-secondary" id="btn-select-all-localities">Chọn tất cả</button>
+          <button type="button" class="btn btn-sm btn-secondary" id="btn-deselect-all-localities">Bỏ chọn tất cả (Về 0)</button>
+          <button type="button" class="btn btn-sm btn-secondary" id="btn-preset-5-xa">Mẫu 5 xã</button>
+          <button type="button" class="btn btn-sm btn-secondary" id="btn-preset-7-phuong">Mẫu 7 phường</button>
+          <button type="button" class="btn btn-sm btn-secondary" id="btn-preset-11-xa">Mẫu 11 xã</button>
+          <button type="button" class="btn btn-sm btn-primary" data-nav-tab="REPORT">Xem báo cáo A4 &rarr;</button>
+        </div>
+
+        <div class="locality-items-list-box">
+          ${itemsHtml || '<p class="muted" style="padding:16px">Không tìm thấy địa phương nào khớp từ khóa.</p>'}
+        </div>
+      </div>
+    </section>`;
   }
 
   private renderSessionsPage(datasets: {
@@ -440,7 +1013,7 @@ export class KtxhOfflineApp {
       this.workspace.sessions.length === 0
         ? `<div class="card empty-state-card">
             <h3>Chưa có phiên báo cáo nào</h3>
-            <p>Khi tạo phiên mới, danh sách địa phương luôn <strong>rỗng (0 địa phương mặc định)</strong>. Bạn có thể tạo nhiều phiên độc lập (ví dụ: <em>Phiên A gồm 5 xã</em>, <em>Phiên B gồm 7 phường</em>) và chuyển đổi qua lại không mất thiết lập.</p>
+            <p>Khi tạo phiên mới, danh sách địa phương luôn <strong>rỗng (0 địa phương mặc định)</strong>. Bạn có thể tạo nhiều phiên độc lập và chuyển đổi qua lại không mất thiết lập.</p>
           </div>`
         : `<table class="data-table">
             <thead>
@@ -448,7 +1021,7 @@ export class KtxhOfflineApp {
                 <th>Tên phiên báo cáo</th>
                 <th>Số địa phương đã chọn</th>
                 <th>Danh sách địa phương</th>
-                <th>Phiên bản (Rev)</th>
+                <th>Phiên bản</th>
                 <th>Cập nhật lúc</th>
                 <th>Thao tác nhanh</th>
               </tr>
@@ -475,13 +1048,10 @@ export class KtxhOfflineApp {
                     <td>v${s.sessionRevision}</td>
                     <td>${escapeHtmlUi(s.updatedAt.slice(0, 19).replace('T', ' '))}</td>
                     <td class="actions-cell">
-                      <button type="button" class="btn btn-sm btn-primary" data-action="open-session-localities" data-session-id="${escapeHtmlUi(
+                      <button type="button" class="btn btn-sm btn-primary" data-action="open-session-report" data-session-id="${escapeHtmlUi(
                         s.id
-                      )}">Chọn xã/phường</button>
-                      <button type="button" class="btn btn-sm btn-secondary" data-action="open-session-report" data-session-id="${escapeHtmlUi(
-                        s.id
-                      )}">Xem bảng 14 dòng</button>
-                      <button type="button" class="btn btn-sm" data-action="clone-session" data-session-id="${escapeHtmlUi(
+                      )}">Mở báo cáo A4</button>
+                      <button type="button" class="btn btn-sm btn-secondary" data-action="clone-session" data-session-id="${escapeHtmlUi(
                         s.id
                       )}">Nhân bản</button>
                       <button type="button" class="btn btn-sm btn-danger" data-action="delete-session" data-session-id="${escapeHtmlUi(
@@ -496,13 +1066,13 @@ export class KtxhOfflineApp {
 
     return `<section class="page-section">
       <div class="card">
-        <h2>Trang 1 — Quản lý Phiên Báo cáo &amp; Tổng quan Nguồn Dữ liệu</h2>
-        <p>Ba nguồn dữ liệu chuẩn đã sẵn sàng. Phiên mới khởi tạo với <strong>0 địa phương mặc định</strong> (Quy tắc R02). Hãy bấm <strong>"Chọn xã/phường"</strong> hoặc <strong>"Xem bảng 14 dòng"</strong> ở phiên bên dưới để bắt đầu.</p>
+        <h2>Quản lý Phiên Báo cáo &amp; Tổng quan Nguồn Dữ liệu</h2>
+        <p>Ba nguồn dữ liệu chuẩn đã sẵn sàng. Phiên mới khởi tạo với <strong>0 địa phương mặc định</strong> (Quy tắc R02).</p>
         ${kpiHtml}
         <div class="toolbar-row">
           <input type="text" id="input-new-session-name" class="form-input" placeholder="Nhập tên phiên mới (VD: Báo cáo 5 xã khu vực A)..." value="Báo cáo KTXH phiên mới" />
-          <button type="button" class="btn btn-primary" id="btn-create-session">+ Tạo phiên mới (0 địa phương mặc định)</button>
-          <button type="button" class="btn btn-secondary" id="btn-quick-load-3-sources">Nạp lại 3 nguồn Excel tham chiếu (data/reference)</button>
+          <button type="button" class="btn btn-primary" id="btn-create-session">+ Tạo phiên mới (0 địa phương)</button>
+          <button type="button" class="btn btn-secondary" id="btn-quick-load-3-sources">Nạp lại 3 nguồn Excel tham chiếu</button>
         </div>
       </div>
       <div class="card">
@@ -523,400 +1093,109 @@ export class KtxhOfflineApp {
     );
     const warnStats = summarizeDatasetWarnings(datasets);
 
-    const dsRowsHtml = ['DISB', 'REV', 'GPMB']
+    const dsCardsHtml = ['DISB', 'REV', 'GPMB']
       .map((type) => {
         const ds = datasets[type as 'DISB' | 'REV' | 'GPMB'];
+        const label =
+          type === 'DISB'
+            ? 'Giải ngân ĐTC'
+            : type === 'REV'
+            ? 'Thu Ngân sách Nhà nước'
+            : 'Giải phóng mặt bằng';
         if (!ds) {
-          return `<tr>
-            <td><strong>${type}</strong></td>
-            <td colspan="6"><span class="badge badge-MISSING">Chưa nạp nguồn ${type}</span></td>
-          </tr>`;
+          return `<div class="card source-card card-missing">
+            <h4>${label} (${type})</h4>
+            <span class="badge badge-MISSING">Chưa nạp</span>
+          </div>`;
         }
-        const sheetsDesc = ds.allSheetsMeta
-          .map((s) => `${s.name} (${s.state})`)
-          .join('; ');
-        return `<tr>
-          <td><strong>${escapeHtmlUi(ds.sourceType)}</strong></td>
-          <td>${escapeHtmlUi(ds.sourceFilename)}</td>
-          <td><code>${escapeHtmlUi(ds.workbookSha256.slice(0, 16))}...</code></td>
-          <td><strong>${escapeHtmlUi(ds.sourceSheet)}</strong> (idx ${ds.sheetIndex}, ${escapeHtmlUi(
+        return `<div class="card source-card card-loaded">
+          <div class="source-card-header">
+            <h4>${label} (${type})</h4>
+            <span class="badge badge-COMPLETE">Đã nhập</span>
+          </div>
+          <div class="source-card-meta">
+            <div>Tệp: <strong>${escapeHtmlUi(ds.sourceFilename)}</strong></div>
+            <div>Sheet: <strong>${escapeHtmlUi(ds.sourceSheet)}</strong> (${escapeHtmlUi(
           ds.sheetVisibility
-        )})<br/><small class="muted">Các sheet: ${escapeHtmlUi(sheetsDesc)}</small></td>
-          <td><strong>${ds.unitCount}</strong> địa phương${
-          ds.projectRowCount ? ` (${ds.projectRowCount} dòng dự án)` : ''
-        }</td>
-          <td>
-            ${
-              ds.asOfStatus === 'REQUIRES_USER_CONFIRMATION'
-                ? `<div class="date-confirm-box">
-                    <span class="badge badge-ERROR">BLOCKER: Cần xác nhận ngày chốt</span>
-                    <input type="date" id="input-confirm-rev-date" value="2026-10-19" class="form-input-sm"/>
-                    <input type="text" id="input-confirm-rev-reason" value="Dữ liệu sơ bộ kỳ 10 tháng chốt ngày 19/10/2026" class="form-input-sm"/>
-                    <button type="button" class="btn btn-sm btn-primary" id="btn-confirm-rev-date" data-dataset-id="${escapeHtmlUi(
-                      ds.id
-                    )}">Xác nhận ngày chốt</button>
-                  </div>`
-                : `<strong>${escapeHtmlUi(ds.asOfDate)}</strong> <span class="badge badge-COMPLETE">${escapeHtmlUi(
-                    ds.asOfStatus
-                  )}</span>`
-            }
-          </td>
-          <td><small>${escapeHtmlUi(ds.asOfDateEvidence)}</small></td>
-        </tr>`;
+        )})</div>
+            <div>Phạm vi: <strong>${ds.unitCount}</strong> địa phương ${
+          ds.projectRowCount ? `(${ds.projectRowCount} DA)` : ''
+        }</div>
+            <div>Ngày chốt: <strong>${escapeHtmlUi(ds.asOfDate || 'Chưa rõ')}</strong> (${escapeHtmlUi(
+          ds.asOfStatus
+        )})</div>
+            <div>SHA: <code>${escapeHtmlUi(ds.workbookSha256.slice(0, 12))}...</code></div>
+          </div>
+          ${
+            ds.asOfStatus === 'REQUIRES_USER_CONFIRMATION'
+              ? `<div class="date-confirm-box" style="margin-top:10px">
+                  <span class="badge badge-ERROR">Cần xác nhận ngày chốt:</span>
+                  <input type="date" id="input-confirm-rev-date" value="2026-10-19" class="form-input-sm"/>
+                  <button type="button" class="btn btn-sm btn-primary" id="btn-confirm-rev-date" data-dataset-id="${escapeHtmlUi(
+                    ds.id
+                  )}">Xác nhận ngày chốt</button>
+                </div>`
+              : ''
+          }
+        </div>`;
       })
-      .join('');
-
-    const missingLocRowsHtml = allCoverageDetails
-      .filter((c) => c.status === 'NO_LOCALITY_RECORD' || c.status === 'PARTIAL_AGGREGATE')
-      .map(
-        (c) => `<tr>
-          <td><strong>${escapeHtmlUi(c.localityName)}</strong></td>
-          <td>${escapeHtmlUi(c.sourceType || c.sourceDatasetId)}</td>
-          <td><span class="badge badge-${escapeHtmlUi(c.status)}">${escapeHtmlUi(
-          c.status
-        )}</span></td>
-          <td>${escapeHtmlUi(c.fieldId || 'Toàn bộ bản ghi địa phương')}</td>
-          <td>${escapeHtmlUi(c.reason)}</td>
-          <td>${escapeHtmlUi(c.asOfDate || '')}</td>
-        </tr>`
-      )
-      .join('');
-
-    const mMismatchIssues = (datasets.GPMB?.issues || []).filter(
-      (i) => i.ruleId === 'WARNING_M_RATIO_MISMATCH'
-    );
-
-    const mMismatchHtml = mMismatchIssues
-      .map(
-        (iss) => `<tr>
-          <td>DA STT <strong>${iss.projectStt}</strong> (dòng ${iss.sourceRow})</td>
-          <td><strong>${escapeHtmlUi(iss.localityName)}</strong></td>
-          <td><code>D${iss.sourceRow}, I${iss.sourceRow}, M${iss.sourceRow}</code></td>
-          <td>${escapeHtmlUi(String(iss.observed))}%</td>
-          <td><strong>${Number(iss.expected).toFixed(2)}%</strong></td>
-          <td><span class="badge badge-WARNING">${Number(iss.delta).toFixed(
-            2
-          )} điểm %</span></td>
-        </tr>`
-      )
       .join('');
 
     return `<section class="page-section">
       <div class="card">
-        <h2>Trang 2 — Nhập nguồn Excel, Xác minh Ngày chốt &amp; Kiểm toán Nguồn (PH1-01, PH1-03)</h2>
-        <div class="toolbar-row">
-          <label class="btn btn-primary">
-            Chọn tệp Excel (.xlsx) từ máy tính
-            <input type="file" id="input-xlsx-files" multiple accept=".xlsx" style="display:none" />
-          </label>
-          <button type="button" class="btn btn-secondary" id="btn-load-embedded-confirmed">Nạp bộ 3 file tham chiếu &amp; Xác nhận ngày chốt REV 19/10/2026</button>
-          <button type="button" class="btn" id="btn-load-embedded-unconfirmed">Nạp bộ 3 file tham chiếu (Để trống ngày chốt REV để kiểm thử T14)</button>
+        <h2>Nhập dữ liệu nguồn Excel &amp; Tự động Nhận diện (PH1-01)</h2>
+        <div class="dropzone-box" id="dropzone-excel-files">
+          <div class="dropzone-icon">📥</div>
+          <div class="dropzone-title">Kéo thả các file Excel vào đây hoặc bấm để chọn</div>
+          <div class="dropzone-desc">Chọn cùng lúc 1, 2 hoặc 3 file (REV, DISB, GPMB). Hệ thống tự nhận diện dựa vào cấu trúc sheet và tiêu đề.</div>
+          <input type="file" id="input-xlsx-files" multiple accept=".xlsx" style="display:none" />
         </div>
+        <div class="toolbar-row" style="margin-top:16px">
+          <label class="btn btn-primary">
+            Chọn tệp từ máy tính...
+            <input type="file" id="input-xlsx-files-btn" multiple accept=".xlsx" style="display:none" />
+          </label>
+          <button type="button" class="btn btn-secondary" id="btn-load-embedded-confirmed">Nạp lại 3 file tham chiếu &amp; Chốt REV 19/10/2026</button>
+        </div>
+      </div>
 
+      <div class="card-grid-3">
+        ${dsCardsHtml}
+      </div>
+
+      <div class="card">
+        <h3>Kiểm toán Địa phương Thiếu Bản ghi Nguồn (Coverage Audit — MASTER V2.2)</h3>
+        <p>Thu NSNN (113/114) thiếu <strong>Đặc khu Bạch Long Vĩ</strong>. GPMB (108/114) thiếu 6 địa phương: <strong>Phường Lưu Kiếm, Phường Ái Quốc, Xã Hùng Thắng, Xã Thái Tân, Xã Tân Minh, Đặc khu Bạch Long Vĩ</strong>.</p>
         <table class="data-table">
           <thead>
             <tr>
+              <th>Địa phương</th>
               <th>Nguồn</th>
-              <th>Tên tệp</th>
-              <th>SHA-256</th>
-              <th>Sheet được chọn (Visible)</th>
-              <th>Phạm vi</th>
-              <th>Ngày chốt độc lập</th>
-              <th>Bằng chứng ngày chốt</th>
+              <th>Trạng thái</th>
+              <th>Trường thiếu</th>
+              <th>Lý do có căn cứ</th>
+              <th>Ngày chốt</th>
             </tr>
           </thead>
-          <tbody>${dsRowsHtml}</tbody>
+          <tbody>
+            ${allCoverageDetails
+              .filter((c) => c.status === 'NO_LOCALITY_RECORD' || c.status === 'PARTIAL_AGGREGATE')
+              .map(
+                (c) => `<tr>
+                  <td><strong>${escapeHtmlUi(c.localityName)}</strong></td>
+                  <td>${escapeHtmlUi(c.sourceType || c.sourceDatasetId)}</td>
+                  <td><span class="badge badge-${escapeHtmlUi(c.status)}">${escapeHtmlUi(
+                  c.status
+                )}</span></td>
+                  <td>${escapeHtmlUi(c.fieldId || 'Bản ghi địa phương')}</td>
+                  <td>${escapeHtmlUi(c.reason)}</td>
+                  <td>${escapeHtmlUi(c.asOfDate || '')}</td>
+                </tr>`
+              )
+              .join('')}
+          </tbody>
         </table>
       </div>
-
-      <details class="audit-details" open>
-        <summary>
-          <span>1. Bảng Kiểm toán Địa phương Thiếu Bản ghi Nguồn &amp; Dự án Thiếu Thành phần (R06 Coverage)</span>
-          <span class="badge badge-WARNING">REV thiếu 1 | GPMB thiếu 6 địa phương + 3 dự án thiếu I</span>
-        </summary>
-        <div class="audit-details-body">
-          <p>Đối chiếu với danh mục tham chiếu ${
-            this.workspace.localities.length || 114
-          } địa phương từ DISB: Nguồn REV có <strong>${
-      bySource.REV?.presentLocalityCount ?? 0
-    }/114</strong> (thiếu <strong>${
-      bySource.REV?.missingLocalities.map((m) => m.localityName).join(', ') ||
-      '0'
-    }</strong>); Nguồn GPMB có <strong>${
-      bySource.GPMB?.presentLocalityCount ?? 0
-    }/114</strong> (thiếu 6 địa phương: <strong>${
-      bySource.GPMB?.missingLocalities.map((m) => m.localityName).join(', ') ||
-      '0'
-    }</strong>; và 3 dòng dự án thiếu kết quả I là dòng 107, 173, 365). Nguồn DISB có <strong>${
-      warnStats.disbNullCountsByCol.totalCells
-    }</strong> ô trống thành phần (G=${warnStats.disbNullCountsByCol.G}, J=${
-      warnStats.disbNullCountsByCol.J
-    }, M=${warnStats.disbNullCountsByCol.M}, N=${
-      warnStats.disbNullCountsByCol.N
-    }) trên <strong>${
-      warnStats.disbNullCountsByCol.distinctRows
-    }/114</strong> dòng địa phương (trạng thái <code>FIELD_MISSING</code>, cân đối ngang 114/114 đạt <code>PASS_WITH_MISSING_COMPONENTS</code>).</p>
-          <table class="data-table">
-            <thead>
-              <tr>
-                <th>Địa phương</th>
-                <th>Nguồn</th>
-                <th>Trạng thái</th>
-                <th>Trường / Chỉ tiêu</th>
-                <th>Lý do có thể khẳng định</th>
-                <th>Ngày chốt</th>
-              </tr>
-            </thead>
-            <tbody>${missingLocRowsHtml}</tbody>
-          </table>
-        </div>
-      </details>
-
-      <details class="audit-details">
-        <summary>
-          <span>2. Kiểm toán Chất lượng GPMB &amp; 12 Dòng Dự án có Cột M Lệch 100*I/D &gt; 0,1 Điểm % (T29, T60)</span>
-          <span class="badge badge-INFO">12 dòng dự án lệch cột M | ${warnStats.totalWarningEventsExcludingMissing} lượt cảnh báo GPMB</span>
-        </summary>
-        <div class="audit-details-body">
-          <p>Thống kê toàn nguồn GPMB: <strong>${
-            warnStats.totalWarningEventsExcludingMissing
-          } lượt cảnh báo</strong> trên <strong>${
-      warnStats.distinctProjectRowsExcludingMissing
-    } dòng dự án riêng biệt</strong> (I&gt;D: ${
-      warnStats.countsByRule['GPMB_I_GT_D'] || 0
-    }, J&gt;G: ${warnStats.countsByRule['GPMB_J_GT_G'] || 0}, K&gt;E: ${
-      warnStats.countsByRule['GPMB_K_GT_E'] || 0
-    }, L&gt;F: ${
-      warnStats.countsByRule['GPMB_L_GT_F'] || 0
-    }, M lệch 100*I/D &gt; 0,1 điểm %: <strong>${
-      mMismatchIssues.length
-    }</strong>) + <strong>${
-      warnStats.countsByRule['GPMB_MISSING_PROGRESS'] || 0
-    } dòng dự án thiếu I</strong> (dòng 107, 173, 365). Giải ngân DISB có <strong>${
-      warnStats.disbNoteCount
-    } ghi chú cột Q</strong> và <strong>${
-      warnStats.disbMarkerPCount
-    } marker cột P</strong>.</p>
-          <table class="data-table">
-            <thead>
-              <tr>
-                <th>Dự án / Dòng</th>
-                <th>Địa phương</th>
-                <th>Ô nguồn</th>
-                <th>M nguồn (%)</th>
-                <th>100*I/D tính lại (%)</th>
-                <th>Độ lệch (điểm %)</th>
-              </tr>
-            </thead>
-            <tbody>${mMismatchHtml}</tbody>
-          </table>
-        </div>
-      </details>
-    </section>`;
-  }
-
-  private renderLocalitiesPage(activeSession: Workspace['sessions'][number] | undefined): string {
-    if (!activeSession) {
-      return `<div class="card"><h3>Vui lòng tạo hoặc chọn một phiên báo cáo ở Trang 1 trước khi chọn địa phương.</h3></div>`;
-    }
-
-    const filtered = searchLocalities(
-      this.workspace.localities,
-      this.localitySearchQuery,
-      this.localityTypeFilter
-    );
-    const selectedSet = new Set(activeSession.selectedLocalityIds);
-
-    const selectedChipsHtml = activeSession.selectedLocalityIds
-      .map((locId, idx) => {
-        const loc = this.workspace.localities.find((l) => l.id === locId);
-        return `<span class="selected-loc-chip">
-          <strong>${idx + 1}. ${escapeHtmlUi(loc?.displayName || locId)}</strong>
-          <button type="button" class="chip-btn" data-action="move-loc-up" data-loc-id="${escapeHtmlUi(
-            locId
-          )}" title="Đưa lên">&uarr;</button>
-          <button type="button" class="chip-btn" data-action="move-loc-down" data-loc-id="${escapeHtmlUi(
-            locId
-          )}" title="Đưa xuống">&darr;</button>
-          <button type="button" class="chip-btn chip-remove" data-action="toggle-locality" data-loc-id="${escapeHtmlUi(
-            locId
-          )}" title="Bỏ chọn">&times;</button>
-        </span>`;
-      })
-      .join('');
-
-    const listHtml = filtered
-      .map((loc) => {
-        const checked = selectedSet.has(loc.id);
-        return `<label class="locality-checkbox-item ${checked ? 'checked' : ''}">
-          <input type="checkbox" data-action="toggle-locality" data-loc-id="${escapeHtmlUi(
-            loc.id
-          )}" ${checked ? 'checked' : ''} />
-          <span class="loc-item-name">${escapeHtmlUi(loc.displayName)}</span>
-          <span class="badge badge-sm">${escapeHtmlUi(loc.type)}</span>
-        </label>`;
-      })
-      .join('');
-
-    return `<section class="page-section">
-      <div class="card">
-        <h2>Trang 3 — Chọn &amp; Sắp xếp Địa phương cho Phiên "${escapeHtmlUi(
-          activeSession.name
-        )}"</h2>
-        <p>Tìm kiếm tiếng Việt có dấu hoặc không dấu (chỉ dùng cho tìm kiếm UI; ghép dữ liệu luôn dùng tên chuẩn NFC có dấu, phân biệt <em>Xã Cẩm Giang</em> và <em>Xã Cẩm Giàng</em>, <em>Phường Hưng Đạo</em> và <em>Phường Trần Hưng Đạo</em>).</p>
-        <div class="toolbar-row">
-          <input type="text" id="input-loc-search" class="form-input" placeholder="Tìm tên xã, phường, đặc khu (có dấu hoặc không dấu)..." value="${escapeHtmlUi(
-            this.localitySearchQuery
-          )}" />
-          <select id="select-loc-type" class="form-select">
-            <option value="ALL" ${this.localityTypeFilter === 'ALL' ? 'selected' : ''}>Tất cả loại (${
-      this.workspace.localities.length
-    })</option>
-            <option value="XA" ${this.localityTypeFilter === 'XA' ? 'selected' : ''}>Xã</option>
-            <option value="PHUONG" ${
-              this.localityTypeFilter === 'PHUONG' ? 'selected' : ''
-            }>Phường</option>
-            <option value="DAC_KHU" ${
-              this.localityTypeFilter === 'DAC_KHU' ? 'selected' : ''
-            }>Đặc khu</option>
-          </select>
-          <button type="button" class="btn btn-secondary" id="btn-preset-5-xa">Chọn mẫu 5 xã</button>
-          <button type="button" class="btn btn-secondary" id="btn-preset-7-phuong">Chọn mẫu 7 phường</button>
-          <button type="button" class="btn btn-danger" id="btn-clear-localities">Bỏ chọn tất cả (Về 0 địa phương)</button>
-          <button type="button" class="btn btn-primary" data-nav-tab="REPORT">Xem Bảng báo cáo 14 dòng &rarr;</button>
-        </div>
-
-        <div class="selected-localities-bar">
-          <h4>Đang chọn (${activeSession.selectedLocalityIds.length} địa phương — bấm mũi tên để đổi thứ tự cột trên báo cáo):</h4>
-          <div class="chips-container">${
-            selectedChipsHtml || '<em>Chưa chọn địa phương nào (0 địa phương)</em>'
-          }</div>
-        </div>
-
-        <div class="localities-grid">
-          ${listHtml}
-        </div>
-      </div>
-    </section>`;
-  }
-
-  private renderReportPage(
-    activeSession: Workspace['sessions'][number] | undefined,
-    evaluatedReport: EvaluatedSessionReport | null,
-    datasets: {
-      REV?: Workspace['datasets'][number];
-      DISB?: Workspace['datasets'][number];
-      GPMB?: Workspace['datasets'][number];
-    },
-    revNeedsDateConfirm: boolean
-  ): string {
-    if (!activeSession) {
-      return `<div class="card"><h3>Vui lòng tạo hoặc chọn một phiên báo cáo ở Trang 1.</h3></div>`;
-    }
-    if (!evaluatedReport) {
-      return `<div class="card"><h3>Vui lòng nạp đủ 3 nguồn dữ liệu (DISB, REV, GPMB) ở Trang 2 trước khi xem Bảng báo cáo 14 dòng.</h3></div>`;
-    }
-
-    const revBlockerBanner = revNeedsDateConfirm
-      ? `<div class="status-banner status-warning">
-          <span><strong>Cảnh báo BLOCKER ngày chốt Thu NSNN:</strong> Nguồn Thu NSNN (<code>10T-19.10</code>) chưa được xác nhận ngày chốt thực tế. Hãy sang thẻ <strong>2. Nhập nguồn &amp; QC</strong> để xác nhận ngày chốt trước khi xuất chính thức!</span>
-        </div>`
-      : '';
-
-    const gridHtml = renderReportGridHtml({
-      evaluated: evaluatedReport,
-      baselineLocalities: this.workspace.localities,
-      datasets,
-      activeTraceId: this.activeTraceId,
-    });
-
-    const sessionWarnList = filterWarningsForSession(
-      evaluatedReport.sessionIssues,
-      activeSession.selectedLocalityIds
-    );
-
-    const sessionWarningsHtml =
-      sessionWarnList.length > 0
-        ? `<details class="audit-details">
-            <summary>
-              <span>Cảnh báo Chất lượng &amp; Ghi chú thuộc ${
-                activeSession.selectedLocalityIds.length
-              } địa phương đang chọn</span>
-              <span class="badge badge-WARNING">${sessionWarnList.length} mục cần lưu ý</span>
-            </summary>
-            <div class="audit-details-body">
-              <table class="data-table">
-                <thead>
-                  <tr>
-                    <th>Mức độ</th>
-                    <th>Mã quy tắc</th>
-                    <th>Địa phương</th>
-                    <th>Ô nguồn</th>
-                    <th>Giải trình</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  ${sessionWarnList
-                    .slice(0, 30)
-                    .map(
-                      (w) => `<tr>
-                        <td><span class="badge badge-${escapeHtmlUi(w.severity)}">${escapeHtmlUi(
-                        w.severity
-                      )}</span></td>
-                        <td><code>${escapeHtmlUi(w.ruleId)}</code></td>
-                        <td><strong>${escapeHtmlUi(w.localityName)}</strong></td>
-                        <td><code>${escapeHtmlUi(w.sourceCell)}</code></td>
-                        <td>${escapeHtmlUi(w.explanation)}</td>
-                      </tr>`
-                    )
-                    .join('')}
-                </tbody>
-              </table>
-            </div>
-          </details>`
-        : '';
-
-    return `<section class="page-section report-split-layout">
-      <div class="report-main-column">
-        ${revBlockerBanner}
-        <div class="card">
-          <div class="toolbar-row">
-            <label>Đơn vị tiền:
-              <select id="select-money-unit" class="form-select-sm">
-                <option value="billion" ${
-                  activeSession.settings.moneyUnit === 'billion' ? 'selected' : ''
-                }>Tỷ đồng</option>
-                <option value="million" ${
-                  activeSession.settings.moneyUnit === 'million' ? 'selected' : ''
-                }>Triệu đồng</option>
-              </select>
-            </label>
-            <label>Đơn vị diện tích:
-              <select id="select-area-unit" class="form-select-sm">
-                <option value="m2" ${
-                  activeSession.settings.areaUnit === 'm2' ? 'selected' : ''
-                }>m²</option>
-                <option value="ha" ${
-                  activeSession.settings.areaUnit === 'ha' ? 'selected' : ''
-                }>ha</option>
-              </select>
-            </label>
-            <label>Chữ số thập phân:
-              <input type="number" id="input-decimals" class="form-input-sm" min="0" max="6" value="${
-                activeSession.settings.decimals
-              }" style="width:64px"/>
-            </label>
-            <button type="button" class="btn btn-sm btn-secondary" data-nav-tab="LOCALITIES">Chọn thêm/bớt xã (${activeSession.selectedLocalityIds.length})</button>
-            <button type="button" class="btn btn-sm btn-primary" id="btn-export-xlsx-quick">Xuất Excel (.xlsx)</button>
-            <button type="button" class="btn btn-sm" id="btn-print-quick">In / Lưu PDF (A4/A3)</button>
-          </div>
-          ${gridHtml}
-        </div>
-        ${sessionWarningsHtml}
-      </div>
-      <aside class="report-inspector-sidebar">
-        ${renderTraceInspectorHtml(this.activeTrace, this.activeTraceExtraMeta)}
-      </aside>
     </section>`;
   }
 
@@ -929,97 +1208,31 @@ export class KtxhOfflineApp {
       GPMB?: Workspace['datasets'][number];
     }
   ): string {
-    if (!activeSession) {
-      return `<div class="card"><h3>Vui lòng tạo hoặc chọn một phiên báo cáo.</h3></div>`;
-    }
-    void datasets;
-
+    if (!activeSession) return '<div class="card"><p>Chưa chọn phiên.</p></div>';
     const bm = evaluatedReport?.benchmarks;
-    const rowsConfigHtml = activeSession.templateRows
-      .sort((a, b) => a.order - b.order)
-      .map(
-        (r) => `<tr>
-          <td>Dòng mẫu ${r.rowNumber}</td>
-          <td><code>${escapeHtmlUi(r.indicatorId)}</code></td>
-          <td><input type="text" class="form-input-sm input-row-stt" data-row-num="${
-            r.rowNumber
-          }" value="${escapeHtmlUi(r.sttLabel)}" style="width:50px"/></td>
-          <td><input type="text" class="form-input input-row-label" data-row-num="${
-            r.rowNumber
-          }" value="${escapeHtmlUi(r.customLabel)}"/></td>
-          <td><input type="checkbox" class="chk-row-visible" data-row-num="${
-            r.rowNumber
-          }" ${r.visible ? 'checked' : ''}/></td>
-        </tr>`
-      )
-      .join('');
 
     return `<section class="page-section">
       <div class="card">
-        <h2>Trang 6 — Mốc So sánh Chuẩn Chung &amp; Tùy chỉnh Bảng 14 Dòng (PH1-02, PH1-04)</h2>
-        <p>Mọi tỷ lệ chuẩn chung đều tính bằng <strong>SUM(tử số) / SUM(mẫu số)</strong> trong cùng phạm vi, tuyệt đối không lấy AVERAGE tỷ lệ từng xã/phường. Các dòng có mẫu số = 0 hợp lệ vẫn tham gia vào tổng tử số của benchmark (Quy tắc P0 / R04).</p>
+        <h2>Mốc So sánh Chuẩn Chung &amp; Tùy chỉnh Bảng 14 Dòng</h2>
+        <p>Mọi tỷ lệ chuẩn chung đều tính bằng <strong>SUM(tử số) / SUM(mẫu số)</strong> trên toàn phạm vi hợp lệ.</p>
         <ul class="benchmark-summary-list">
-          <li><strong>Giải ngân 114 địa phương (15/10/2026):</strong> <code>SUM(I13:I126)/SUM(F13:F126)</code> = <strong>${escapeHtmlUi(
+          <li><strong>Giải ngân 114 địa phương (15/10/2026):</strong> Tỷ lệ chung = <strong>${escapeHtmlUi(
             bm?.disbRateBenchmark?.displayedText || '67,10%'
-          )}</strong> (Vốn giao bình quân 114 địa phương = <strong>${escapeHtmlUi(
+          )}</strong> | Vốn giao bình quân = <strong>${escapeHtmlUi(
       bm?.disbPlanAvg?.displayedText || '136,41 tỷ đồng'
-    )}</strong>).</li>
-          <li><strong>Thu NSNN 113 địa phương có dữ liệu (tham khảo, thiếu Đặc khu Bạch Long Vĩ):</strong> Tổng thu/Dự toán năm = <strong>${escapeHtmlUi(
+    )}</strong>.</li>
+          <li><strong>Thu NSNN 113 địa phương:</strong> Tổng thu/Dự toán năm = <strong>${escapeHtmlUi(
             bm?.revRateBenchmark?.displayedText || '111,30%'
-          )}</strong>; Thu đất/Dự toán năm (gồm 5 dòng D=0 đóng góp 269.290 triệu) = <strong>${escapeHtmlUi(
-      bm?.revLandRateYBenchmark?.displayedText || '136,12%'
-    )}</strong>; Thu đất/Kế hoạch kỳ (gồm 6 dòng G=0 đóng góp 304.790 triệu) = <strong>${escapeHtmlUi(
-      bm?.revLandRatePBenchmark?.displayedText || '202,71%'
-    )}</strong>.</li>
-          <li><strong>GPMB danh mục tại 108/114 địa bàn có dữ liệu (26/10/2026):</strong> <code>SUM(I_422_projects)/SUM(D_422_projects)</code> = <strong>${escapeHtmlUi(
+          )}</strong>.</li>
+          <li><strong>GPMB danh mục 108 địa bàn:</strong> Tỷ lệ diện tích = <strong>${escapeHtmlUi(
             bm?.gpmbRateBenchmark?.displayedText || '72,13%'
-          )}</strong> (<code>PARTIAL_AGGREGATE</code>, còn 3 dự án thiếu I với tổng D = 11.459 m²). Tỷ lệ diện tích của riêng nhóm ${
-      activeSession.selectedLocalityIds.length
-    } địa phương đang chọn = <strong>${escapeHtmlUi(
-      bm?.selectedGroupGpmbRate?.displayedText || 'Chưa chọn địa phương'
-    )}</strong>.</li>
+          )}</strong> (<code>PARTIAL_AGGREGATE</code>).</li>
         </ul>
+      </div>
 
-        <div class="toolbar-row">
-          <label>Tiêu đề bảng báo cáo:
-            <input type="text" id="input-report-title" class="form-input" value="${escapeHtmlUi(
-              activeSession.settings.reportTitle
-            )}" style="min-width:420px"/>
-          </label>
-          <label>Nhãn cao hơn:
-            <input type="text" id="input-label-higher" class="form-input-sm" value="${escapeHtmlUi(
-              activeSession.comparisonRules.higherLabel
-            )}"/>
-          </label>
-          <label>Nhãn thấp hơn:
-            <input type="text" id="input-label-lower" class="form-input-sm" value="${escapeHtmlUi(
-              activeSession.comparisonRules.lowerLabel
-            )}"/>
-          </label>
-          <label>
-            <input type="checkbox" id="chk-allow-partial-eval" ${
-              activeSession.comparisonRules.allowPartialBenchmarkEvaluation
-                ? 'checked'
-                : ''
-            }/>
-            Phê duyệt so sánh có điều kiện với mốc GPMB 108/114 địa bàn (PARTIAL)
-          </label>
-          <button type="button" class="btn btn-primary" id="btn-save-template-settings">Lưu tùy chỉnh phiên</button>
-        </div>
-
+      <div class="card">
         <h3>Tùy chỉnh Nhãn &amp; Ẩn/Hiện 14 Dòng Chỉ tiêu Mẫu</h3>
-        <table class="data-table">
-          <thead>
-            <tr>
-              <th>Dòng gốc</th>
-              <th>Mã chỉ tiêu</th>
-              <th>STT</th>
-              <th>Tên chỉ tiêu hiển thị</th>
-              <th>Hiển thị</th>
-            </tr>
-          </thead>
-          <tbody>${rowsConfigHtml}</tbody>
-        </table>
+        ${this.renderIndicatorsManager(activeSession)}
       </div>
     </section>`;
   }
@@ -1035,46 +1248,27 @@ export class KtxhOfflineApp {
   ): string {
     void evaluatedReport;
     void datasets;
+
     return `<section class="page-section">
       <div class="card">
-        <h2>Trang 7 — Xuất Báo cáo Chính thức (XLSX / PDF) &amp; Sao lưu Bộ Hồ sơ (.kxh.json)</h2>
+        <h2>Xuất Báo cáo &amp; In ấn WYSIWYG</h2>
         <div class="toolbar-row">
-          <label>Khổ giấy in/PDF:
-            <select id="select-paper-size" class="form-select-sm">
-              <option value="A4" ${
-                activeSession?.settings.paperSize === 'A4' ? 'selected' : ''
-              }>A4</option>
-              <option value="A3" ${
-                activeSession?.settings.paperSize === 'A3' ? 'selected' : ''
-              }>A3</option>
-            </select>
-          </label>
-          <label>Hướng giấy:
-            <select id="select-paper-orientation" class="form-select-sm">
-              <option value="landscape" ${
-                activeSession?.settings.orientation === 'landscape'
-                  ? 'selected'
-                  : ''
-              }>Ngang (Landscape)</option>
-              <option value="portrait" ${
-                activeSession?.settings.orientation === 'portrait'
-                  ? 'selected'
-                  : ''
-              }>Dọc (Portrait)</option>
-            </select>
-          </label>
-          <button type="button" class="btn btn-primary" id="btn-export-xlsx-full">Tải xuống Excel (.xlsx) kèm 4 Sheet Audit</button>
-          <button type="button" class="btn btn-secondary" id="btn-trigger-window-print">In / Lưu PDF (window.print)</button>
+          <button type="button" class="btn btn-primary" id="btn-export-xlsx-full">
+            <span>📊</span> Xuất Excel (.xlsx có ô số numeric + 5 sheet audit)
+          </button>
+          <button type="button" class="btn btn-secondary" id="btn-trigger-window-print">
+            <span>🖨️</span> In / Lưu PDF qua trình duyệt (A4 ngang)
+          </button>
         </div>
       </div>
 
       <div class="card">
-        <h3>Sao lưu &amp; Khôi phục Toàn bộ Bộ Hồ sơ (.kxh.json có Checksum SHA-256)</h3>
-        <p>Lưu trữ trong trình duyệt chỉ là bộ nhớ tạm. Hãy tải về tệp <code>.kxh.json</code> để bảo toàn đầy đủ các phiên báo cáo, dữ liệu chuẩn hóa, cấu hình và lịch sử kiểm toán.</p>
+        <h3>Sao lưu &amp; Khôi phục Toàn bộ Hồ sơ (.kxh.json)</h3>
+        <p>Đảm bảo an toàn 100% không mất dữ liệu: Tải về tệp sao lưu <code>.kxh.json</code> chứa toàn bộ workspace, phiên, dữ liệu đã chuẩn hóa và checksum SHA-256.</p>
         <div class="toolbar-row">
-          <button type="button" class="btn btn-primary" id="btn-download-backup-json">Lưu toàn bộ bộ hồ sơ (.kxh.json)</button>
+          <button type="button" class="btn btn-primary" id="btn-download-backup-json">Lưu toàn bộ hồ sơ (.kxh.json)</button>
           <label class="btn btn-secondary">
-            Khôi phục từ tệp sao lưu (.kxh.json)
+            Mở bộ hồ sơ từ tệp (.kxh.json)
             <input type="file" id="input-restore-backup-file" accept=".json,.kxh.json" style="display:none"/>
           </label>
         </div>
@@ -1090,122 +1284,480 @@ export class KtxhOfflineApp {
       GPMB?: Workspace['datasets'][number];
     }
   ): void {
+    // Navigation tabs
     document.querySelectorAll('[data-nav-tab]').forEach((btn) => {
       btn.addEventListener('click', () => {
         const tab = btn.getAttribute('data-nav-tab') as KtxhOfflineApp['activeTab'];
         if (tab) {
           this.activeTab = tab;
+          this.popoverCell = null;
           this.render();
         }
       });
     });
 
+    // Toggle Left Nav Sidebar
+    document.getElementById('btn-toggle-sidebar')?.addEventListener('click', () => {
+      this.isSidebarCollapsed = !this.isSidebarCollapsed;
+      this.render();
+    });
+
+    // Topbar Session switch
+    const sessionSelect = document.getElementById(
+      'select-active-session'
+    ) as HTMLSelectElement | null;
+    sessionSelect?.addEventListener('change', () => {
+      this.workspace.activeSessionId = sessionSelect.value;
+      this.popoverCell = null;
+      this.triggerAutosave();
+      this.render();
+    });
+
+    // Topbar New Session
+    document.getElementById('btn-topbar-new-session')?.addEventListener('click', () => {
+      const name = window.prompt('Nhập tên phiên báo cáo mới:', 'Báo cáo KTXH phiên mới');
+      if (name) {
+        const s = createReportSession(this.workspace, { name });
+        this.workspace.activeSessionId = s.id;
+        this.triggerAutosave();
+        this.setStatus(`Đã tạo phiên "${s.name}" (0 địa phương mặc định).`, 'success');
+      }
+    });
+
+    // Topbar Clone Session
+    document.getElementById('btn-topbar-clone-session')?.addEventListener('click', () => {
+      const activeSession = this.getActiveSession();
+      if (!activeSession) return;
+      const cloned = cloneReportSession(
+        this.workspace,
+        activeSession.id,
+        `${activeSession.name} (Bản sao)`
+      );
+      this.triggerAutosave();
+      this.setStatus(`Đã nhân bản thành phiên "${cloned.name}".`, 'success');
+    });
+
+    // Topbar Export Excel Quick
+    const handleExportXlsx = () => {
+      const activeSession = this.getActiveSession();
+      if (!activeSession || !evaluatedReport) {
+        this.setStatus('Chưa có báo cáo để xuất.', 'warning');
+        return;
+      }
+      try {
+        const bytes = exportSessionReportToXlsxBytes({
+          evaluated: evaluatedReport,
+          baselineLocalities: this.workspace.localities,
+          datasets,
+        });
+        const blob = new Blob([bytes as unknown as BlobPart], {
+          type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+        });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `Bao_cao_KTXH_${activeSession.name.replace(/\s+/g, '_')}_${Date.now()}.xlsx`;
+        a.click();
+        URL.revokeObjectURL(url);
+        this.setStatus('Đã xuất tệp Excel (.xlsx) thành công.', 'success');
+      } catch (err) {
+        this.setStatus(`Lỗi xuất Excel: ${(err as Error).message}`, 'error');
+      }
+    };
+    document.getElementById('btn-topbar-export-xlsx')?.addEventListener('click', handleExportXlsx);
+    document.getElementById('btn-export-xlsx-full')?.addEventListener('click', handleExportXlsx);
+    document.getElementById('btn-export-xlsx-quick')?.addEventListener('click', handleExportXlsx);
+
+    // Topbar Print / PDF
+    const handlePrint = () => {
+      window.print();
+    };
+    document.getElementById('btn-topbar-print')?.addEventListener('click', handlePrint);
+    document.getElementById('btn-trigger-window-print')?.addEventListener('click', handlePrint);
+    document.getElementById('btn-print-quick')?.addEventListener('click', handlePrint);
+
+    // Banner close
     document.getElementById('btn-clear-banner')?.addEventListener('click', () => {
       this.statusBannerMessage = '';
       this.render();
     });
 
-    // Create new session (0 localities by default)
-    document.getElementById('btn-create-session')?.addEventListener('click', () => {
-      const nameInput = document.getElementById(
-        'input-new-session-name'
-      ) as HTMLInputElement | null;
-      const name = nameInput?.value || 'Phiên báo cáo mới';
-      const s = createReportSession(this.workspace, { name });
-      this.saveToLocalStorageCache();
-      this.setStatus(
-        `Đã tạo phiên "${s.name}" với ${s.selectedLocalityIds.length} địa phương được chọn sẵn (đúng chuẩn 0 địa phương mặc định).`,
-        'success'
-      );
-    });
-
-    document
-      .getElementById('btn-quick-load-3-sources')
-      ?.addEventListener('click', () => {
-        this.loadEmbeddedReferenceWorkbooks('2026-10-19');
-      });
-
-    document
-      .getElementById('btn-load-embedded-confirmed')
-      ?.addEventListener('click', () => {
-        this.loadEmbeddedReferenceWorkbooks('2026-10-19');
-      });
-
-    document
-      .getElementById('btn-load-embedded-unconfirmed')
-      ?.addEventListener('click', () => {
-        this.loadEmbeddedReferenceWorkbooks('');
-      });
-
-    // Confirm REV asOfDate
-    document
-      .getElementById('btn-confirm-rev-date')
-      ?.addEventListener('click', (e) => {
-        const btn = e.currentTarget as HTMLElement;
-        const dsId = btn.getAttribute('data-dataset-id') || '';
-        const dateEl = document.getElementById(
-          'input-confirm-rev-date'
-        ) as HTMLInputElement | null;
-        const reasonEl = document.getElementById(
-          'input-confirm-rev-reason'
-        ) as HTMLInputElement | null;
-        try {
-          confirmDatasetAsOfDate(
-            this.workspace,
-            dsId,
-            dateEl?.value || '2026-10-19',
-            reasonEl?.value || 'Xác nhận ngày chốt thực tế'
-          );
-          this.saveToLocalStorageCache();
-          this.setStatus('Đã xác nhận ngày chốt cho nguồn Thu NSNN.', 'success');
-        } catch (err) {
-          this.setStatus((err as Error).message, 'error');
+    // Layout mode segmented controls
+    document.querySelectorAll('[data-set-layout-mode]').forEach((btn) => {
+      btn.addEventListener('click', () => {
+        const mode = btn.getAttribute('data-set-layout-mode') as 'AUTO' | 'HORIZONTAL' | 'VERTICAL';
+        const activeSession = this.getActiveSession();
+        if (activeSession && mode) {
+          activeSession.settings.tableLayoutMode = mode;
+          this.triggerAutosave();
+          this.render();
         }
       });
+    });
 
-    // File upload
-    const fileInput = document.getElementById(
+    // Zoom controls
+    document.getElementById('btn-zoom-in')?.addEventListener('click', () => {
+      this.zoomScale = Math.min(2, Math.round((this.zoomScale + 0.1) * 10) / 10);
+      this.render();
+    });
+    document.getElementById('btn-zoom-out')?.addEventListener('click', () => {
+      this.zoomScale = Math.max(0.6, Math.round((this.zoomScale - 0.1) * 10) / 10);
+      this.render();
+    });
+    document.getElementById('btn-zoom-reset')?.addEventListener('click', () => {
+      this.zoomScale = 1;
+      this.render();
+    });
+
+    // Open Title Editor Panel
+    document.getElementById('btn-studio-edit-title')?.addEventListener('click', () => {
+      this.rightPanelMode = 'TITLE';
+      this.render();
+    });
+    document.querySelectorAll('[data-action="open-title-editor"]').forEach((el) => {
+      el.addEventListener('click', () => {
+        this.rightPanelMode = 'TITLE';
+        this.render();
+      });
+    });
+
+    // Close Context Panel
+    document.getElementById('btn-close-context-panel')?.addEventListener('click', () => {
+      this.rightPanelMode = 'NONE';
+      this.render();
+    });
+
+    // Switch Panel Tabs
+    document.querySelectorAll('[data-open-panel-mode]').forEach((btn) => {
+      btn.addEventListener('click', () => {
+        const m = btn.getAttribute('data-open-panel-mode') as RightPanelMode;
+        if (m) {
+          this.rightPanelMode = m;
+          this.render();
+        }
+      });
+    });
+
+    // Title settings form submit
+    document.getElementById('form-edit-title-settings')?.addEventListener('submit', (e) => {
+      e.preventDefault();
+      const activeSession = this.getActiveSession();
+      if (!activeSession) return;
+
+      const titleEl = document.getElementById('setting-report-title') as HTMLTextAreaElement | null;
+      const subtitleEl = document.getElementById('setting-subtitle') as HTMLInputElement | null;
+      const agencyEl = document.getElementById('setting-agency-name') as HTMLInputElement | null;
+      const subAgencyEl = document.getElementById('setting-sub-agency-name') as HTMLInputElement | null;
+      const alignEl = document.getElementById('setting-title-align') as HTMLSelectElement | null;
+      const sizeEl = document.getElementById('setting-title-size') as HTMLInputElement | null;
+      const uppercaseEl = document.getElementById('setting-title-uppercase') as HTMLInputElement | null;
+      const sigEl = document.getElementById('setting-show-signatures') as HTMLInputElement | null;
+
+      activeSession.settings.reportTitle = titleEl?.value.trim() || activeSession.settings.reportTitle;
+      activeSession.settings.subtitle = subtitleEl?.value.trim() || '';
+      activeSession.settings.agencyName = agencyEl?.value.trim() || '';
+      activeSession.settings.subAgencyName = subAgencyEl?.value.trim() || '';
+      activeSession.settings.titleAlign = (alignEl?.value as 'center' | 'left') || 'center';
+      activeSession.settings.titleFontSizePx = Number(sizeEl?.value) || 16;
+      activeSession.settings.titleUppercase = uppercaseEl?.checked ?? true;
+      activeSession.settings.showSignatures = sigEl?.checked ?? true;
+
+      this.triggerAutosave();
+      this.setStatus('Đã cập nhật tiêu đề và định dạng báo cáo.', 'success');
+    });
+
+    // Inline edit indicator display label
+    document.querySelectorAll('.btn-inline-edit-ind').forEach((btn) => {
+      btn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        const indId = btn.getAttribute('data-indicator-id');
+        const rowNum = Number(btn.getAttribute('data-row-number'));
+        const activeSession = this.getActiveSession();
+        if (!activeSession) return;
+
+        const row = activeSession.templateRows.find((r) => r.rowNumber === rowNum);
+        if (!row) return;
+
+        const newLabel = window.prompt(`Đổi tên hiển thị cho chỉ tiêu "${row.indicatorId}":`, row.customLabel);
+        if (newLabel !== null && newLabel.trim()) {
+          row.customLabel = newLabel.trim();
+          this.triggerAutosave();
+          this.render();
+        }
+      });
+    });
+
+    // Interactive Cell click -> Popover
+    document.querySelectorAll('.doc-cell, .report-cell').forEach((cellEl) => {
+      cellEl.addEventListener('click', (e) => {
+        const mouseEv = e as MouseEvent;
+        const traceId = cellEl.getAttribute('data-trace-id');
+        const locId = cellEl.getAttribute('data-locality-id') || '';
+        const indId = cellEl.getAttribute('data-indicator-id') || '';
+
+        if (!traceId || !evaluatedReport) return;
+        const trace = evaluatedReport.tracesById.get(traceId);
+        if (!trace) return;
+
+        this.activeTraceId = traceId;
+        this.activeTrace = trace;
+
+        // Check for official note in DISB dataset
+        const disbRec = datasets.DISB?.records.find((r) => r.localityId === locId);
+        this.activeTraceExtraMeta = {
+          officialNote: disbRec?.officialNote || null,
+          inspectionMarker: disbRec?.inspectionMarker || null,
+        };
+
+        this.popoverCell = {
+          traceId,
+          localityId: locId,
+          indicatorId: indId,
+          clientX: mouseEv.clientX,
+          clientY: mouseEv.clientY,
+        };
+
+        this.render();
+      });
+    });
+
+    // Close popover
+    document.getElementById('btn-close-popover')?.addEventListener('click', () => {
+      this.popoverCell = null;
+      this.render();
+    });
+
+    // Button on popover: Open full trace panel
+    document.getElementById('btn-open-full-trace')?.addEventListener('click', () => {
+      this.popoverCell = null;
+      this.rightPanelMode = 'TRACE';
+      this.render();
+    });
+
+    // Button on toolbar: Open warnings panel
+    document.getElementById('btn-open-warnings-panel')?.addEventListener('click', () => {
+      this.rightPanelMode = 'WARNINGS';
+      this.render();
+    });
+
+    // Presets
+    const setLocalitiesPreset = (ids: string[], label: string) => {
+      const activeSession = this.getActiveSession();
+      if (!activeSession) return;
+      setSessionLocalities(this.workspace, activeSession.id, ids);
+      this.triggerAutosave();
+      this.setStatus(`Đã chọn ${label} (${ids.length} địa phương).`, 'success');
+    };
+
+    document.getElementById('btn-preset-5-xa')?.addEventListener('click', () => {
+      const ids = this.workspace.localities
+        .filter((l) => l.type === 'XA')
+        .slice(0, 5)
+        .map((l) => l.id);
+      setLocalitiesPreset(ids, 'Mẫu 5 xã');
+    });
+    document.getElementById('btn-empty-preset-5-xa')?.addEventListener('click', () => {
+      const ids = this.workspace.localities
+        .filter((l) => l.type === 'XA')
+        .slice(0, 5)
+        .map((l) => l.id);
+      setLocalitiesPreset(ids, 'Mẫu 5 xã');
+    });
+
+    document.getElementById('btn-preset-7-phuong')?.addEventListener('click', () => {
+      const ids = this.workspace.localities
+        .filter((l) => l.type === 'PHUONG')
+        .slice(0, 7)
+        .map((l) => l.id);
+      setLocalitiesPreset(ids, 'Mẫu 7 phường');
+    });
+    document.getElementById('btn-empty-preset-7-phuong')?.addEventListener('click', () => {
+      const ids = this.workspace.localities
+        .filter((l) => l.type === 'PHUONG')
+        .slice(0, 7)
+        .map((l) => l.id);
+      setLocalitiesPreset(ids, 'Mẫu 7 phường');
+    });
+
+    document.getElementById('btn-preset-11-xa')?.addEventListener('click', () => {
+      // 11 communes from sample sheet
+      const sample11Names = [
+        'Hồng Châu',
+        'Khúc Thừa Dụ',
+        'Vĩnh Lại',
+        'Chí Minh',
+        'Đại Sơn',
+        'Lạc Phượng',
+        'Tân An',
+        'Tứ Kỳ',
+        'Ninh Giang',
+        'Tân Kỳ',
+        'Nguyên Giáp',
+      ];
+      const ids: string[] = [];
+      for (const name of sample11Names) {
+        const found = this.workspace.localities.find((l) => l.displayName.includes(name) || l.shortName === name);
+        if (found) ids.push(found.id);
+      }
+      setLocalitiesPreset(ids.slice(0, 11), 'Mẫu 11 xã');
+    });
+    document.getElementById('btn-empty-preset-11-xa')?.addEventListener('click', () => {
+      const ids = this.workspace.localities.slice(0, 11).map((l) => l.id);
+      setLocalitiesPreset(ids, 'Mẫu 11 địa phương');
+    });
+
+    document.getElementById('btn-select-all-localities')?.addEventListener('click', () => {
+      const ids = this.workspace.localities.map((l) => l.id);
+      setLocalitiesPreset(ids, 'Toàn bộ 114 địa phương');
+    });
+
+    document.getElementById('btn-deselect-all-localities')?.addEventListener('click', () => {
+      setLocalitiesPreset([], 'Rỗng (0 địa phương)');
+    });
+    document.getElementById('btn-clear-localities')?.addEventListener('click', () => {
+      setLocalitiesPreset([], 'Rỗng (0 địa phương)');
+    });
+
+    // Checkbox toggle for localities
+    document.querySelectorAll('.chk-select-locality').forEach((chkEl) => {
+      chkEl.addEventListener('change', () => {
+        const activeSession = this.getActiveSession();
+        const locId = chkEl.getAttribute('data-loc-id');
+        if (!activeSession || !locId) return;
+
+        const set = new Set(activeSession.selectedLocalityIds);
+        if ((chkEl as HTMLInputElement).checked) {
+          set.add(locId);
+        } else {
+          set.delete(locId);
+        }
+        setSessionLocalities(this.workspace, activeSession.id, Array.from(set));
+        this.triggerAutosave();
+        this.render();
+      });
+    });
+
+    // Locality search input
+    const locSearchInput = document.getElementById(
+      'input-unified-loc-search'
+    ) as HTMLInputElement | null;
+    locSearchInput?.addEventListener('input', () => {
+      this.localitySearchQuery = locSearchInput.value;
+      this.render();
+    });
+
+    // Locality type filter
+    const locTypeSelect = document.getElementById(
+      'select-unified-loc-type'
+    ) as HTMLSelectElement | null;
+    locTypeSelect?.addEventListener('change', () => {
+      this.localityTypeFilter = locTypeSelect.value as 'ALL' | LocalityType;
+      this.render();
+    });
+
+    // Locality sort option
+    const locSortSelect = document.getElementById(
+      'select-unified-loc-sort'
+    ) as HTMLSelectElement | null;
+    locSortSelect?.addEventListener('change', () => {
+      this.localitySortOption = locSortSelect.value as any;
+      this.render();
+    });
+
+    // Drag and drop zone
+    const dropzone = document.getElementById('dropzone-excel-files');
+    if (dropzone) {
+      dropzone.addEventListener('dragover', (e) => {
+        e.preventDefault();
+        dropzone.classList.add('dragover');
+      });
+      dropzone.addEventListener('dragleave', () => {
+        dropzone.classList.remove('dragover');
+      });
+      dropzone.addEventListener('drop', async (e) => {
+        e.preventDefault();
+        dropzone.classList.remove('dragover');
+        if (e.dataTransfer?.files) {
+          for (const f of Array.from(e.dataTransfer.files)) {
+            const buf = await f.arrayBuffer();
+            this.handleWorkbookBytesUpload(new Uint8Array(buf), f.name);
+          }
+        }
+      });
+      dropzone.addEventListener('click', () => {
+        document.getElementById('input-xlsx-files')?.click();
+      });
+    }
+
+    const inputFiles = document.getElementById(
       'input-xlsx-files'
     ) as HTMLInputElement | null;
-    fileInput?.addEventListener('change', async () => {
-      if (!fileInput.files) return;
-      for (const file of Array.from(fileInput.files)) {
-        const buf = await file.arrayBuffer();
-        this.handleWorkbookBytesUpload(new Uint8Array(buf), file.name);
+    inputFiles?.addEventListener('change', async () => {
+      if (inputFiles.files) {
+        for (const f of Array.from(inputFiles.files)) {
+          const buf = await f.arrayBuffer();
+          this.handleWorkbookBytesUpload(new Uint8Array(buf), f.name);
+        }
       }
     });
 
-    // Session actions
-    document.querySelectorAll('[data-action="activate-session"]').forEach((el) => {
-      el.addEventListener('click', () => {
-        const id = el.getAttribute('data-session-id');
-        if (id) {
-          this.workspace.activeSessionId = id;
-          this.saveToLocalStorageCache();
-          this.render();
+    const inputFilesBtn = document.getElementById(
+      'input-xlsx-files-btn'
+    ) as HTMLInputElement | null;
+    inputFilesBtn?.addEventListener('change', async () => {
+      if (inputFilesBtn.files) {
+        for (const f of Array.from(inputFilesBtn.files)) {
+          const buf = await f.arrayBuffer();
+          this.handleWorkbookBytesUpload(new Uint8Array(buf), f.name);
         }
-      });
+      }
     });
 
-    document.querySelectorAll('[data-action="open-session-localities"]').forEach((el) => {
-      el.addEventListener('click', () => {
-        const id = el.getAttribute('data-session-id');
-        if (id) {
-          this.workspace.activeSessionId = id;
-          this.activeTab = 'LOCALITIES';
-          this.saveToLocalStorageCache();
-          this.render();
-        }
-      });
+    // Confirm REV date
+    document.getElementById('btn-confirm-rev-date')?.addEventListener('click', (e) => {
+      const btn = e.currentTarget as HTMLElement;
+      const dsId = btn.getAttribute('data-dataset-id') || '';
+      const dateEl = document.getElementById('input-confirm-rev-date') as HTMLInputElement | null;
+      try {
+        confirmDatasetAsOfDate(
+          this.workspace,
+          dsId,
+          dateEl?.value || '2026-10-19',
+          'Xác nhận ngày chốt thực tế'
+        );
+        this.triggerAutosave();
+        this.setStatus('Đã xác nhận ngày chốt cho nguồn Thu NSNN.', 'success');
+      } catch (err) {
+        this.setStatus((err as Error).message, 'error');
+      }
     });
 
+    // Embedded load
+    document.getElementById('btn-load-embedded-confirmed')?.addEventListener('click', () => {
+      this.loadEmbeddedReferenceWorkbooks('2026-10-19');
+    });
+    document.getElementById('btn-quick-load-3-sources')?.addEventListener('click', () => {
+      this.loadEmbeddedReferenceWorkbooks('2026-10-19');
+    });
+
+    // Create session in sessions page
+    document.getElementById('btn-create-session')?.addEventListener('click', () => {
+      const nameInput = document.getElementById('input-new-session-name') as HTMLInputElement | null;
+      const name = nameInput?.value || 'Phiên báo cáo mới';
+      const s = createReportSession(this.workspace, { name });
+      this.workspace.activeSessionId = s.id;
+      this.triggerAutosave();
+      this.setStatus(`Đã tạo phiên "${s.name}" (0 địa phương mặc định).`, 'success');
+    });
+
+    // Session row actions
     document.querySelectorAll('[data-action="open-session-report"]').forEach((el) => {
       el.addEventListener('click', () => {
         const id = el.getAttribute('data-session-id');
         if (id) {
           this.workspace.activeSessionId = id;
           this.activeTab = 'REPORT';
-          this.saveToLocalStorageCache();
+          this.triggerAutosave();
           this.render();
         }
       });
@@ -1221,7 +1773,7 @@ export class KtxhOfflineApp {
             id,
             `${src?.name || 'Phiên'} (Bản sao)`
           );
-          this.saveToLocalStorageCache();
+          this.triggerAutosave();
           this.setStatus(`Đã nhân bản thành "${cloned.name}".`, 'success');
         }
       });
@@ -1232,338 +1784,64 @@ export class KtxhOfflineApp {
         const id = el.getAttribute('data-session-id');
         if (id && window.confirm('Bạn có chắc chắn muốn xóa phiên báo cáo này?')) {
           deleteReportSession(this.workspace, id, true);
-          this.saveToLocalStorageCache();
+          this.triggerAutosave();
           this.setStatus('Đã xóa phiên báo cáo.', 'info');
         }
       });
     });
 
-    // Locality search & selection
-    const searchInput = document.getElementById(
-      'input-loc-search'
-    ) as HTMLInputElement | null;
-    searchInput?.addEventListener('input', () => {
-      this.localitySearchQuery = searchInput.value;
+    // Backup & Restore
+    document.getElementById('btn-download-backup-json')?.addEventListener('click', () => {
+      const jsonStr = exportWorkspaceBackupJson(this.workspace);
+      const blob = new Blob([jsonStr], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `KTXH_Workspace_Backup_${Date.now()}.kxh.json`;
+      a.click();
+      URL.revokeObjectURL(url);
+      this.workspace.unsavedChanges = false;
       this.render();
+      this.setStatus('Đã lưu toàn bộ hồ sơ (.kxh.json) thành công.', 'success');
     });
-
-    const typeSelect = document.getElementById(
-      'select-loc-type'
-    ) as HTMLSelectElement | null;
-    typeSelect?.addEventListener('change', () => {
-      this.localityTypeFilter = typeSelect.value as 'ALL' | LocalityType;
-      this.render();
-    });
-
-    document.querySelectorAll('[data-action="toggle-locality"]').forEach((el) => {
-      el.addEventListener('click', () => {
-        const activeSession = this.getActiveSession();
-        const locId = el.getAttribute('data-loc-id');
-        if (!activeSession || !locId) return;
-        const curr = [...activeSession.selectedLocalityIds];
-        const idx = curr.indexOf(locId);
-        if (idx >= 0) curr.splice(idx, 1);
-        else curr.push(locId);
-        setSessionLocalities(this.workspace, activeSession.id, curr);
-        this.saveToLocalStorageCache();
-        this.render();
-      });
-    });
-
-    document.querySelectorAll('[data-action="move-loc-up"]').forEach((el) => {
-      el.addEventListener('click', () => {
-        const activeSession = this.getActiveSession();
-        const locId = el.getAttribute('data-loc-id');
-        if (!activeSession || !locId) return;
-        const curr = [...activeSession.selectedLocalityIds];
-        const idx = curr.indexOf(locId);
-        if (idx > 0) {
-          [curr[idx - 1], curr[idx]] = [curr[idx], curr[idx - 1]];
-          setSessionLocalities(this.workspace, activeSession.id, curr);
-          this.saveToLocalStorageCache();
-          this.render();
-        }
-      });
-    });
-
-    document.querySelectorAll('[data-action="move-loc-down"]').forEach((el) => {
-      el.addEventListener('click', () => {
-        const activeSession = this.getActiveSession();
-        const locId = el.getAttribute('data-loc-id');
-        if (!activeSession || !locId) return;
-        const curr = [...activeSession.selectedLocalityIds];
-        const idx = curr.indexOf(locId);
-        if (idx >= 0 && idx < curr.length - 1) {
-          [curr[idx], curr[idx + 1]] = [curr[idx + 1], curr[idx]];
-          setSessionLocalities(this.workspace, activeSession.id, curr);
-          this.saveToLocalStorageCache();
-          this.render();
-        }
-      });
-    });
-
-    const applyPreset5Xa = () => {
-      const activeSession = this.getActiveSession();
-      if (!activeSession) return;
-      const fiveXa = this.workspace.localities
-        .filter((l) => l.type === 'XA')
-        .slice(0, 5)
-        .map((l) => l.id);
-      setSessionLocalities(this.workspace, activeSession.id, fiveXa);
-      this.saveToLocalStorageCache();
-      this.render();
-    };
-
-    const applyPreset7Phuong = () => {
-      const activeSession = this.getActiveSession();
-      if (!activeSession) return;
-      const sevenPhuong = this.workspace.localities
-        .filter((l) => l.type === 'PHUONG')
-        .slice(0, 7)
-        .map((l) => l.id);
-      setSessionLocalities(this.workspace, activeSession.id, sevenPhuong);
-      this.saveToLocalStorageCache();
-      this.render();
-    };
-
-    document.getElementById('btn-preset-5-xa')?.addEventListener('click', applyPreset5Xa);
-    document.getElementById('btn-empty-preset-5-xa')?.addEventListener('click', applyPreset5Xa);
-    document
-      .getElementById('btn-preset-7-phuong')
-      ?.addEventListener('click', applyPreset7Phuong);
-    document
-      .getElementById('btn-empty-preset-7-phuong')
-      ?.addEventListener('click', applyPreset7Phuong);
-
-    document
-      .getElementById('btn-clear-localities')
-      ?.addEventListener('click', () => {
-        const activeSession = this.getActiveSession();
-        if (!activeSession) return;
-        setSessionLocalities(this.workspace, activeSession.id, []);
-        this.saveToLocalStorageCache();
-        this.render();
-      });
-
-    // Report unit/decimal controls
-    document
-      .getElementById('select-money-unit')
-      ?.addEventListener('change', (e) => {
-        const activeSession = this.getActiveSession();
-        if (!activeSession) return;
-        activeSession.settings.moneyUnit = (e.target as HTMLSelectElement)
-          .value as 'billion' | 'million';
-        this.saveToLocalStorageCache();
-        this.render();
-      });
-
-    document
-      .getElementById('select-area-unit')
-      ?.addEventListener('change', (e) => {
-        const activeSession = this.getActiveSession();
-        if (!activeSession) return;
-        activeSession.settings.areaUnit = (e.target as HTMLSelectElement)
-          .value as 'm2' | 'ha';
-        this.saveToLocalStorageCache();
-        this.render();
-      });
-
-    document
-      .getElementById('input-decimals')
-      ?.addEventListener('change', (e) => {
-        const activeSession = this.getActiveSession();
-        if (!activeSession) return;
-        const val = parseInt((e.target as HTMLInputElement).value, 10);
-        if (!Number.isNaN(val) && val >= 0 && val <= 6) {
-          activeSession.settings.decimals = val;
-          activeSession.settings.decimalsMoney = val;
-          activeSession.settings.decimalsPercent = val;
-          this.saveToLocalStorageCache();
-          this.render();
-        }
-      });
-
-    // Cell click -> open Trace Inspector
-    document.querySelectorAll('.report-cell[data-trace-id]').forEach((cellEl) => {
-      const openTrace = () => {
-        const traceId = cellEl.getAttribute('data-trace-id') || '';
-        const locId = cellEl.getAttribute('data-locality-id') || '';
-        const indId = cellEl.getAttribute('data-indicator-id') || '';
-        if (evaluatedReport && traceId) {
-          this.activeTraceId = traceId;
-          this.activeTrace = evaluatedReport.tracesById.get(traceId) || null;
-          const rowObj = evaluatedReport.rows.find(
-            (r) => r.indicator.id === indId
-          );
-          const cellObj = rowObj?.cellsByLocalityId[locId];
-          this.activeTraceExtraMeta = {
-            officialNote: cellObj?.officialNote,
-            inspectionMarker: cellObj?.inspectionMarker,
-          };
-          this.render();
-        }
-      };
-      cellEl.addEventListener('click', openTrace);
-      cellEl.addEventListener('keydown', (ev) => {
-        if ((ev as KeyboardEvent).key === 'Enter' || (ev as KeyboardEvent).key === ' ') {
-          ev.preventDefault();
-          openTrace();
-        }
-      });
-    });
-
-    // Save template settings
-    document
-      .getElementById('btn-save-template-settings')
-      ?.addEventListener('click', () => {
-        const activeSession = this.getActiveSession();
-        if (!activeSession) return;
-        const titleEl = document.getElementById(
-          'input-report-title'
-        ) as HTMLInputElement | null;
-        const higherEl = document.getElementById(
-          'input-label-higher'
-        ) as HTMLInputElement | null;
-        const lowerEl = document.getElementById(
-          'input-label-lower'
-        ) as HTMLInputElement | null;
-        const allowPartialEl = document.getElementById(
-          'chk-allow-partial-eval'
-        ) as HTMLInputElement | null;
-
-        if (titleEl) activeSession.settings.reportTitle = titleEl.value;
-        if (higherEl) activeSession.comparisonRules.higherLabel = higherEl.value;
-        if (lowerEl) activeSession.comparisonRules.lowerLabel = lowerEl.value;
-        if (allowPartialEl) {
-          activeSession.comparisonRules.allowPartialBenchmarkEvaluation =
-            allowPartialEl.checked;
-          if (allowPartialEl.checked) {
-            activeSession.comparisonRules.partialApprovalReason =
-              'Người dùng phê duyệt sử dụng mốc tham khảo 108/114 địa bàn có dữ liệu';
-          }
-        }
-
-        document.querySelectorAll('.input-row-stt').forEach((el) => {
-          const rNum = Number(el.getAttribute('data-row-num'));
-          const cfg = activeSession.templateRows.find(
-            (r) => r.rowNumber === rNum
-          );
-          if (cfg) cfg.sttLabel = (el as HTMLInputElement).value;
-        });
-
-        document.querySelectorAll('.input-row-label').forEach((el) => {
-          const rNum = Number(el.getAttribute('data-row-num'));
-          const cfg = activeSession.templateRows.find(
-            (r) => r.rowNumber === rNum
-          );
-          if (cfg) cfg.customLabel = (el as HTMLInputElement).value;
-        });
-
-        document.querySelectorAll('.chk-row-visible').forEach((el) => {
-          const rNum = Number(el.getAttribute('data-row-num'));
-          const cfg = activeSession.templateRows.find(
-            (r) => r.rowNumber === rNum
-          );
-          if (cfg) cfg.visible = (el as HTMLInputElement).checked;
-        });
-
-        activeSession.sessionRevision += 1;
-        this.workspace.unsavedChanges = true;
-        this.saveToLocalStorageCache();
-        this.setStatus('Đã lưu cấu hình bảng báo cáo cho phiên hiện tại.', 'success');
-      });
-
-    // Export XLSX
-    const handleExportXlsx = () => {
-      if (!evaluatedReport) {
-        this.setStatus('Chưa đủ dữ liệu để xuất báo cáo Excel.', 'error');
-        return;
-      }
-      try {
-        const xlsxBytes = exportSessionReportToXlsxBytes({
-          evaluated: evaluatedReport,
-          baselineLocalities: this.workspace.localities,
-          datasets,
-        });
-        const blob = new Blob([xlsxBytes.buffer as ArrayBuffer], {
-          type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-        });
-        const url = URL.createObjectURL(blob);
-        const a = document.createElement('a');
-        a.href = url;
-        a.download = `${evaluatedReport.session.name.replace(/\s+/g, '_')}.xlsx`;
-        a.click();
-        URL.revokeObjectURL(url);
-        this.setStatus(
-          'Đã xuất tệp Excel (.xlsx) gồm 5 sheet: Báo cáo, Nguồn thiếu & lý do, Danh mục công thức, Nhật ký phép tính, Bản ghi không tính.',
-          'success'
-        );
-      } catch (err) {
-        this.setStatus((err as Error).message, 'error');
-      }
-    };
-
-    document
-      .getElementById('btn-export-xlsx-quick')
-      ?.addEventListener('click', handleExportXlsx);
-    document
-      .getElementById('btn-export-xlsx-full')
-      ?.addEventListener('click', handleExportXlsx);
-
-    // Print / Save to PDF
-    const handlePrint = () => {
-      window.print();
-    };
-    document
-      .getElementById('btn-print-quick')
-      ?.addEventListener('click', handlePrint);
-    document
-      .getElementById('btn-trigger-window-print')
-      ?.addEventListener('click', handlePrint);
-
-    // Backup download & restore
-    document
-      .getElementById('btn-download-backup-json')
-      ?.addEventListener('click', () => {
-        const json = exportWorkspaceBackupJson(this.workspace);
-        const blob = new Blob([json], { type: 'application/json' });
-        const url = URL.createObjectURL(blob);
-        const a = document.createElement('a');
-        a.href = url;
-        a.download = `ktxh-backup-${new Date().toISOString().slice(0, 10)}.kxh.json`;
-        a.click();
-        URL.revokeObjectURL(url);
-        this.saveToLocalStorageCache();
-        this.setStatus('Đã tải xuống bản sao lưu .kxh.json có checksum SHA-256.', 'success');
-      });
 
     const restoreInput = document.getElementById(
       'input-restore-backup-file'
     ) as HTMLInputElement | null;
     restoreInput?.addEventListener('change', async () => {
-      const file = restoreInput.files?.[0];
-      if (!file) return;
-      try {
-        const text = await file.text();
-        const restored = restoreWorkspaceFromBackupJson(
-          text,
-          this.workspace,
-          true
-        );
-        this.workspace = restored;
-        this.saveToLocalStorageCache();
-        this.setStatus(
-          `Đã khôi phục thành công bộ hồ sơ "${restored.name}" (${restored.sessions.length} phiên).`,
-          'success'
-        );
-      } catch (err) {
-        this.setStatus((err as Error).message, 'error');
+      if (restoreInput.files && restoreInput.files[0]) {
+        try {
+          const text = await restoreInput.files[0].text();
+          const restored = restoreWorkspaceFromBackupJson(text);
+          this.workspace = restored;
+          this.triggerAutosave();
+          this.setStatus(
+            `Đã khôi phục thành công hồ sơ "${restored.name}" (${restored.sessions.length} phiên).`,
+            'success'
+          );
+        } catch (err) {
+          this.setStatus(`Lỗi khôi phục hồ sơ: ${(err as Error).message}`, 'error');
+        }
       }
     });
+
+    // Close popover on Escape key
+    window.onkeydown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        if (this.popoverCell) {
+          this.popoverCell = null;
+          this.render();
+        } else if (this.rightPanelMode !== 'NONE') {
+          this.rightPanelMode = 'NONE';
+          this.render();
+        }
+      }
+    };
   }
 }
 
-if (typeof window !== 'undefined' && typeof document !== 'undefined') {
+// Auto mount if in browser
+if (typeof window !== 'undefined') {
   window.addEventListener('DOMContentLoaded', () => {
     const app = new KtxhOfflineApp();
     window.__KTXH_APP__ = app;

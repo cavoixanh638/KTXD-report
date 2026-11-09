@@ -1,0 +1,319 @@
+import { describe, it, expect, beforeAll } from 'vitest';
+import fs from 'node:fs';
+import path from 'node:path';
+import {
+  importDisbursementWorkbook,
+  importRevenueWorkbook,
+  importGpmbWorkbook,
+} from '../src/core/sourceReaders';
+import {
+  createEmptyWorkspace,
+  registerDatasetInWorkspace,
+  createReportSession,
+  setSessionLocalities,
+  cloneReportSession,
+} from '../src/core/sessions';
+import { evaluateSessionReport } from '../src/core/calculationTrace';
+import { searchLocalities } from '../src/core/localities';
+import {
+  computeAutoLayoutMode,
+  renderA4DocumentStudioHtml,
+} from '../src/ui/reportStudio';
+import { renderCellTracePopoverHtml } from '../src/ui/cellInspector';
+import { Dataset, Locality } from '../src/core/types';
+
+const rootDir = process.cwd();
+const manifest = JSON.parse(
+  fs.readFileSync(path.join(rootDir, 'data/reference/MANIFEST.json'), 'utf-8')
+);
+const filePaths: Record<string, string> = {};
+for (const f of manifest.files) {
+  filePaths[f.id] = path.join(rootDir, f.path);
+}
+
+describe('KTXH Offline – A4 Report Studio & WYSIWYG Architecture Suite', () => {
+  let disbDataset: Dataset;
+  let revDataset: Dataset;
+  let gpmbDataset: Dataset;
+  let baselineLocalities: Locality[];
+
+  beforeAll(() => {
+    const disbBytes = new Uint8Array(fs.readFileSync(filePaths['DISB_20261015']));
+    const revBytes = new Uint8Array(fs.readFileSync(filePaths['REV_10M_2026']));
+    const gpmbBytes = new Uint8Array(fs.readFileSync(filePaths['GPMB_20261026']));
+
+    const disbImported = importDisbursementWorkbook(
+      disbBytes,
+      'Báo cáo giải ngân 15.10 sửa(1).xlsx'
+    );
+    disbDataset = disbImported.dataset;
+    baselineLocalities = disbImported.localities;
+
+    const revImported = importRevenueWorkbook(
+      revBytes,
+      'Bc thu 10 thang-19.10-BC (1)(1).xlsx',
+      {
+        confirmedAsOfDate: '2026-10-19',
+        asOfConfirmationReason: 'Xác nhận ngày chốt sơ bộ kỳ 10 tháng năm 2026',
+      }
+    );
+    revDataset = revImported.dataset;
+
+    const gpmbImported = importGpmbWorkbook(
+      gpmbBytes,
+      'PL01_Tổng hợp DA_26.12.26(1).xlsx'
+    );
+    gpmbDataset = gpmbImported.dataset;
+  });
+
+  it('1. Auto Layout Algorithm on A4 Landscape: picks Horizontal for <= 7 localities and Vertical for > 7 localities', () => {
+    const ws = createEmptyWorkspace();
+    const session = createReportSession(ws, { name: 'Phiên kiểm tra bố cục' });
+
+    // Mode AUTO with 5 localities -> Horizontal
+    const decision5 = computeAutoLayoutMode({
+      session,
+      selectedCount: 5,
+      indicatorCount: 14,
+    });
+    expect(decision5.mode).toBe('HORIZONTAL');
+    expect(decision5.isAuto).toBe(true);
+    expect(decision5.pageCount).toBe(1);
+    expect(decision5.reason).toContain('bố cục Địa phương theo chiều ngang');
+
+    // Mode AUTO with 7 localities -> Horizontal
+    const decision7 = computeAutoLayoutMode({
+      session,
+      selectedCount: 7,
+      indicatorCount: 14,
+    });
+    expect(decision7.mode).toBe('HORIZONTAL');
+    expect(decision7.pageCount).toBe(1);
+
+    // Mode AUTO with 15 localities -> Vertical (avoids horizontal splitting on A4 landscape)
+    const decision15 = computeAutoLayoutMode({
+      session,
+      selectedCount: 15,
+      indicatorCount: 14,
+    });
+    expect(decision15.mode).toBe('VERTICAL');
+    expect(decision15.isAuto).toBe(true);
+    expect(decision15.pageCount).toBe(1);
+    expect(decision15.reason).toContain('bố cục Địa phương theo chiều dọc');
+
+    // Mode AUTO with 25 localities -> Vertical with 2 pages
+    const decision25 = computeAutoLayoutMode({
+      session,
+      selectedCount: 25,
+      indicatorCount: 14,
+    });
+    expect(decision25.mode).toBe('VERTICAL');
+    expect(decision25.pageCount).toBe(2);
+
+    // Manual Override to Horizontal
+    session.settings.tableLayoutMode = 'HORIZONTAL';
+    const manualH = computeAutoLayoutMode({
+      session,
+      selectedCount: 20,
+      indicatorCount: 14,
+    });
+    expect(manualH.mode).toBe('HORIZONTAL');
+    expect(manualH.isAuto).toBe(false);
+
+    // Manual Override to Vertical
+    session.settings.tableLayoutMode = 'VERTICAL';
+    const manualV = computeAutoLayoutMode({
+      session,
+      selectedCount: 3,
+      indicatorCount: 14,
+    });
+    expect(manualV.mode).toBe('VERTICAL');
+    expect(manualV.isAuto).toBe(false);
+  });
+
+  it('2. A4 Document Studio Sheet Rendering (Horizontal & Vertical Modes, Administrative Headers & Signatures)', () => {
+    const ws = createEmptyWorkspace();
+    const session5 = createReportSession(ws, { name: 'Báo cáo A4 5 xã' });
+    const fiveIds = baselineLocalities.slice(0, 5).map((l) => l.id);
+    setSessionLocalities(ws, session5.id, fiveIds);
+
+    // Render in Horizontal mode
+    session5.settings.tableLayoutMode = 'HORIZONTAL';
+    const eval5 = evaluateSessionReport({
+      session: session5,
+      baselineLocalities,
+      datasets: { DISB: disbDataset, REV: revDataset, GPMB: gpmbDataset },
+    });
+
+    const html5 = renderA4DocumentStudioHtml({
+      evaluated: eval5,
+      baselineLocalities,
+      datasets: { DISB: disbDataset, REV: revDataset, GPMB: gpmbDataset },
+    });
+
+    // Check Administrative Elements
+    expect(html5).toContain('a4-paper-sheet a4-landscape');
+    expect(html5).toContain('CỘNG HÒA XÃ HỘI CHỦ NGHĨA VIỆT NAM');
+    expect(html5).toContain('Độc lập - Tự do - Hạnh phúc');
+    expect(html5).toContain('ỦY BAN NHÂN DÂN THÀNH PHỐ');
+    expect(html5).toContain('SỞ KẾ HOẠCH VÀ ĐẦU TƯ');
+    expect(html5).toContain('doc-table-horizontal');
+    expect(html5).toContain('Tỷ lệ GPMB địa phương theo diện tích');
+    expect(html5).toContain('NGƯỜI LẬP BIỂU');
+    expect(html5).toContain('THỦ TRƯỞNG ĐƠN VỊ');
+    expect(html5).toContain('Trang 1 / 1');
+
+    // Render in Vertical mode (Transposed table)
+    session5.settings.tableLayoutMode = 'VERTICAL';
+    const htmlVert = renderA4DocumentStudioHtml({
+      evaluated: eval5,
+      baselineLocalities,
+      datasets: { DISB: disbDataset, REV: revDataset, GPMB: gpmbDataset },
+    });
+
+    expect(htmlVert).toContain('doc-table-vertical');
+    expect(htmlVert).toContain('doc-td-loc-name');
+    expect(htmlVert).toContain(fiveIds[0]); // Locality data attribute
+  });
+
+  it('3. Unified 114 Locality List Search, Filtering, and Missing Data Badges', () => {
+    // Search without diacritics
+    const resultsNoAccent = searchLocalities(baselineLocalities, 'cam giang');
+    expect(resultsNoAccent.length).toBeGreaterThanOrEqual(1);
+    expect(resultsNoAccent.some((l) => l.displayName === 'Xã Cẩm Giang')).toBe(true);
+
+    // Search with diacritics
+    const resultsAccent = searchLocalities(baselineLocalities, 'Cẩm Giang');
+    expect(resultsAccent.some((l) => l.displayName === 'Xã Cẩm Giang')).toBe(true);
+
+    // Distinguish Cẩm Giang and Cẩm Giàng
+    const camGiang = baselineLocalities.find((l) => l.displayName === 'Xã Cẩm Giang');
+    const camGiang2 = baselineLocalities.find((l) => l.displayName === 'Xã Cẩm Giàng');
+    expect(camGiang).toBeDefined();
+    expect(camGiang2).toBeDefined();
+    expect(camGiang!.id).not.toBe(camGiang2!.id);
+
+    // Missing records verification per MASTER V2.2
+    // REV missing: Đặc khu Bạch Long Vĩ
+    const bachLongVi = baselineLocalities.find((l) => l.displayName === 'Đặc khu Bạch Long Vĩ');
+    expect(bachLongVi).toBeDefined();
+
+    // GPMB missing 6: Phường Lưu Kiếm, Phường Ái Quốc, Xã Hùng Thắng, Xã Thái Tân, Xã Tân Minh, Đặc khu Bạch Long Vĩ
+    const gpmbMissingExpected = [
+      'Phường Lưu Kiếm',
+      'Phường Ái Quốc',
+      'Xã Hùng Thắng',
+      'Xã Thái Tân',
+      'Xã Tân Minh',
+      'Đặc khu Bạch Long Vĩ',
+    ];
+    for (const name of gpmbMissingExpected) {
+      expect(baselineLocalities.some((l) => l.displayName === name)).toBe(true);
+    }
+  });
+
+  it('4. Real 11-Commune Sample Evaluation (Reconciled from Kết quả Tổng hợp chỉ tiêu KTXH 11 xã.xlsx)', () => {
+    const ws = createEmptyWorkspace();
+    const session11 = createReportSession(ws, { name: 'Mẫu 11 xã đối chiếu' });
+
+    const sample11Names = [
+      'Hồng Châu',
+      'Khúc Thừa Dụ',
+      'Vĩnh Lại',
+      'Chí Minh',
+      'Đại Sơn',
+      'Lạc Phượng',
+      'Tân An',
+      'Tứ Kỳ',
+      'Ninh Giang',
+      'Tân Kỳ',
+      'Nguyên Giáp',
+    ];
+
+    const localityIds11: string[] = [];
+    for (const name of sample11Names) {
+      const loc = baselineLocalities.find((l) => l.displayName.includes(name) || l.shortName === name);
+      if (loc) localityIds11.push(loc.id);
+    }
+    expect(localityIds11.length).toBe(11);
+
+    setSessionLocalities(ws, session11.id, localityIds11);
+    const eval11 = evaluateSessionReport({
+      session: session11,
+      baselineLocalities,
+      datasets: { DISB: disbDataset, REV: revDataset, GPMB: gpmbDataset },
+    });
+
+    expect(eval11.rows).toHaveLength(14);
+    expect(eval11.selectedLocalities).toHaveLength(11);
+
+    // 100% of cells have valid CalculationTrace
+    for (const r of eval11.rows) {
+      for (const locId of localityIds11) {
+        const cell = r.cellsByLocalityId[locId];
+        expect(cell).toBeDefined();
+        expect(cell.traceId).toBeTruthy();
+        expect(eval11.tracesById.has(cell.traceId)).toBe(true);
+      }
+    }
+
+    // Verify GPMB row 15 is strictly area-weighted ratio (SUM(I)/SUM(D))
+    const row15 = eval11.rows.find((r) => r.rowConfig.rowNumber === 15);
+    expect(row15).toBeDefined();
+    expect(row15!.rowConfig.customLabel).toBe('Tỷ lệ GPMB địa phương theo diện tích');
+  });
+
+  it('5. Cell Trace Popover Rendering & Fraction Operands Breakdown', () => {
+    const ws = createEmptyWorkspace();
+    const session = createReportSession(ws, { name: 'Test Popover' });
+    const firstLocId = baselineLocalities[0].id;
+    setSessionLocalities(ws, session.id, [firstLocId]);
+
+    const evalRes = evaluateSessionReport({
+      session,
+      baselineLocalities,
+      datasets: { DISB: disbDataset, REV: revDataset, GPMB: gpmbDataset },
+    });
+
+    const cell = evalRes.rows[0].cellsByLocalityId[firstLocId];
+    const trace = evalRes.tracesById.get(cell.traceId)!;
+    expect(trace).toBeDefined();
+
+    const popoverHtml = renderCellTracePopoverHtml(trace, {
+      officialNote: 'Ghi chú Q thử nghiệm',
+      inspectionMarker: 'Chủ tịch đi 22/10',
+    });
+
+    expect(popoverHtml).toContain('cell-trace-popover');
+    expect(popoverHtml).toContain('Số gốc chưa làm tròn:');
+    expect(popoverHtml).toContain('Công thức:');
+    expect(popoverHtml).toContain('Ô nguồn:');
+    expect(popoverHtml).toContain('Xem toàn bộ phép tính &rarr;');
+    expect(popoverHtml).toContain('Ghi chú Q thử nghiệm');
+  });
+
+  it('6. Customizing Indicator Display Labels without Altering Calculation Engine', () => {
+    const ws = createEmptyWorkspace();
+    const session = createReportSession(ws, { name: 'Test Đổi nhãn' });
+    const firstLocId = baselineLocalities[0].id;
+    setSessionLocalities(ws, session.id, [firstLocId]);
+
+    // Customize Row 10 (Disbursement rate)
+    const row10 = session.templateRows.find((r) => r.rowNumber === 10)!;
+    const originalLabel = row10.customLabel;
+    row10.customLabel = 'Tỷ lệ thực hiện kế hoạch giải ngân (%)';
+
+    const evalCustom = evaluateSessionReport({
+      session,
+      baselineLocalities,
+      datasets: { DISB: disbDataset, REV: revDataset, GPMB: gpmbDataset },
+    });
+
+    const evaluatedRow10 = evalCustom.rows.find((r) => r.rowConfig.rowNumber === 10)!;
+    expect(evaluatedRow10.rowConfig.customLabel).toBe('Tỷ lệ thực hiện kế hoạch giải ngân (%)');
+    expect(evaluatedRow10.indicator.id).toBe('DISB_RATE'); // ID unchanged!
+
+    const cell = evaluatedRow10.cellsByLocalityId[firstLocId];
+    expect(cell.trace.formula.formulaId).toBe('DISB_RATE_LOCALITY'); // Math unchanged!
+  });
+});

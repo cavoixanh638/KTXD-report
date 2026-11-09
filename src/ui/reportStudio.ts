@@ -1,0 +1,549 @@
+import { EvaluatedSessionReport, EvaluatedReportRow } from '../core/calculationTrace';
+import { analyzeSourceCoverage } from '../core/coverage';
+import { Dataset, Locality, ReportSession } from '../core/types';
+import { escapeHtmlUi } from './cellInspector';
+
+export interface LayoutDecision {
+  mode: 'HORIZONTAL' | 'VERTICAL';
+  userPreference: 'AUTO' | 'HORIZONTAL' | 'VERTICAL';
+  reason: string;
+  isAuto: boolean;
+  pageCount: number;
+}
+
+export function computeAutoLayoutMode(params: {
+  session: ReportSession;
+  selectedCount: number;
+  indicatorCount: number;
+}): LayoutDecision {
+  const { session, selectedCount, indicatorCount } = params;
+  const userPref = session.settings.tableLayoutMode || 'AUTO';
+
+  if (userPref === 'HORIZONTAL') {
+    const maxCols = session.settings.paperSize === 'A3' ? 12 : 7;
+    const pages = selectedCount === 0 ? 1 : Math.ceil(selectedCount / maxCols);
+    return {
+      mode: 'HORIZONTAL',
+      userPreference: 'HORIZONTAL',
+      reason: 'Người dùng chọn thủ công: Địa phương theo chiều ngang (Cột = Địa phương, Dòng = Chỉ tiêu)',
+      isAuto: false,
+      pageCount: pages,
+    };
+  }
+
+  if (userPref === 'VERTICAL') {
+    const maxRows = 18;
+    const pages = selectedCount === 0 ? 1 : Math.ceil(selectedCount / maxRows);
+    return {
+      mode: 'VERTICAL',
+      userPreference: 'VERTICAL',
+      reason: 'Người dùng chọn thủ công: Địa phương theo chiều dọc (Dòng = Địa phương, Cột = Chỉ tiêu)',
+      isAuto: false,
+      pageCount: pages,
+    };
+  }
+
+  // AUTO Mode: Decision logic optimized for A4 Landscape
+  // If <= 7 localities, Horizontal layout fits on 1 single page without horizontal splitting
+  if (selectedCount <= 7) {
+    return {
+      mode: 'HORIZONTAL',
+      userPreference: 'AUTO',
+      reason: `Đã tự động chọn bố cục Địa phương theo chiều ngang (${selectedCount} địa phương vừa vặn 1 trang A4 ngang)`,
+      isAuto: true,
+      pageCount: 1,
+    };
+  }
+
+  // If > 7 localities:
+  // In vertical layout, each page fits ~18 locality rows with 14 indicator columns on A4 landscape.
+  // This avoids wide horizontal splitting when tracking 8..25 localities.
+  if (selectedCount > 7 && selectedCount <= 35) {
+    const pages = Math.ceil(selectedCount / 18);
+    return {
+      mode: 'VERTICAL',
+      userPreference: 'AUTO',
+      reason: `Đã tự động chọn bố cục Địa phương theo chiều dọc (${selectedCount} địa phương tối ưu đọc liên tục trên A4 ngang, chia ${pages} trang)`,
+      isAuto: true,
+      pageCount: pages,
+    };
+  }
+
+  // For very large numbers of localities (> 35):
+  const vertPages = Math.ceil(selectedCount / 18);
+  return {
+    mode: 'VERTICAL',
+    userPreference: 'AUTO',
+    reason: `Đã tự động chọn bố cục Địa phương theo chiều dọc (${selectedCount} địa phương, ${vertPages} trang A4 ngang)`,
+    isAuto: true,
+    pageCount: vertPages,
+  };
+}
+
+export function renderA4DocumentStudioHtml(params: {
+  evaluated: EvaluatedSessionReport;
+  baselineLocalities: Locality[];
+  datasets: { REV?: Dataset; DISB?: Dataset; GPMB?: Dataset };
+  activeTraceId?: string;
+  zoomScale?: number;
+}): string {
+  const { evaluated, baselineLocalities, datasets, activeTraceId, zoomScale = 1 } = params;
+  const { session, selectedLocalities, rows } = evaluated;
+
+  if (selectedLocalities.length === 0) {
+    return `<div class="empty-studio-state">
+      <div class="empty-studio-icon">📄</div>
+      <h3 class="empty-studio-title">Phiên báo cáo "${escapeHtmlUi(session.name)}" đang có 0 địa phương được chọn</h3>
+      <p class="empty-studio-desc">
+        Theo chuẩn hành chính MASTER V2.2, phiên báo cáo mới khởi tạo rỗng (không mặc định xã/phường).
+        Hãy chọn địa phương để xem ngay báo cáo tính toán thật trên khổ A4 ngang.
+      </p>
+      <div class="empty-studio-presets">
+        <button type="button" class="btn btn-primary" data-nav-tab="LOCALITIES">
+          <span class="btn-icon">📋</span> Mở Danh mục chọn địa phương (114 đơn vị)
+        </button>
+        <button type="button" class="btn btn-secondary" id="btn-empty-preset-5-xa">
+          <span class="btn-icon">⚡</span> Xem nhanh mẫu 5 xã
+        </button>
+        <button type="button" class="btn btn-secondary" id="btn-empty-preset-7-phuong">
+          <span class="btn-icon">⚡</span> Xem nhanh mẫu 7 phường
+        </button>
+        <button type="button" class="btn btn-secondary" id="btn-empty-preset-11-xa">
+          <span class="btn-icon">⚡</span> Xem mẫu 11 xã (từ file mẫu)
+        </button>
+      </div>
+    </div>`;
+  }
+
+  const layout = computeAutoLayoutMode({
+    session,
+    selectedCount: selectedLocalities.length,
+    indicatorCount: rows.length,
+  });
+
+  const { bySource } = analyzeSourceCoverage(baselineLocalities, datasets);
+  const revMissingNames =
+    bySource.REV?.missingLocalities.map((m) => m.localityName).join(', ') || 'Không';
+  const gpmbMissingNames =
+    bySource.GPMB?.missingLocalities.map((m) => m.localityName).join(', ') || 'Không';
+
+  const revDate = datasets.REV?.asOfDate || 'Chưa xác nhận';
+  const disbDate = datasets.DISB?.asOfDate || '15/10/2026';
+  const gpmbDate = datasets.GPMB?.asOfDate || '26/10/2026';
+
+  // Build sheets based on layout mode
+  let sheetsHtml = '';
+  if (layout.mode === 'HORIZONTAL') {
+    sheetsHtml = renderHorizontalPages({
+      evaluated,
+      session,
+      selectedLocalities,
+      rows,
+      activeTraceId,
+      disbDate,
+      revDate,
+      gpmbDate,
+      revMissingNames,
+      gpmbMissingNames,
+    });
+  } else {
+    sheetsHtml = renderVerticalPages({
+      evaluated,
+      session,
+      selectedLocalities,
+      rows,
+      activeTraceId,
+      disbDate,
+      revDate,
+      gpmbDate,
+      revMissingNames,
+      gpmbMissingNames,
+    });
+  }
+
+  const scaleStyle = zoomScale !== 1 ? `transform: scale(${zoomScale}); transform-origin: top center;` : '';
+
+  return `<div class="a4-canvas-viewport">
+    <div class="a4-canvas-canvas" style="${scaleStyle}">
+      ${sheetsHtml}
+    </div>
+  </div>`;
+}
+
+function renderHorizontalPages(params: {
+  evaluated: EvaluatedSessionReport;
+  session: ReportSession;
+  selectedLocalities: Locality[];
+  rows: EvaluatedReportRow[];
+  activeTraceId?: string;
+  disbDate: string;
+  revDate: string;
+  gpmbDate: string;
+  revMissingNames: string;
+  gpmbMissingNames: string;
+}): string {
+  const {
+    evaluated,
+    session,
+    selectedLocalities,
+    rows,
+    activeTraceId,
+    disbDate,
+    revDate,
+    gpmbDate,
+    revMissingNames,
+    gpmbMissingNames,
+  } = params;
+
+  const maxCols = session.settings.paperSize === 'A3' ? 12 : 7;
+  const chunks: Locality[][] = [];
+  for (let i = 0; i < selectedLocalities.length; i += maxCols) {
+    chunks.push(selectedLocalities.slice(i, i + maxCols));
+  }
+  if (chunks.length === 0) chunks.push([]);
+
+  return chunks
+    .map((chunk, pageIdx) => {
+      const headerColsHtml = chunk
+        .map(
+          (loc) => `<th class="doc-th doc-th-locality" style="min-width:${session.settings.columnWidthPx || 120}px">
+            <div class="doc-loc-name">${escapeHtmlUi(loc.displayName)}</div>
+            <span class="doc-loc-type">${escapeHtmlUi(loc.type)}</span>
+          </th>`
+        )
+        .join('');
+
+      const bodyRowsHtml = rows
+        .map((r) => {
+          const unitBadge =
+            r.indicator.displayUnit === 'billion_vnd'
+              ? session.settings.moneyUnit === 'billion'
+                ? 'tỷ đồng'
+                : 'triệu đồng'
+              : r.indicator.displayUnit === 'm2'
+              ? session.settings.areaUnit === 'ha'
+                ? 'ha'
+                : 'm²'
+              : r.indicator.displayUnit === 'percent'
+              ? '%'
+              : 'nhận xét';
+
+          const cellsHtml = chunk
+            .map((loc) => {
+              const cell = r.cellsByLocalityId[loc.id];
+              if (!cell) {
+                return `<td class="doc-td doc-cell-missing">Chưa có số liệu</td>`;
+              }
+              const isSelected = activeTraceId === cell.traceId;
+              const warnIcon = cell.hasWarning
+                ? `<span class="cell-warn-pill" title="Có cảnh báo chất lượng hoặc đối chiếu M">⚠</span>`
+                : '';
+              const noteIcon = cell.officialNote
+                ? `<span class="cell-note-pill" title="Có ghi chú nguyên văn cột Q">📝</span>`
+                : '';
+
+              return `<td class="doc-td doc-cell state-${escapeHtmlUi(
+                cell.state
+              )} quality-${escapeHtmlUi(cell.qualityStatus)} ${
+                isSelected ? 'doc-cell-active' : ''
+              }" tabindex="0" role="button" data-trace-id="${escapeHtmlUi(
+                cell.traceId
+              )}" data-locality-id="${escapeHtmlUi(
+                loc.id
+              )}" data-indicator-id="${escapeHtmlUi(
+                r.indicator.id
+              )}" title="Nhấn để xem cách tính chi tiết và nguồn số liệu">
+                <div class="cell-content">
+                  <span class="cell-val">${escapeHtmlUi(cell.displayedText)}</span>
+                  ${warnIcon}${noteIcon}
+                </div>
+              </td>`;
+            })
+            .join('');
+
+          return `<tr class="doc-row" data-row-number="${r.rowConfig.rowNumber}">
+            <td class="doc-td doc-td-stt">${escapeHtmlUi(r.rowConfig.sttLabel || '')}</td>
+            <td class="doc-td doc-td-indicator">
+              <div class="indicator-name-group">
+                <span class="indicator-name-text">${escapeHtmlUi(r.rowConfig.customLabel)}</span>
+                <button type="button" class="btn-inline-edit-ind" data-indicator-id="${escapeHtmlUi(
+                  r.indicator.id
+                )}" data-row-number="${r.rowConfig.rowNumber}" title="Đổi tên hiển thị chỉ tiêu">✎</button>
+              </div>
+              <div class="indicator-unit-sub">ĐVT: <strong>${escapeHtmlUi(unitBadge)}</strong> (Dòng mẫu ${r.rowConfig.rowNumber})</div>
+            </td>
+            ${cellsHtml}
+          </tr>`;
+        })
+        .join('');
+
+      return renderPaperSheetHtml({
+        session,
+        contentHtml: `
+          <div class="table-responsive">
+            <table class="doc-table doc-table-horizontal">
+              <thead>
+                <tr>
+                  <th class="doc-th doc-th-stt">STT</th>
+                  <th class="doc-th doc-th-indicator">Chỉ tiêu / Kết quả thực hiện</th>
+                  ${headerColsHtml}
+                </tr>
+              </thead>
+              <tbody>
+                ${bodyRowsHtml}
+              </tbody>
+            </table>
+          </div>
+        `,
+        pageIdx: pageIdx + 1,
+        totalPages: chunks.length,
+        disbDate,
+        revDate,
+        gpmbDate,
+        revMissingNames,
+        gpmbMissingNames,
+      });
+    })
+    .join('');
+}
+
+function renderVerticalPages(params: {
+  evaluated: EvaluatedSessionReport;
+  session: ReportSession;
+  selectedLocalities: Locality[];
+  rows: EvaluatedReportRow[];
+  activeTraceId?: string;
+  disbDate: string;
+  revDate: string;
+  gpmbDate: string;
+  revMissingNames: string;
+  gpmbMissingNames: string;
+}): string {
+  const {
+    evaluated,
+    session,
+    selectedLocalities,
+    rows,
+    activeTraceId,
+    disbDate,
+    revDate,
+    gpmbDate,
+    revMissingNames,
+    gpmbMissingNames,
+  } = params;
+
+  const maxRowsPerPage = 18;
+  const chunks: Locality[][] = [];
+  for (let i = 0; i < selectedLocalities.length; i += maxRowsPerPage) {
+    chunks.push(selectedLocalities.slice(i, i + maxRowsPerPage));
+  }
+  if (chunks.length === 0) chunks.push([]);
+
+  // Indicator column headers
+  const indicatorHeadersHtml = rows
+    .map((r) => {
+      const unitBadge =
+        r.indicator.displayUnit === 'billion_vnd'
+          ? session.settings.moneyUnit === 'billion'
+            ? 'tỷ'
+            : 'triệu'
+          : r.indicator.displayUnit === 'm2'
+          ? session.settings.areaUnit === 'ha'
+            ? 'ha'
+            : 'm²'
+          : r.indicator.displayUnit === 'percent'
+          ? '%'
+          : '';
+      const unitSuffix = unitBadge ? ` (${unitBadge})` : '';
+
+      return `<th class="doc-th doc-th-ind-vert" title="${escapeHtmlUi(
+        r.rowConfig.customLabel
+      )}">
+        <div class="ind-vert-name">${escapeHtmlUi(r.rowConfig.customLabel)}${escapeHtmlUi(unitSuffix)}</div>
+        <div class="ind-vert-stt">Dòng ${r.rowConfig.rowNumber}</div>
+      </th>`;
+    })
+    .join('');
+
+  return chunks
+    .map((chunk, pageIdx) => {
+      const bodyRowsHtml = chunk
+        .map((loc, locIdx) => {
+          const globalStt = (pageIdx * maxRowsPerPage) + locIdx + 1;
+          const cellsHtml = rows
+            .map((r) => {
+              const cell = r.cellsByLocalityId[loc.id];
+              if (!cell) {
+                return `<td class="doc-td doc-cell-missing">-</td>`;
+              }
+              const isSelected = activeTraceId === cell.traceId;
+              const warnIcon = cell.hasWarning ? `<span class="cell-warn-pill">⚠</span>` : '';
+              const noteIcon = cell.officialNote ? `<span class="cell-note-pill">📝</span>` : '';
+
+              return `<td class="doc-td doc-cell state-${escapeHtmlUi(
+                cell.state
+              )} ${isSelected ? 'doc-cell-active' : ''}" tabindex="0" role="button" data-trace-id="${escapeHtmlUi(
+                cell.traceId
+              )}" data-locality-id="${escapeHtmlUi(
+                loc.id
+              )}" data-indicator-id="${escapeHtmlUi(
+                r.indicator.id
+              )}" title="${escapeHtmlUi(loc.displayName)} — ${escapeHtmlUi(
+                r.rowConfig.customLabel
+              )}: ${escapeHtmlUi(cell.displayedText)}">
+                <div class="cell-content">
+                  <span class="cell-val">${escapeHtmlUi(cell.displayedText)}</span>
+                  ${warnIcon}${noteIcon}
+                </div>
+              </td>`;
+            })
+            .join('');
+
+          return `<tr class="doc-row">
+            <td class="doc-td doc-td-stt">${globalStt}</td>
+            <td class="doc-td doc-td-loc-name">
+              <strong>${escapeHtmlUi(loc.displayName)}</strong>
+            </td>
+            <td class="doc-td doc-td-loc-type">
+              <span class="doc-loc-type">${escapeHtmlUi(loc.type)}</span>
+            </td>
+            ${cellsHtml}
+          </tr>`;
+        })
+        .join('');
+
+      return renderPaperSheetHtml({
+        session,
+        contentHtml: `
+          <div class="table-responsive">
+            <table class="doc-table doc-table-vertical">
+              <thead>
+                <tr>
+                  <th class="doc-th doc-th-stt">STT</th>
+                  <th class="doc-th doc-th-loc-name">Tên địa phương</th>
+                  <th class="doc-th doc-th-loc-type">Loại</th>
+                  ${indicatorHeadersHtml}
+                </tr>
+              </thead>
+              <tbody>
+                ${bodyRowsHtml}
+              </tbody>
+            </table>
+          </div>
+        `,
+        pageIdx: pageIdx + 1,
+        totalPages: chunks.length,
+        disbDate,
+        revDate,
+        gpmbDate,
+        revMissingNames,
+        gpmbMissingNames,
+      });
+    })
+    .join('');
+}
+
+function renderPaperSheetHtml(params: {
+  session: ReportSession;
+  contentHtml: string;
+  pageIdx: number;
+  totalPages: number;
+  disbDate: string;
+  revDate: string;
+  gpmbDate: string;
+  revMissingNames: string;
+  gpmbMissingNames: string;
+}): string {
+  const {
+    session,
+    contentHtml,
+    pageIdx,
+    totalPages,
+    disbDate,
+    revDate,
+    gpmbDate,
+    revMissingNames,
+    gpmbMissingNames,
+  } = params;
+
+  const titleAlign = session.settings.titleAlign || 'center';
+  const titleClass = session.settings.titleUppercase !== false ? 'text-uppercase' : '';
+  const titleFontSize = session.settings.titleFontSizePx || 16;
+  const isLastPage = pageIdx === totalPages;
+
+  const signaturesHtml =
+    session.settings.showSignatures && isLastPage
+      ? `<div class="doc-signatures">
+          <div class="sig-column sig-left">
+            <div class="sig-title">${escapeHtmlUi(session.settings.signatoryLeftTitle || 'NGƯỜI LẬP BIỂU')}</div>
+            <div class="sig-note">${escapeHtmlUi(session.settings.signatoryLeftName || '(Ký, ghi rõ họ tên)')}</div>
+            <div class="sig-placeholder"></div>
+          </div>
+          <div class="sig-column sig-right">
+            <div class="sig-place-date"><em>Hải Phòng, ngày ... tháng ... năm 2026</em></div>
+            <div class="sig-title">${escapeHtmlUi(session.settings.signatoryRightTitle || 'THỦ TRƯỞNG ĐƠN VỊ')}</div>
+            <div class="sig-note">${escapeHtmlUi(session.settings.signatoryRightName || '(Ký, ghi rõ họ tên và đóng dấu)')}</div>
+            <div class="sig-placeholder"></div>
+          </div>
+        </div>`
+      : '';
+
+  return `<div class="a4-paper-sheet a4-landscape" data-page-number="${pageIdx}">
+    <!-- HEADER HÀNH CHÍNH QUY CHUẨN VIỆT NAM -->
+    <header class="doc-header">
+      <div class="doc-agency-box">
+        <div class="agency-superior">${escapeHtmlUi(session.settings.agencyName || 'ỦY BAN NHÂN DÂN THÀNH PHỐ')}</div>
+        <div class="agency-unit">${escapeHtmlUi(session.settings.subAgencyName || 'SỞ KẾ HOẠCH VÀ ĐẦU TƯ')}</div>
+        <div class="agency-line"></div>
+      </div>
+      <div class="doc-motto-box">
+        <div class="motto-country">CỘNG HÒA XÃ HỘI CHỦ NGHĨA VIỆT NAM</div>
+        <div class="motto-independence">Độc lập - Tự do - Hạnh phúc</div>
+        <div class="motto-line"></div>
+        <div class="doc-asof-meta">
+          <span>Ngày chốt số liệu: DISB: ${escapeHtmlUi(disbDate)} | REV: ${escapeHtmlUi(revDate)} | GPMB: ${escapeHtmlUi(gpmbDate)}</span>
+        </div>
+      </div>
+    </header>
+
+    <!-- TIÊU ĐỀ BÁO CÁO (NHẤP TRỰC TIẾP ĐỂ CHỈNH SỬA) -->
+    <div class="doc-title-block text-${titleAlign}">
+      <h1 class="doc-title ${titleClass}" style="font-size:${titleFontSize}px" data-action="open-title-editor" title="Nhấp chuột vào tiêu đề để đổi tên báo cáo, phụ đề, tên cơ quan">
+        ${escapeHtmlUi(session.settings.reportTitle)}
+        <button type="button" class="btn-inline-pencil" title="Sửa tiêu đề và thông tin báo cáo">✎</button>
+      </h1>
+      ${
+        session.settings.subtitle
+          ? `<p class="doc-subtitle">${escapeHtmlUi(session.settings.subtitle)}</p>`
+          : ''
+      }
+      <div class="doc-period-badge">
+        <span>Phiên: <strong>${escapeHtmlUi(session.name)}</strong> (${session.selectedLocalityIds.length} địa phương)</span>
+        ${totalPages > 1 ? ` &bull; <span>Phần ${pageIdx}/${totalPages}</span>` : ''}
+      </div>
+    </div>
+
+    <!-- BẢNG DỮ LIỆU TÍNH TOÁN -->
+    <div class="doc-body-table">
+      ${contentHtml}
+    </div>
+
+    <!-- CHÚ THÍCH PHƯƠNG PHÁP & NGUỒN DỮ LIỆU BẮT BUỘC (MASTER V2.2) -->
+    <footer class="doc-footer">
+      <div class="doc-notes">
+        <div class="doc-note-title">Ghi chú phương pháp tính &amp; Dữ liệu nguồn (MASTER V2.2 &amp; R06):</div>
+        <ul class="doc-note-list">
+          <li><strong>Giải phóng mặt bằng:</strong> Chỉ tính tỷ lệ theo diện tích <code>SUM(I ghi nhận) / SUM(D)</code>; đã loại bỏ hoàn toàn bình quân tỷ lệ dự án theo Quyết định R06. 108/114 địa bàn có dữ liệu (tỷ lệ toàn danh mục = 72,13%, <code>PARTIAL_AGGREGATE</code>). Địa phương chưa có bản ghi: <strong>${escapeHtmlUi(gpmbMissingNames)}</strong>.</li>
+          <li><strong>Giải ngân ĐTC (15/10/2026):</strong> Phạm vi 114/114 địa phương; mốc chuẩn tỷ lệ chung = <strong>67,10%</strong> (tổng giải ngân / tổng vốn sau điều chỉnh); vốn giao bình quân = <strong>136,41 tỷ đồng/đơn vị</strong>.</li>
+          <li><strong>Thu NSNN (10 tháng/2026, ngày chốt: ${escapeHtmlUi(revDate)}):</strong> Phạm vi 113/114 địa phương; mốc tham khảo = <strong>111,30%</strong>. Địa phương chưa có bản ghi: <strong>${escapeHtmlUi(revMissingNames)}</strong>.</li>
+        </ul>
+      </div>
+
+      ${signaturesHtml}
+
+      <div class="doc-page-counter">
+        <span>Trang ${pageIdx} / ${totalPages}</span>
+      </div>
+    </footer>
+  </div>`;
+}

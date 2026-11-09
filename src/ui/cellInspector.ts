@@ -274,3 +274,76 @@ export function renderTraceInspectorHtml(
     </div>
   </div>`;
 }
+
+export function renderCellTracePopoverHtml(
+  trace: CalculationTrace,
+  extraMeta?: { officialNote?: string | null; inspectionMarker?: string | null }
+): string {
+  const primarySource = trace.sourceRefs[0];
+  const sourceText = primarySource
+    ? `${primarySource.sheetName}!${primarySource.address}`
+    : 'Tổng hợp nhiều ô';
+  const asOf = trace.scope.asOfDates.join(', ') || primarySource?.asOfDate || 'Chưa rõ';
+
+  const numOp = trace.operands.find((o) => o.role === 'NUMERATOR' || o.role === 'SUM_NUMERATOR');
+  const denOp = trace.operands.find((o) => o.role === 'DENOMINATOR' || o.role === 'SUM_DENOMINATOR');
+
+  const operandsSummary =
+    numOp && denOp
+      ? `<div class="popover-fraction">
+          <div class="fraction-line">
+            <span class="fraction-label">Tử số:</span>
+            <code>${escapeHtmlUi(numOp.exactValue ?? 'null')}</code> ${escapeHtmlUi(numOp.unit)}
+          </div>
+          <div class="fraction-line">
+            <span class="fraction-label">Mẫu số:</span>
+            <code>${escapeHtmlUi(denOp.exactValue ?? 'null')}</code> ${escapeHtmlUi(denOp.unit)}
+          </div>
+        </div>`
+      : '';
+
+  return `<div class="cell-trace-popover" role="dialog" aria-label="Chi tiết phép tính ô">
+    <div class="popover-header">
+      <div class="popover-title-row">
+        <h4 class="popover-title">${escapeHtmlUi(trace.localityName || trace.scope.type)}</h4>
+        <button type="button" class="popover-btn-close" id="btn-close-popover" title="Đóng">&times;</button>
+      </div>
+      <div class="popover-subtitle">${escapeHtmlUi(trace.indicatorLabel || trace.indicatorId)}</div>
+    </div>
+    <div class="popover-body">
+      <div class="popover-value-row">
+        <span class="popover-display-val">${escapeHtmlUi(trace.result.displayedText)}</span>
+        <span class="badge badge-${escapeHtmlUi(trace.quality.status)}">${escapeHtmlUi(trace.quality.status)}</span>
+      </div>
+      <div class="popover-meta-row">
+        <span class="popover-meta-label">Số gốc chưa làm tròn:</span>
+        <code class="popover-exact-val">${escapeHtmlUi(trace.result.exactDecimal ?? 'null')}</code>
+      </div>
+      <div class="popover-meta-row">
+        <span class="popover-meta-label">Công thức:</span>
+        <code class="popover-formula">${escapeHtmlUi(trace.formula.readableExpression)}</code>
+      </div>
+      ${operandsSummary}
+      <div class="popover-meta-row">
+        <span class="popover-meta-label">Ô nguồn:</span>
+        <span><strong>${escapeHtmlUi(sourceText)}</strong> (chốt: ${escapeHtmlUi(asOf)})</span>
+      </div>
+      ${
+        extraMeta?.officialNote
+          ? `<div class="popover-note-snippet">
+              <span class="note-pill">Ghi chú cột Q</span>
+              <div class="note-text">${escapeHtmlUi(extraMeta.officialNote)}</div>
+            </div>`
+          : ''
+      }
+    </div>
+    <div class="popover-footer">
+      <button type="button" class="btn btn-sm btn-primary" id="btn-open-full-trace" data-trace-id="${escapeHtmlUi(
+        trace.traceId
+      )}">
+        Xem toàn bộ phép tính &rarr;
+      </button>
+    </div>
+  </div>`;
+}
+
