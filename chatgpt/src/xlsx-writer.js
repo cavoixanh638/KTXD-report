@@ -46,6 +46,21 @@ function sheetData(work,s,report){
  for(const x of report.coverage)missing.push([x.name,x.type,x.field,x.status,x.sourceCell,x.reason,x.asOfDate,x.impact]);
  for(const x of report.issues)warnings.push([x.locality,x.rule,x.severity,x.projectId||'',x.row,x.sourceCell,x.sourceM||'',x.recomputed||'',x.delta||'',x.explanation]);
  for(const ds of report.sources)sources.push([ds.type,ds.fileName,ds.hash,ds.sheetName,ds.sheetIndex,ds.visibility,ds.asOfDate,ds.asOfStatus,ds.confirmationReason,ds.periodLabel,ds.localities.length,ds.records.length]);
+ // Presentation-only transposition. Reuse original computed numeric cells and trace IDs.
+ const direction=root.KTXH.StudioLayout?.paginate(report,s.settings).direction||'horizontal';
+ if(direction==='vertical'){
+  const transposed=[...rows.slice(0,3),[textCell('Địa phương',1),...report.rows.map(r=>textCell(r.row.label,1))]];
+  for(let j=0;j<report.columns.length;j++){
+   transposed.push([textCell(report.columns[j].name,5),...report.rows.map(r=>{
+    const item=r.cells[j];return item.value!==null?numericCell(item.value,item.unit):textCell(item.text||item.trace.result.displayedText,4);
+   })]);
+  }
+  for(let k=0;k<log.length;k++){
+   const count=report.columns.length;
+   if(count)log[k][3]=colName(Math.floor(k/count)+1)+(5+k%count);
+  }
+  rows.length=0;rows.push(...transposed);
+ }
  const fromTable=(headers,data)=>[headers.map(x=>textCell(x,1)),...data.map(line=>line.map(x=>typeof x==='number'?numericCell(String(x),'count'):textCell(x)))];
  return [
  {name:'Báo cáo',rows,opts:{mergeTitle:true}},
