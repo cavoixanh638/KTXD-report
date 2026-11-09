@@ -1,0 +1,11 @@
+{
+  "name": "ktxh-offline-chatgpt-ph1",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Isolated, dependency-free offline browser build for PH1; shared reference sources in ../../data/reference",
+  "scripts": {
+    "build": "node build.mjs",
+    "test": "node --test tests/core.test.cjs"
+  },
+  "license": "UNLICENSED"
+}
