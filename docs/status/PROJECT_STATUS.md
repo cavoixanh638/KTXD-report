@@ -5,7 +5,7 @@
 - **Master spec:** `docs/specs/KTXH_OFFLINE_MASTER_SPEC_V2_FINAL.md` (18 mục, 52 bài kiểm thử T01–T52).
 - **Nguồn lịch sử:** V1, review R01–R03. Trước khi làm gì đọc Master V2.
 - **Ứng dụng chạy được:** Chưa có. **Các bài kiểm thử runtime T01–T52:** chưa chạy. Script kiểm toán nguồn R01/R02 chỉ xác minh số liệu tham chiếu, KHÔNG phải test ứng dụng.
-- **GitHub:** connector user `cavoixanh638` hoạt động. Đã tìm thấy repository **Private** mới `cavoixanh638/KTXD-report` (created 2026-11-09 11:03:18 UTC), có quyền push, ban đầu trống. Khác tên `KTXH-Offline-Report` dự kiến cũ (404). Trạng thái ghi tệp: `PREPARING_INITIAL_COMMIT`; chỉ đổi thành `VERIFIED` sau khi fetch được file và SHA.
+- **GitHub:** connector user `cavoixanh638` hoạt động. Đã tìm thấy repository **Private** mới `cavoixanh638/KTXD-report` (created 2026-11-09 11:03:18 UTC), có quyền push, ban đầu trống. Khác tên `KTXH-Offline-Report` dự kiến cũ (404). Trạng thái lưu hồ sơ: `GITHUB_VERIFIED`; initial commit `b2990b1981512a62bd9b7c26b4995a7d7202ba3a`, commit chứa đặc tả V2 và 20 tệp `04f6d6694274e951fb14bdc7687b7ffd120a5cf5`; đã fetch xác nhận README, AGENTS, Master Spec V2, R01–R03 và mã audit.
 
 | Pha | Nội dung | Trạng thái |
 |---|---|---|
