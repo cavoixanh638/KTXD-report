@@ -52,6 +52,8 @@ with sync_playwright() as p:
  assert 'Trace ID' in page.locator('#inspector').inner_text()
  page.locator('[data-action="close-inspect"]').first.click()
  page.screenshot(path=str(OUT/'studio_five_horizontal.png'),full_page=True)
+ page.pdf(path=str(OUT/'studio_five_horizontal.pdf'),format='A4',landscape=True,print_background=True)
+ assert (OUT/'studio_five_horizontal.pdf').stat().st_size>8000
  page.locator('#studio-mode').select_option('vertical')
  page.screenshot(path=str(OUT/'studio_five_vertical.png'),full_page=True)
  with page.expect_download(timeout=60000) as dl:
@@ -70,6 +72,11 @@ with sync_playwright() as p:
  page.locator('[data-action="new"]').first.click()
  assert page.locator('.locality-item input:checked').count()==0
  page.screenshot(path=str(OUT/'studio_empty_new_session.png'),full_page=True)
+ page.wait_for_function("document.querySelector('#studio-save')?.textContent?.includes('Đã tự lưu')",timeout=20000)
+ page.reload(wait_until='load')
+ page.wait_for_function("document.querySelectorAll('.studio-top').length>0")
+ page.locator('[data-action="nav"][data-tab="sessions"]').click()
+ assert page.locator('.session-card').count()==3,'Autosaved workspace must preserve 3 sessions on reload'
  assert not errors,errors
  assert not external,external
  browser.close()
