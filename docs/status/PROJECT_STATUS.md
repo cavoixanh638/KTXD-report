@@ -2,7 +2,7 @@
 
 - **Ngày cập nhật:** 2026-11-09
 - **Repository:** `cavoixanh638/KTXD-report` (Private)
-- **Nhánh triển khai:** `main`
+- **Nhánh triển khai:** `main` (Commit SHA thực thi PH1: `96a1e632bb15cafcdc1473ef6a47742e865eba68`)
 - **Tài liệu có hiệu lực:** [`MASTER V2.2`](../specs/KTXH_OFFLINE_MASTER_SPEC_V2_2_CURRENT.md), [`PH1`](../plans/PHASE_1_RESULT_TEMPLATE.md), [`PH2`](../plans/PHASE_2_EXTENSIBILITY.md).
 - **Trạng thái tổng:** `MASTER_V2.2 / PH1_IMPLEMENTED_AND_RUNTIME_VERIFIED / PH2_NOT_STARTED`.
 - **Bốn file nguồn tham chiếu (`data/reference/MANIFEST.json` — 4/4 SHA-256 PASS):**
