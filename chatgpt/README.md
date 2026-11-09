@@ -1,12 +1,20 @@
-# KTXH Offline — Document Studio PH1 (nhánh triển khai mới)
+# KTXH Offline — Giao diện làm việc nhanh PH1
 
-**Bản chạy trực tiếp:** [`dist/index.html`](dist/index.html). Mở bằng Chrome/Edge từ thư mục đã tải, đường dẫn `file://`, không yêu cầu server, tài khoản hay Internet. Nguồn và báo cáo không truyền ra mạng.
+**Bản chạy trực tiếp:** [`dist/index.html`](dist/index.html) — mở trên Chrome/Edge theo `file://`, không cần Internet, không cần máy chủ. Dữ liệu người dùng ở trên máy.
 
-**Hướng dẫn nhanh:** tải file HTML, mở trình duyệt, bấm **+ Phiên mới** (không chọn sẵn địa phương); vào **Dữ liệu nguồn** để nhập 3 XLSX cùng lúc hoặc lần lượt (tự nhận diện REV/DISB/GPMB), xác nhận ngày chốt và căn cứ; trở lại **Báo cáo tổng hợp** để chọn các địa phương; dùng thanh **Bố cục** (tự động / ngang / dọc) và **Khổ giấy** để xem trước A4; bấm các ô để xem trace, sau đó **Xuất Excel** hoặc **In/PDF**. Khi làm xong, bấm **Sao lưu hồ sơ** để tải tệp `.kxh.json` có kiểm checksum. Tự lưu qua IndexedDB chỉ là lưu tạm, không thay thế file backup.
+**Quy trình 4 bước trên thanh trên cùng:**
+1. **Phiên làm việc:** Chọn phiên cũ trong danh sách; nút `+` tạo phiên mới (mặc định 0 địa phương), `⋯` để đổi tên/nhân bản/đóng/xóa và sao lưu/khôi phục.
+2. **Dữ liệu Excel:** Xem ba nhãn nguồn Giải ngân / Thu NSNN / GPMB; bấm **Nhập / cập nhật** để chọn các XLSX cùng lúc hoặc lần lượt, nhận dạng từ sheet. DISB/GPMB có ngày rõ ở tiêu đề A1 sẽ được điền căn cứ; REV bắt buộc kiểm chứng ngày chốt và căn cứ, không tự đoán theo tên file. Nguồn đã có cùng SHA được bỏ qua; nhập từng nguồn hợp lệ không bị cản bởi file khác chưa đủ ngày.
+3. **Địa phương:** Danh sách xã/phường/đặc khu chung cạnh bản xem trước. Tìm không dấu, chọn nhiều dòng hoặc **Chọn lọc**. Nút **Chọn / sửa** ở trên đưa con trỏ về bộ chọn; không xóa bộ lọc khi đánh dấu.
+4. **Xuất báo cáo:** Bấm **Excel** hoặc **In / PDF** ngay ở thanh trên. Bấm từng ô kết quả để xem nguồn, công thức và `CalculationTrace`.
 
-**Nguồn thật:** dùng đúng 3 workbook tại `../data/reference/`, không thêm file nội bộ vào repo. Ngày chốt của REV `10T-19.10` vẫn cần kiểm tra và xác nhận theo chứng cứ hành chính, không tự nhận 19/10 hay 31/10 là ngày chốt.
+**Thiết lập ít sử dụng:** biểu tượng **⚙** mở trang thiết kế mẫu; mặc định chỉ hiển thị tiêu đề, khổ in và bố cục, các định dạng nâng cao/danh sách chỉ tiêu/chất lượng trong mục có thể mở rộng. Bấm **Lưu làm mẫu mặc định** để các phiên mới kế thừa thiết kế (không tự chọn địa phương). Không cần sửa mẫu mỗi khi lập báo cáo.
 
-**Đánh giá QA mới:** [trạng thái triển khai](docs/STUDIO_STATUS_20261109.md) và [workflow kiểm thử](../.github/workflows/ktxh-document-studio.yml). Mọi bằng chứng phải gắn SHA; chưa phải nghiệm thu cuối cùng PH1/PH2. Ứng dụng sử dụng nguyên calculation engine của PH1 và bổ sung module `studio-*` để giữ kết quả số.
+**Lưu ý dữ liệu:** bốn workbook nguyên gốc ở `../data/reference/`, không đưa thêm nguồn nội bộ lên GitHub. REV ghi kỳ “10 tháng” nhưng ngày chốt hành chính chưa được xác minh; 19/10/2026 trong kiểm thử là giả định QA, không phải dữ liệu chính thức.
+
+**Chống mất dữ liệu:** IndexedDB tự lưu sau vài giây, nhưng vẫn cần sử dụng **`⋯` → Lưu toàn bộ hồ sơ** để tải bản `.kxh.json` SHA-256, đặc biệt trước khi thay tệp HTML. Giữ file sao lưu độc lập.
+
+**QA:** [Trạng thái kỹ thuật](docs/STUDIO_STATUS_20261109.md) · [Workflow GitHub Actions](../.github/workflows/ktxh-document-studio.yml) · [Draft PR #1](https://github.com/cavoixanh638/KTXD-report/pull/1). Chưa tuyên bố PH1/PH2 hoàn thành toàn bộ khi chưa đủ gate.
 
 ---
 
