@@ -26,15 +26,36 @@ with sync_playwright() as p:
  assert page.locator('.locality-item input:checked').count()==0
  page.locator('[data-action="nav"][data-tab="sources"]').click()
  page.locator('#source-files').set_input_files([str(files[x]) for x in ['GPMB_20261026','REV_10M_2026','DISB_20261015']])
- page.wait_for_function("document.querySelectorAll('.source-review .source-item').length===3",timeout=90000)
- assert page.locator('[data-pending-date]').count()==3
- entries=page.locator('[data-pending-date]').count()
- dates=['2026-10-26','2026-10-19','2026-10-15']
- for i in range(entries):
-  page.locator(f'[data-pending-date="{i}"]').fill(dates[i])
-  page.locator(f'[data-pending-reason="{i}"]').fill('QA: kiểm tra giao diện và nguồn; REV chưa xác minh ngày chốt chính thức' if i==1 else 'Xác nhận từ tiêu đề A1')
+ page.wait_for_function("document.querySelectorAll('[data-pending-date]').length===3",timeout=90000)
+ # Both explicit A1 dates must auto-fill date and evidence; REV is deliberately manual.
+ assert page.locator('[data-pending-date="0"]').input_value()=='2026-10-26'
+ assert 'A1' in page.locator('[data-pending-reason="0"]').input_value()
+ assert page.locator('[data-pending-date="1"]').input_value()==''
+ assert page.locator('[data-pending-reason="1"]').input_value()==''
+ assert page.locator('[data-pending-date="2"]').input_value()=='2026-10-15'
+ assert 'A1' in page.locator('[data-pending-reason="2"]').input_value()
+ # Import valid sources first. Empty REV must not block DISB/GPMB, or erase progress.
  page.locator('[data-action="commit-sources"]').click()
- page.wait_for_function("document.querySelectorAll('.source-review .source-item').length===3 && document.querySelector('#toast')?.textContent?.includes('Nhập 3')",timeout=120000)
+ page.wait_for_function("document.querySelector('#toast')?.textContent?.includes('Đã nhập 2 nguồn hợp lệ')",timeout=120000)
+ assert page.locator('[data-pending-date]').count()==1
+ assert page.locator('[data-pending-date="0"]').input_value()==''
+ assert page.locator('.source-review').last.locator('.source-item').count()==2
+ # A date alone is not sufficient evidence and must be rejected with inline explanation.
+ page.locator('[data-pending-date="0"]').fill('2026-10-19')
+ page.locator('[data-pending-reason="0"]').fill('10/15/2026')
+ page.locator('[data-action="commit-sources"]').click()
+ assert 'không chỉ là một ngày' in page.locator('.source-review').first.inner_text()
+ assert page.locator('.source-review').last.locator('.source-item').count()==2
+ page.locator('[data-pending-reason="0"]').fill('QA only: ngày tạm chọn để thử, CHƯA CÓ chứng cứ xác nhận ngày chốt chính thức')
+ page.locator('[data-action="commit-sources"]').click()
+ page.wait_for_function("document.querySelector('#toast')?.textContent?.includes('Đã nhập 1 nguồn mới')",timeout=120000)
+ assert page.locator('.source-review').last.locator('.source-item').count()==3
+ # Re-select an already imported file: no re-confirmation or double creation.
+ page.locator('#source-files').set_input_files(str(files['DISB_20261015']))
+ page.wait_for_function("document.querySelector('.source-review .source-item')?.textContent?.includes('đã có trong hồ sơ')",timeout=90000)
+ assert page.locator('[data-pending-date]').count()==0
+ assert page.locator('[data-action="commit-sources"]').count()==0
+ assert page.locator('.source-review').last.locator('.source-item').count()==3
  page.locator('[data-action="nav"][data-tab="report"]').click()
  assert page.locator('.locality-item').count()==114
  for name in ['Xã Hồng Châu','Xã Khúc Thừa Dụ','Xã Vĩnh Lại','Xã Chí Minh','Xã Đại Sơn']:
