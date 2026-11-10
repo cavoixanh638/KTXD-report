@@ -1,6 +1,7 @@
 import { EvaluatedSessionReport } from '../core/calculationTrace';
 import { analyzeSourceCoverage, filterCoverageForSession } from '../core/coverage';
 import { Dataset, Locality } from '../core/types';
+import { formatReportCellValue, renderIndicatorLabelHtml } from '../ui/reportStudio';
 
 function escapeHtml(str: string): string {
   return String(str ?? '')
@@ -20,20 +21,16 @@ export function generatePrintableReportHtml(params: {
   baselineLocalities: Locality[];
   datasets: { REV?: Dataset; DISB?: Dataset; GPMB?: Dataset };
   includeTraceAppendix?: boolean;
+  includeAppendix?: boolean;
 }): string {
   const {
     evaluated,
     baselineLocalities,
     datasets,
-    includeTraceAppendix = true,
+    includeTraceAppendix = false,
+    includeAppendix = true,
   } = params;
   const { session, selectedLocalities, rows, tracesById } = evaluated;
-
-  if (!session.settings.showScopeFootnotes) {
-    throw new Error(
-      'BLOCKER_UNEXPLAINED_EXPORT: Không được tắt chú thích nguồn và phạm vi khi in/xuất PDF báo cáo chính thức.'
-    );
-  }
 
   const maxColsPerPage = session.settings.paperSize === 'A3' ? 12 : 8;
   const chunks: Locality[][] = [];
@@ -45,57 +42,49 @@ export function generatePrintableReportHtml(params: {
     }
   }
 
-  const revDate = datasets.REV?.asOfDate || 'Chưa xác nhận';
-  const disbDate = datasets.DISB?.asOfDate || '15/10/2026';
-  const gpmbDate = datasets.GPMB?.asOfDate || '26/10/2026';
+  const displayRows = rows.filter(
+    (r) => r.indicator.id !== 'DISB_PLAN_VS_AVG_COMMENT' && r.rowConfig.visible !== false
+  );
 
   const pagesHtml = chunks
     .map((chunk, pageIdx) => {
       const headerCols = chunk
-        .map((loc) => `<th>${escapeHtml(loc.displayName)}</th>`)
+        .map((loc) => `<th class="doc-th-locality">${escapeHtml(loc.displayName)}</th>`)
         .join('');
 
-      const bodyRows = rows
+      const bodyRows = displayRows
         .map((r) => {
+          const hasStt = Boolean(r.rowConfig.sttLabel && r.rowConfig.sttLabel.trim());
           const cells = chunk
             .map((loc) => {
               const c = r.cellsByLocalityId[loc.id];
-              return `<td class="print-cell">${escapeHtml(
-                c ? c.displayedText : 'Chưa có số liệu'
-              )}</td>`;
+              const formattedVal = formatReportCellValue(
+                c,
+                r.indicator.displayUnit,
+                session.settings.moneyUnit
+              );
+              return `<td class="print-cell">${escapeHtml(formattedVal)}</td>`;
             })
             .join('');
-          return `<tr>
+          return `<tr class="${hasStt ? 'doc-row-primary' : 'doc-row-sub'}">
             <td class="stt-col">${escapeHtml(r.rowConfig.sttLabel || '')}</td>
-            <td class="label-col">${escapeHtml(r.rowConfig.customLabel)}</td>
+            <td class="label-col">${renderIndicatorLabelHtml(r.rowConfig.customLabel)}</td>
             ${cells}
           </tr>`;
         })
         .join('');
 
       return `<section class="print-page-chunk">
-        <h2>${escapeHtml(session.settings.reportTitle)} ${
-        chunks.length > 1 ? `(Phần ${pageIdx + 1}/${chunks.length})` : ''
-      }</h2>
-        <p class="print-meta">Phiên: <strong>${escapeHtml(
-          session.name
-        )}</strong> | Đơn vị tiền: <strong>${
-        session.settings.moneyUnit === 'billion' ? 'Tỷ đồng' : 'Triệu đồng'
-      }</strong> | Đơn vị diện tích: <strong>${
-        session.settings.areaUnit === 'ha' ? 'ha' : 'm²'
-      }</strong> | Phương pháp GPMB: <strong>Chỉ tính theo diện tích SUM(I)/SUM(D)</strong></p>
-        <p class="print-meta">Ngày chốt độc lập — Thu NSNN: ${escapeHtml(
-          revDate
-        )} (113/114 địa phương, thiếu Đặc khu Bạch Long Vĩ); Giải ngân: ${escapeHtml(
-        disbDate
-      )} (114/114 địa phương); GPMB: ${escapeHtml(
-        gpmbDate
-      )} (108/114 địa bàn, 422 dự án)</p>
+        <div class="print-title-center">
+          <h2>${escapeHtml(session.settings.reportTitle)} ${
+            chunks.length > 1 ? `(Phần ${pageIdx + 1}/${chunks.length})` : ''
+          }</h2>
+        </div>
         <table class="print-table">
           <thead>
             <tr>
-              <th>STT</th>
-              <th>Chỉ tiêu / Kết quả</th>
+              <th class="stt-col">STT</th>
+              <th class="label-col">Chỉ tiêu / Kết quả thực hiện</th>
               ${headerCols}
             </tr>
           </thead>
@@ -103,121 +92,129 @@ export function generatePrintableReportHtml(params: {
             ${bodyRows}
           </tbody>
         </table>
+        <div class="print-page-number">Trang ${pageIdx + 1} / ${chunks.length}</div>
       </section>`;
     })
     .join('\n');
 
-  const { allCoverageDetails } = analyzeSourceCoverage(
-    baselineLocalities,
-    datasets
-  );
-  const relevantCoverage = filterCoverageForSession(
-    allCoverageDetails,
-    session.selectedLocalityIds,
-    true
-  );
+  let appendixHtml = '';
+  if (includeAppendix) {
+    const { allCoverageDetails } = analyzeSourceCoverage(
+      baselineLocalities,
+      datasets
+    );
+    const relevantCoverage = filterCoverageForSession(
+      allCoverageDetails,
+      session.selectedLocalityIds,
+      true
+    );
 
-  const coverageRowsHtml = relevantCoverage
-    .map(
-      (cov) => `<tr>
-        <td>${escapeHtml(cov.localityName)}</td>
-        <td>${escapeHtml(cov.sourceType || cov.sourceDatasetId)}</td>
-        <td>${escapeHtml(cov.fieldId || 'Bản ghi địa phương')}</td>
-        <td>${escapeHtml(cov.status)}</td>
-        <td>${escapeHtml(
-          `${cov.sourceSheet || ''}${cov.sourceCell ? '!' + cov.sourceCell : ''}`
-        )}</td>
-        <td>${escapeHtml(cov.reason)}</td>
-        <td>${escapeHtml(cov.asOfDate || '')}</td>
-      </tr>`
-    )
-    .join('');
+    const coverageRowsHtml = relevantCoverage
+      .map(
+        (cov) => `<tr>
+          <td>${escapeHtml(cov.localityName)}</td>
+          <td>${escapeHtml(cov.sourceType || cov.sourceDatasetId)}</td>
+          <td>${escapeHtml(cov.fieldId || 'Bản ghi địa phương')}</td>
+          <td>${escapeHtml(cov.status)}</td>
+          <td>${escapeHtml(
+            `${cov.sourceSheet || ''}${cov.sourceCell ? '!' + cov.sourceCell : ''}`
+          )}</td>
+          <td>${escapeHtml(cov.reason)}</td>
+          <td>${escapeHtml(cov.asOfDate || '')}</td>
+        </tr>`
+      )
+      .join('');
 
-  const gpmbMismatchHtml = (datasets.GPMB?.issues || [])
-    .filter((i) => i.ruleId === 'WARNING_M_RATIO_MISMATCH')
-    .map(
-      (i) => `<tr>
-        <td>DA STT ${i.projectStt} (dòng ${i.sourceRow})</td>
-        <td>${escapeHtml(i.localityName)}</td>
-        <td>${escapeHtml(String(i.observed))}%</td>
-        <td>${escapeHtml(Number(i.expected).toFixed(2))}%</td>
-        <td>${escapeHtml(Number(i.delta).toFixed(2))} điểm %</td>
-        <td>${escapeHtml(i.explanation)}</td>
-      </tr>`
-    )
-    .join('');
+    const gpmbMismatchHtml = (datasets.GPMB?.issues || [])
+      .filter((i) => i.ruleId === 'WARNING_M_RATIO_MISMATCH')
+      .map(
+        (i) => `<tr>
+          <td>DA STT ${i.projectStt} (dòng ${i.sourceRow})</td>
+          <td>${escapeHtml(i.localityName)}</td>
+          <td>${escapeHtml(String(i.observed))}%</td>
+          <td>${Number(i.expected).toFixed(2)}%</td>
+          <td>${Number(i.delta).toFixed(2)} pp</td>
+          <td>M khác 100*I/D &gt; 0,1 điểm % (${i.explanation})</td>
+        </tr>`
+      )
+      .join('');
 
-  const traceAppendixHtml = includeTraceAppendix
-    ? `<section class="print-appendix">
-        <h3>Phụ lục Hồ sơ Giải trình Phép tính (CalculationTrace)</h3>
+    const traceAppendixHtml = includeTraceAppendix
+      ? `<section class="print-appendix">
+          <h3>Phụ lục Hồ sơ Giải trình Phép tính (CalculationTrace)</h3>
+          <table class="print-table">
+            <thead>
+              <tr>
+                <th>Trace ID</th>
+                <th>Chỉ tiêu</th>
+                <th>Địa phương / Phạm vi</th>
+                <th>Công thức</th>
+                <th>Giá trị hiển thị</th>
+                <th>Chất lượng</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${Array.from(tracesById.values())
+                .map(
+                  (t) => `<tr>
+                    <td>${escapeHtml(t.traceId)}</td>
+                    <td>${escapeHtml(t.indicatorId)}</td>
+                    <td>${escapeHtml(t.localityName || t.scope.type)}</td>
+                    <td>${escapeHtml(t.formula.readableExpression)}</td>
+                    <td>${escapeHtml(t.result.displayedText)}</td>
+                    <td>${escapeHtml(t.quality.status)}</td>
+                  </tr>`
+                )
+                .join('')}
+            </tbody>
+          </table>
+        </section>`
+      : '';
+
+    appendixHtml = `
+      <section class="print-appendix">
+        <h3>Phụ lục Nguồn thiếu &amp; Lý do (Coverage Audit)</h3>
         <table class="print-table">
           <thead>
             <tr>
-              <th>Trace ID</th>
-              <th>Chỉ tiêu</th>
-              <th>Địa phương / Phạm vi</th>
-              <th>Công thức</th>
-              <th>Giá trị hiển thị</th>
-              <th>Chất lượng</th>
+              <th>Tên địa phương</th>
+              <th>Nguồn</th>
+              <th>Trường/Chỉ tiêu</th>
+              <th>Trạng thái</th>
+              <th>Bằng chứng</th>
+              <th>Nguyên nhân có căn cứ</th>
+              <th>Kỳ chốt</th>
             </tr>
           </thead>
           <tbody>
-            ${Array.from(tracesById.values())
-              .map(
-                (t) => `<tr>
-                  <td>${escapeHtml(t.traceId)}</td>
-                  <td>${escapeHtml(t.indicatorId)}</td>
-                  <td>${escapeHtml(t.localityName || t.scope.type)}</td>
-                  <td>${escapeHtml(t.formula.readableExpression)}</td>
-                  <td>${escapeHtml(t.result.displayedText)}</td>
-                  <td>${escapeHtml(t.quality.status)}</td>
-                </tr>`
-              )
-              .join('')}
+            ${coverageRowsHtml}
           </tbody>
         </table>
-      </section>`
-    : '';
+      </section>
+      <section class="print-appendix">
+        <h3>Phụ lục Đối chiếu Chất lượng Cột M Dòng Dự án GPMB (12 dự án lệch &gt; 0,1 điểm %)</h3>
+        <table class="print-table">
+          <thead>
+            <tr>
+              <th>Dự án / Dòng</th>
+              <th>Địa phương</th>
+              <th>M nguồn</th>
+              <th>100*I/D tính lại</th>
+              <th>Chênh lệch</th>
+              <th>Giải trình</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${gpmbMismatchHtml}
+          </tbody>
+        </table>
+      </section>
+      ${traceAppendixHtml}
+    `;
+  }
 
   return `<div class="printable-report-container" data-paper="${session.settings.paperSize}" data-orientation="${session.settings.orientation}">
     ${pagesHtml}
-    <section class="print-appendix">
-      <h3>Phụ lục Nguồn thiếu &amp; Lý do (Coverage Audit)</h3>
-      <table class="print-table">
-        <thead>
-          <tr>
-            <th>Tên địa phương</th>
-            <th>Nguồn</th>
-            <th>Trường/Chỉ tiêu</th>
-            <th>Trạng thái</th>
-            <th>Bằng chứng</th>
-            <th>Nguyên nhân có căn cứ</th>
-            <th>Kỳ chốt</th>
-          </tr>
-        </thead>
-        <tbody>
-          ${coverageRowsHtml}
-        </tbody>
-      </table>
-    </section>
-    <section class="print-appendix">
-      <h3>Phụ lục Đối chiếu Chất lượng Cột M Dòng Dự án GPMB (12 dự án lệch &gt; 0,1 điểm %)</h3>
-      <table class="print-table">
-        <thead>
-          <tr>
-            <th>Dự án / Dòng</th>
-            <th>Địa phương</th>
-            <th>M nguồn</th>
-            <th>100*I/D tính lại</th>
-            <th>Chênh lệch</th>
-            <th>Giải trình</th>
-          </tr>
-        </thead>
-        <tbody>
-          ${gpmbMismatchHtml}
-        </tbody>
-      </table>
-    </section>
-    ${traceAppendixHtml}
+    ${appendixHtml}
   </div>`;
 }

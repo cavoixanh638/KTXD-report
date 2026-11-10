@@ -12,9 +12,11 @@ import {
   createReportSession,
   setSessionLocalities,
   cloneReportSession,
+  migrateLegacySessionLabels,
 } from '../src/core/sessions';
 import { evaluateSessionReport } from '../src/core/calculationTrace';
 import { searchLocalities } from '../src/core/localities';
+import { generatePrintableReportHtml } from '../src/export/print';
 import {
   computeAutoLayoutMode,
   renderA4DocumentStudioHtml,
@@ -431,5 +433,46 @@ describe('KTXH Offline – A4 Report Studio & WYSIWYG Architecture Suite', () =>
       datasets: { DISB: disbDataset, REV: revDataset, GPMB: gpmbDataset },
     });
     expect(vertStudioHtml).not.toContain('<th class="doc-th doc-th-loc-type">Loại</th>');
+  });
+
+  it('8. Session label migration, reordering selected localities, and clean 1-page print export', () => {
+    const ws = createEmptyWorkspace();
+    const session = createReportSession(ws, { name: 'Legacy Test Session' });
+    // Simulate legacy saved labels from previous session in localStorage
+    const legacyRow = session.templateRows.find((r) => r.indicatorId === 'DISB_PLAN')!;
+    legacyRow.customLabel = 'Kế hoạch vốn đầu tư công sau điều chỉnh';
+
+    migrateLegacySessionLabels(ws);
+    expect(legacyRow.customLabel).toBe('Kế hoạch vốn đầu tư công sau NQ điều chỉnh, bổ sung của HĐND');
+
+    // Reorder test: select 3 localities [loc0, loc1, loc2]
+    const loc0 = baselineLocalities[0].id;
+    const loc1 = baselineLocalities[1].id;
+    const loc2 = baselineLocalities[2].id;
+    setSessionLocalities(ws, session.id, [loc0, loc1, loc2]);
+    expect(session.selectedLocalityIds).toEqual([loc0, loc1, loc2]);
+
+    // Reorder to [loc2, loc0, loc1]
+    setSessionLocalities(ws, session.id, [loc2, loc0, loc1]);
+    expect(session.selectedLocalityIds).toEqual([loc2, loc0, loc1]);
+
+    const evalReorder = evaluateSessionReport({
+      session,
+      baselineLocalities,
+      datasets: { DISB: disbDataset, REV: revDataset, GPMB: gpmbDataset },
+    });
+    expect(evalReorder.selectedLocalities.map((l) => l.id)).toEqual([loc2, loc0, loc1]);
+
+    // Print export with includeAppendix: false should be clean, no appendix, no meta junk
+    const cleanPrintHtml = generatePrintableReportHtml({
+      evaluated: evalReorder,
+      baselineLocalities,
+      datasets: { DISB: disbDataset, REV: revDataset, GPMB: gpmbDataset },
+      includeAppendix: false,
+    });
+    expect(cleanPrintHtml).not.toContain('print-appendix');
+    expect(cleanPrintHtml).not.toContain('Phiên:');
+    expect(cleanPrintHtml).not.toContain('Ngày chốt độc lập');
+    expect(cleanPrintHtml).toContain('Kế hoạch vốn đầu tư công sau NQ điều chỉnh, bổ sung của HĐND');
   });
 });

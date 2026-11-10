@@ -106,6 +106,40 @@ export function confirmDatasetAsOfDate(
   return ds;
 }
 
+export function migrateLegacySessionLabels(workspace: Workspace): void {
+  const legacyToNewMap: Record<string, string> = {
+    'Kế hoạch vốn đầu tư công sau điều chỉnh':
+      'Kế hoạch vốn đầu tư công sau NQ điều chỉnh, bổ sung của HĐND',
+    'Tỷ lệ thu NSNN so với dự toán':
+      'Tỷ lệ thu NSNN so với dự toán (đến ngày 19/10/2026)',
+    'Tỷ lệ giải ngân chung của 114 địa phương':
+      'Tỷ lệ giải ngân chung của các địa phương (đến ngày 15/10/2026)',
+    'Nhận xét tỷ lệ giải ngân':
+      'Kết quả giải ngân so với tỷ lệ trung bình',
+    'Tỷ lệ GPMB của danh mục địa bàn có dữ liệu (108/114 địa bàn)':
+      'Tỷ lệ GPMB trung bình của các địa phương (đến ngày 26/10/2026)',
+    'Tỷ lệ GPMB địa phương theo diện tích':
+      'Tỷ lệ GPMB của từng địa phương',
+    'Đánh giá GPMB':
+      'Kết quả GPMB so với tỷ lệ trung bình',
+  };
+
+  for (const s of workspace.sessions) {
+    if (!Array.isArray(s.templateRows)) continue;
+    for (const r of s.templateRows) {
+      if (r.customLabel && legacyToNewMap[r.customLabel]) {
+        r.customLabel = legacyToNewMap[r.customLabel];
+      }
+      if (
+        r.indicatorId === 'DISB_PLAN' &&
+        (r.customLabel === 'Kế hoạch vốn đầu tư công sau điều chỉnh' || !r.customLabel)
+      ) {
+        r.customLabel = 'Kế hoạch vốn đầu tư công sau NQ điều chỉnh, bổ sung của HĐND';
+      }
+    }
+  }
+}
+
 export function createReportSession(
   workspace: Workspace,
   params: {

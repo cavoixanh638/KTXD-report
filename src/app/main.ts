@@ -7,6 +7,7 @@ import {
   deleteReportSession,
   setSessionLocalities,
   resolveSessionDatasets,
+  migrateLegacySessionLabels,
 } from '../core/sessions';
 import {
   importDisbursementWorkbook,
@@ -91,7 +92,7 @@ export class KtxhOfflineApp {
   public localitySearchQuery = '';
   public localityTypeFilter: 'ALL' | LocalityType = 'ALL';
   public localityCoverageFilter: 'ALL' | 'COMPLETE' | 'MISSING' = 'ALL';
-  public localitySortOption: 'DEFAULT' | 'NAME_ASC' | 'NAME_DESC' | 'TYPE' | 'SELECTED_FIRST' = 'DEFAULT';
+  public localitySortOption: 'DEFAULT' | 'NAME_ASC' | 'NAME_DESC' | 'TYPE' | 'SELECTED_FIRST' = 'SELECTED_FIRST';
   public warningRuleFilter = 'ALL';
 
   // Status & Autosave states
@@ -113,6 +114,7 @@ export class KtxhOfflineApp {
     if (loaded && loaded.formatVersion === 2 && Array.isArray(loaded.sessions)) {
       this.workspace = loaded;
     }
+    migrateLegacySessionLabels(this.workspace);
     this.ensureInitialDatasetsAndEmptySession();
     this.lastSavedTimestamp = new Date().toLocaleTimeString('vi-VN');
     this.render();
@@ -427,12 +429,13 @@ export class KtxhOfflineApp {
       ${popoverHtml}
       <div id="print-mount-area" class="print-only">
         ${
-          evaluatedReport && activeSession?.settings.showScopeFootnotes
+          evaluatedReport
             ? generatePrintableReportHtml({
                 evaluated: evaluatedReport,
                 baselineLocalities: this.workspace.localities,
                 datasets,
                 includeTraceAppendix: false,
+                includeAppendix: false,
               })
             : ''
         }
@@ -887,6 +890,49 @@ export class KtxhOfflineApp {
     </div>`;
   }
 
+  private renderSelectedReorderPanel(
+    activeSession: Workspace['sessions'][number]
+  ): string {
+    const selectedIds = activeSession.selectedLocalityIds;
+    if (selectedIds.length === 0) {
+      return '';
+    }
+
+    const localitiesMap = new Map(this.workspace.localities.map((l) => [l.id, l]));
+    const chipsHtml = selectedIds
+      .map((id, idx) => {
+        const loc = localitiesMap.get(id);
+        const name = loc ? loc.displayName : id;
+        return `<div class="selected-chip" data-loc-id="${escapeHtmlUi(id)}">
+          <span class="chip-order-badge">#${idx + 1}</span>
+          <span class="chip-name" title="${escapeHtmlUi(name)}">${escapeHtmlUi(name)}</span>
+          <div class="chip-actions">
+            <button type="button" class="btn-chip-move" data-move-dir="up" data-loc-id="${escapeHtmlUi(id)}" title="Di chuyển lên trước (sang trái trên bảng)">▲</button>
+            <button type="button" class="btn-chip-move" data-move-dir="down" data-loc-id="${escapeHtmlUi(id)}" title="Di chuyển xuống sau (sang phải trên bảng)">▼</button>
+            <button type="button" class="btn-chip-remove" data-remove-loc-id="${escapeHtmlUi(id)}" title="Bỏ chọn">&times;</button>
+          </div>
+        </div>`;
+      })
+      .join('');
+
+    return `<div class="selected-reorder-panel" id="unified-reorder-panel">
+      <div class="reorder-header-row">
+        <div class="reorder-title">
+          <strong>Thứ tự hiển thị cột trên bảng báo cáo (${selectedIds.length} địa phương đã chọn):</strong>
+          <span class="muted" style="margin-left: 8px; font-size: 12px">(Cột xuất hiện từ trái sang phải theo đúng thứ tự này)</span>
+        </div>
+        <div class="reorder-actions">
+          <button type="button" class="btn btn-xs btn-secondary" id="btn-reorder-az">Tên A &rarr; Z</button>
+          <button type="button" class="btn btn-xs btn-secondary" id="btn-reorder-za">Tên Z &rarr; A</button>
+          <button type="button" class="btn btn-xs btn-secondary" id="btn-reorder-reverse">Đảo ngược</button>
+        </div>
+      </div>
+      <div class="selected-chips-grid">
+        ${chipsHtml}
+      </div>
+    </div>`;
+  }
+
   private renderLocalityItemsHtml(
     activeSession: Workspace['sessions'][number]
   ): string {
@@ -917,7 +963,11 @@ export class KtxhOfflineApp {
       if (this.localitySortOption === 'SELECTED_FIRST') {
         const aSel = selectedSet.has(a.id) ? 1 : 0;
         const bSel = selectedSet.has(b.id) ? 1 : 0;
-        return bSel - aSel;
+        if (bSel !== aSel) return bSel - aSel;
+        const aIdx = activeSession.selectedLocalityIds.indexOf(a.id);
+        const bIdx = activeSession.selectedLocalityIds.indexOf(b.id);
+        if (aIdx !== -1 && bIdx !== -1) return aIdx - bIdx;
+        return 0;
       }
       return 0; // Default order
     });
@@ -946,11 +996,20 @@ export class KtxhOfflineApp {
           warnTag = `<span class="missing-source-tag" title="Chưa có bản ghi GPMB trong nguồn hiện tại (NO_LOCALITY_RECORD)">⚠️ Thiếu GPMB</span>`;
         }
 
+        let moveButtons = '';
+        if (isChecked) {
+          moveButtons = `<div class="row-reorder-btns">
+            <button type="button" class="btn-row-move" data-move-dir="up" data-loc-id="${escapeHtmlUi(loc.id)}" title="Chuyển cột lên trước (sang trái trên bảng)">▲</button>
+            <button type="button" class="btn-row-move" data-move-dir="down" data-loc-id="${escapeHtmlUi(loc.id)}" title="Chuyển cột xuống sau (sang phải trên bảng)">▼</button>
+          </div>`;
+        }
+
         return `<label class="locality-row-item ${isChecked ? 'checked' : ''}">
           <div class="locality-row-left">
             <input type="checkbox" class="chk-select-locality" data-loc-id="${escapeHtmlUi(
               loc.id
             )}" ${isChecked ? 'checked' : ''}/>
+            ${moveButtons}
             <span class="locality-name-bold">${escapeHtmlUi(loc.displayName)}</span>
             <span class="badge badge-sm">${escapeHtmlUi(loc.type)}</span>
           </div>
@@ -994,10 +1053,10 @@ export class KtxhOfflineApp {
           </select>
 
           <select id="select-unified-loc-sort" class="form-select-sm">
+            <option value="SELECTED_FIRST" ${this.localitySortOption === 'SELECTED_FIRST' ? 'selected' : ''}>Đã chọn lên đầu</option>
             <option value="DEFAULT" ${this.localitySortOption === 'DEFAULT' ? 'selected' : ''}>Thứ tự gốc</option>
             <option value="NAME_ASC" ${this.localitySortOption === 'NAME_ASC' ? 'selected' : ''}>Tên A &rarr; Z</option>
             <option value="NAME_DESC" ${this.localitySortOption === 'NAME_DESC' ? 'selected' : ''}>Tên Z &rarr; A</option>
-            <option value="SELECTED_FIRST" ${this.localitySortOption === 'SELECTED_FIRST' ? 'selected' : ''}>Đã chọn lên đầu</option>
           </select>
 
           <span class="locality-count-pill" id="unified-locality-count-pill">
@@ -1014,6 +1073,10 @@ export class KtxhOfflineApp {
           <button type="button" class="btn btn-sm btn-secondary" id="btn-preset-7-phuong">Mẫu 7 phường</button>
           <button type="button" class="btn btn-sm btn-secondary" id="btn-preset-11-xa">Mẫu 11 xã</button>
           <button type="button" class="btn btn-sm btn-primary" data-nav-tab="REPORT">Xem báo cáo A4 &rarr;</button>
+        </div>
+
+        <div id="unified-reorder-container">
+          ${this.renderSelectedReorderPanel(activeSession)}
         </div>
 
         <div class="locality-items-list-box" id="unified-locality-items-box">
@@ -1124,53 +1187,71 @@ export class KtxhOfflineApp {
     DISB?: Workspace['datasets'][number];
     GPMB?: Workspace['datasets'][number];
   }): string {
-    const { bySource, allCoverageDetails } = analyzeSourceCoverage(
+    const { allCoverageDetails } = analyzeSourceCoverage(
       this.workspace.localities,
       datasets
     );
-    const warnStats = summarizeDatasetWarnings(datasets);
 
     const dsCardsHtml = ['DISB', 'REV', 'GPMB']
       .map((type) => {
         const ds = datasets[type as 'DISB' | 'REV' | 'GPMB'];
         const label =
           type === 'DISB'
-            ? 'Giải ngân ĐTC'
+            ? 'Giải ngân vốn ĐTC'
             : type === 'REV'
             ? 'Thu Ngân sách Nhà nước'
             : 'Giải phóng mặt bằng';
         if (!ds) {
-          return `<div class="card source-card card-missing">
-            <h4>${label} (${type})</h4>
-            <span class="badge badge-MISSING">Chưa nạp</span>
+          return `<div class="card source-card source-card-compact card-missing">
+            <div class="source-card-header">
+              <div class="source-card-title"><strong>${label}</strong> <span class="source-card-code">(${type})</span></div>
+              <span class="badge badge-MISSING">Chưa nạp</span>
+            </div>
+            <div class="source-card-body-compact">
+              <div class="muted" style="padding: 12px 0; text-align: center">Chưa có tệp dữ liệu. Kéo thả hoặc chọn tệp bên trên.</div>
+            </div>
           </div>`;
         }
-        return `<div class="card source-card card-loaded">
+        return `<div class="card source-card source-card-compact card-loaded">
           <div class="source-card-header">
-            <h4>${label} (${type})</h4>
-            <span class="badge badge-COMPLETE">Đã nhập</span>
+            <div class="source-card-title">
+              <strong>${label}</strong>
+              <span class="source-card-code">(${type})</span>
+            </div>
+            <span class="badge badge-COMPLETE">Đã nạp</span>
           </div>
-          <div class="source-card-meta">
-            <div>Tệp: <strong>${escapeHtmlUi(ds.sourceFilename)}</strong></div>
-            <div>Sheet: <strong>${escapeHtmlUi(ds.sourceSheet)}</strong> (${escapeHtmlUi(
-          ds.sheetVisibility
-        )})</div>
-            <div>Phạm vi: <strong>${ds.unitCount}</strong> địa phương ${
-          ds.projectRowCount ? `(${ds.projectRowCount} DA)` : ''
-        }</div>
-            <div>Ngày chốt: <strong>${escapeHtmlUi(ds.asOfDate || 'Chưa rõ')}</strong> (${escapeHtmlUi(
-          ds.asOfStatus
-        )})</div>
-            <div>SHA: <code>${escapeHtmlUi(ds.workbookSha256.slice(0, 12))}...</code></div>
+          <div class="source-card-body-compact">
+            <div class="source-meta-row">
+              <span class="meta-lbl">Tệp:</span>
+              <span class="meta-val" title="${escapeHtmlUi(ds.sourceFilename)}"><strong>${escapeHtmlUi(ds.sourceFilename)}</strong></span>
+            </div>
+            <div class="source-meta-row">
+              <span class="meta-lbl">Sheet:</span>
+              <span class="meta-val">${escapeHtmlUi(ds.sourceSheet)} (${escapeHtmlUi(ds.sheetVisibility)})</span>
+            </div>
+            <div class="source-meta-row">
+              <span class="meta-lbl">Phạm vi:</span>
+              <span class="meta-val"><strong>${ds.unitCount}</strong> địa phương ${ds.projectRowCount ? `(${ds.projectRowCount} DA)` : ''}</span>
+            </div>
+            <div class="source-meta-row">
+              <span class="meta-lbl">Ngày chốt:</span>
+              <span class="meta-val"><strong>${escapeHtmlUi(ds.asOfDate || 'Chưa rõ')}</strong></span>
+            </div>
+            <div class="source-meta-row">
+              <span class="meta-lbl">Mã SHA:</span>
+              <span class="meta-val"><code>${escapeHtmlUi(ds.workbookSha256.slice(0, 10))}...</code></span>
+            </div>
           </div>
           ${
             ds.asOfStatus === 'REQUIRES_USER_CONFIRMATION'
-              ? `<div class="date-confirm-box" style="margin-top:10px">
-                  <span class="badge badge-ERROR">Cần xác nhận ngày chốt:</span>
-                  <input type="date" id="input-confirm-rev-date" value="2026-10-19" class="form-input-sm"/>
-                  <button type="button" class="btn btn-sm btn-primary" id="btn-confirm-rev-date" data-dataset-id="${escapeHtmlUi(
-                    ds.id
-                  )}">Xác nhận ngày chốt</button>
+              ? `<div class="date-confirm-box" style="margin-top:8px; padding-top:6px; border-top: 1px dashed #fde68a;">
+                  <span class="badge badge-ERROR" style="margin-bottom:4px; display:inline-block">Cần xác nhận ngày chốt:</span>
+                  <div style="display:flex; gap:6px; align-items:center">
+                    <input type="date" id="input-confirm-rev-date" value="2026-10-19" class="form-input-sm" style="flex:1"/>
+                    <button type="button" class="btn btn-sm btn-primary" id="btn-confirm-rev-date" data-dataset-id="${escapeHtmlUi(
+                      ds.id
+                    )}">Xác nhận</button>
+                  </div>
                 </div>`
               : ''
           }
@@ -1179,20 +1260,24 @@ export class KtxhOfflineApp {
       .join('');
 
     return `<section class="page-section">
-      <div class="card">
-        <h2>Nhập dữ liệu nguồn Excel &amp; Tự động Nhận diện (PH1-01)</h2>
-        <div class="dropzone-box" id="dropzone-excel-files">
-          <div class="dropzone-icon">📥</div>
-          <div class="dropzone-title">Kéo thả các file Excel vào đây hoặc bấm để chọn</div>
-          <div class="dropzone-desc">Chọn cùng lúc 1, 2 hoặc 3 file (REV, DISB, GPMB). Hệ thống tự nhận diện dựa vào cấu trúc sheet và tiêu đề.</div>
-          <input type="file" id="input-xlsx-files" multiple accept=".xlsx" style="display:none" />
+      <div class="card import-top-card">
+        <div class="import-header-compact">
+          <div class="import-title-group">
+            <h3>Dữ liệu nguồn Excel &amp; Tự động nhận diện (PH1-01)</h3>
+            <p class="muted">Hệ thống tự động nhận diện 3 tệp DISB, REV, GPMB từ cấu trúc sheet và tiêu đề.</p>
+          </div>
+          <div class="import-actions-group">
+            <label class="btn btn-sm btn-primary">
+              Chọn tệp từ máy tính...
+              <input type="file" id="input-xlsx-files-btn" multiple accept=".xlsx" style="display:none" />
+            </label>
+            <button type="button" class="btn btn-sm btn-secondary" id="btn-load-embedded-confirmed">Nạp lại 3 file tham chiếu &amp; Chốt REV</button>
+          </div>
         </div>
-        <div class="toolbar-row" style="margin-top:16px">
-          <label class="btn btn-primary">
-            Chọn tệp từ máy tính...
-            <input type="file" id="input-xlsx-files-btn" multiple accept=".xlsx" style="display:none" />
-          </label>
-          <button type="button" class="btn btn-secondary" id="btn-load-embedded-confirmed">Nạp lại 3 file tham chiếu &amp; Chốt REV 19/10/2026</button>
+        <div class="dropzone-box-compact" id="dropzone-excel-files">
+          <span class="dropzone-icon">📥</span>
+          <span class="dropzone-text">Kéo thả các file Excel vào đây hoặc bấm để chọn tệp (.xlsx)</span>
+          <input type="file" id="input-xlsx-files" multiple accept=".xlsx" style="display:none" />
         </div>
       </div>
 
@@ -1200,38 +1285,53 @@ export class KtxhOfflineApp {
         ${dsCardsHtml}
       </div>
 
-      <div class="card">
-        <h3>Kiểm toán Địa phương Thiếu Bản ghi Nguồn (Coverage Audit — MASTER V2.2)</h3>
-        <p>Thu NSNN (113/114) thiếu <strong>Đặc khu Bạch Long Vĩ</strong>. GPMB (108/114) thiếu 6 địa phương: <strong>Phường Lưu Kiếm, Phường Ái Quốc, Xã Hùng Thắng, Xã Thái Tân, Xã Tân Minh, Đặc khu Bạch Long Vĩ</strong>.</p>
-        <table class="data-table">
-          <thead>
-            <tr>
-              <th>Địa phương</th>
-              <th>Nguồn</th>
-              <th>Trạng thái</th>
-              <th>Trường thiếu</th>
-              <th>Lý do có căn cứ</th>
-              <th>Ngày chốt</th>
-            </tr>
-          </thead>
-          <tbody>
-            ${allCoverageDetails
-              .filter((c) => c.status === 'NO_LOCALITY_RECORD' || c.status === 'PARTIAL_AGGREGATE')
-              .map(
-                (c) => `<tr>
-                  <td><strong>${escapeHtmlUi(c.localityName)}</strong></td>
-                  <td>${escapeHtmlUi(c.sourceType || c.sourceDatasetId)}</td>
-                  <td><span class="badge badge-${escapeHtmlUi(c.status)}">${escapeHtmlUi(
-                  c.status
-                )}</span></td>
-                  <td>${escapeHtmlUi(c.fieldId || 'Bản ghi địa phương')}</td>
-                  <td>${escapeHtmlUi(c.reason)}</td>
-                  <td>${escapeHtmlUi(c.asOfDate || '')}</td>
-                </tr>`
-              )
-              .join('')}
-          </tbody>
-        </table>
+      <div class="card coverage-summary-card">
+        <div class="coverage-summary-header">
+          <h4>Kiểm toán nguồn thiếu (Coverage Audit — MASTER V2.2)</h4>
+          <button type="button" class="btn btn-xs btn-outline" id="btn-toggle-coverage-table">Chi tiết 7 địa bàn thiếu</button>
+        </div>
+        <div class="coverage-summary-pills">
+          <div class="cov-pill cov-pill-rev">
+            <strong>Thu NSNN (113/114):</strong> Thiếu 1 đơn vị: <em>Đặc khu Bạch Long Vĩ</em> (Chưa có bản ghi - NO_LOCALITY_RECORD)
+          </div>
+          <div class="cov-pill cov-pill-gpmb">
+            <strong>GPMB (108/114):</strong> Thiếu 6 đơn vị: <em>Phường Lưu Kiếm, Phường Ái Quốc, Xã Hùng Thắng, Xã Thái Tân, Xã Tân Minh, Đặc khu Bạch Long Vĩ</em> (422 dự án, 3 DA thiếu diện tích ghi nhận I)
+          </div>
+          <div class="cov-pill cov-pill-disb">
+            <strong>Giải ngân ĐTC (114/114):</strong> Đủ 114/114 địa phương
+          </div>
+        </div>
+        <div class="coverage-details-drawer" id="coverage-details-drawer" style="display:none; margin-top:12px;">
+          <table class="data-table data-table-sm" style="font-size: 12px">
+            <thead>
+              <tr>
+                <th>Địa phương</th>
+                <th>Nguồn</th>
+                <th>Trạng thái</th>
+                <th>Trường thiếu</th>
+                <th>Lý do có căn cứ</th>
+                <th>Ngày chốt</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${allCoverageDetails
+                .filter((c) => c.status === 'NO_LOCALITY_RECORD' || c.status === 'PARTIAL_AGGREGATE')
+                .map(
+                  (c) => `<tr>
+                    <td><strong>${escapeHtmlUi(c.localityName)}</strong></td>
+                    <td>${escapeHtmlUi(c.sourceType || c.sourceDatasetId)}</td>
+                    <td><span class="badge badge-${escapeHtmlUi(c.status)}">${escapeHtmlUi(
+                    c.status
+                  )}</span></td>
+                    <td>${escapeHtmlUi(c.fieldId || 'Bản ghi địa phương')}</td>
+                    <td>${escapeHtmlUi(c.reason)}</td>
+                    <td>${escapeHtmlUi(c.asOfDate || '')}</td>
+                  </tr>`
+                )
+                .join('')}
+            </tbody>
+          </table>
+        </div>
       </div>
     </section>`;
   }
@@ -1313,6 +1413,98 @@ export class KtxhOfflineApp {
     </section>`;
   }
 
+  private updateLocalityListView(activeSession: Workspace['sessions'][number]): void {
+    const reorderBox = document.getElementById('unified-reorder-container');
+    if (reorderBox) {
+      reorderBox.innerHTML = this.renderSelectedReorderPanel(activeSession);
+    }
+    const box = document.getElementById('unified-locality-items-box');
+    if (box) {
+      box.innerHTML = this.renderLocalityItemsHtml(activeSession);
+    }
+    const pill = document.getElementById('unified-locality-count-pill');
+    if (pill) {
+      pill.innerHTML = `Đã chọn: <strong>${activeSession.selectedLocalityIds.length}</strong> / ${
+        this.workspace.localities.length || 114
+      }`;
+    }
+    this.bindLocalityCheckboxes(activeSession);
+    this.bindLocalityReorderEvents(activeSession);
+  }
+
+  private bindLocalityReorderEvents(activeSession: Workspace['sessions'][number]): void {
+    const handleMove = (locId: string, dir: 'up' | 'down') => {
+      const ids = [...activeSession.selectedLocalityIds];
+      const idx = ids.indexOf(locId);
+      if (idx === -1) return;
+      if (dir === 'up' && idx > 0) {
+        [ids[idx - 1], ids[idx]] = [ids[idx], ids[idx - 1]];
+      } else if (dir === 'down' && idx < ids.length - 1) {
+        [ids[idx], ids[idx + 1]] = [ids[idx + 1], ids[idx]];
+      } else {
+        return;
+      }
+      setSessionLocalities(this.workspace, activeSession.id, ids);
+      this.triggerAutosave();
+      this.updateLocalityListView(activeSession);
+    };
+
+    document.querySelectorAll('.btn-chip-move, .btn-row-move').forEach((btn) => {
+      btn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        e.preventDefault();
+        const locId = btn.getAttribute('data-loc-id');
+        const dir = btn.getAttribute('data-move-dir') as 'up' | 'down';
+        if (locId && dir) handleMove(locId, dir);
+      });
+    });
+
+    document.querySelectorAll('.btn-chip-remove').forEach((btn) => {
+      btn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        e.preventDefault();
+        const locId = btn.getAttribute('data-remove-loc-id');
+        if (!locId) return;
+        const set = new Set(activeSession.selectedLocalityIds);
+        set.delete(locId);
+        setSessionLocalities(this.workspace, activeSession.id, Array.from(set));
+        this.triggerAutosave();
+        this.updateLocalityListView(activeSession);
+      });
+    });
+
+    document.getElementById('btn-reorder-az')?.addEventListener('click', () => {
+      const localitiesMap = new Map(this.workspace.localities.map((l) => [l.id, l]));
+      const sorted = [...activeSession.selectedLocalityIds].sort((a, b) => {
+        const nameA = localitiesMap.get(a)?.displayName || '';
+        const nameB = localitiesMap.get(b)?.displayName || '';
+        return nameA.localeCompare(nameB, 'vi');
+      });
+      setSessionLocalities(this.workspace, activeSession.id, sorted);
+      this.triggerAutosave();
+      this.updateLocalityListView(activeSession);
+    });
+
+    document.getElementById('btn-reorder-za')?.addEventListener('click', () => {
+      const localitiesMap = new Map(this.workspace.localities.map((l) => [l.id, l]));
+      const sorted = [...activeSession.selectedLocalityIds].sort((a, b) => {
+        const nameA = localitiesMap.get(a)?.displayName || '';
+        const nameB = localitiesMap.get(b)?.displayName || '';
+        return nameB.localeCompare(nameA, 'vi');
+      });
+      setSessionLocalities(this.workspace, activeSession.id, sorted);
+      this.triggerAutosave();
+      this.updateLocalityListView(activeSession);
+    });
+
+    document.getElementById('btn-reorder-reverse')?.addEventListener('click', () => {
+      const reversed = [...activeSession.selectedLocalityIds].reverse();
+      setSessionLocalities(this.workspace, activeSession.id, reversed);
+      this.triggerAutosave();
+      this.updateLocalityListView(activeSession);
+    });
+  }
+
   private bindLocalityCheckboxes(activeSession: Workspace['sessions'][number]): void {
     const itemsBox = document.getElementById('unified-locality-items-box');
     const chks = itemsBox
@@ -1333,17 +1525,7 @@ export class KtxhOfflineApp {
         }
         setSessionLocalities(this.workspace, activeSession.id, Array.from(set));
         this.triggerAutosave();
-
-        const pill = document.getElementById('unified-locality-count-pill');
-        if (pill) {
-          pill.innerHTML = `Đã chọn: <strong>${set.size}</strong> / ${
-            this.workspace.localities.length || 114
-          }`;
-        }
-        const parentLabel = chkEl.closest('.locality-row-item');
-        if (parentLabel) {
-          parentLabel.classList.toggle('checked', isChecked);
-        }
+        this.updateLocalityListView(activeSession);
       });
     });
   }
@@ -1693,6 +1875,7 @@ export class KtxhOfflineApp {
     const activeSession = this.getActiveSession();
     if (activeSession) {
       this.bindLocalityCheckboxes(activeSession);
+      this.bindLocalityReorderEvents(activeSession);
     }
 
     // Locality search input
@@ -1703,11 +1886,7 @@ export class KtxhOfflineApp {
       this.localitySearchQuery = locSearchInput.value;
       const s = this.getActiveSession();
       if (!s) return;
-      const box = document.getElementById('unified-locality-items-box');
-      if (box) {
-        box.innerHTML = this.renderLocalityItemsHtml(s);
-        this.bindLocalityCheckboxes(s);
-      }
+      this.updateLocalityListView(s);
     });
 
     // Locality type filter
@@ -1718,11 +1897,7 @@ export class KtxhOfflineApp {
       this.localityTypeFilter = locTypeSelect.value as 'ALL' | LocalityType;
       const s = this.getActiveSession();
       if (!s) return;
-      const box = document.getElementById('unified-locality-items-box');
-      if (box) {
-        box.innerHTML = this.renderLocalityItemsHtml(s);
-        this.bindLocalityCheckboxes(s);
-      }
+      this.updateLocalityListView(s);
     });
 
     // Locality sort option
@@ -1733,10 +1908,17 @@ export class KtxhOfflineApp {
       this.localitySortOption = locSortSelect.value as any;
       const s = this.getActiveSession();
       if (!s) return;
-      const box = document.getElementById('unified-locality-items-box');
-      if (box) {
-        box.innerHTML = this.renderLocalityItemsHtml(s);
-        this.bindLocalityCheckboxes(s);
+      this.updateLocalityListView(s);
+    });
+
+    // Toggle coverage details drawer
+    document.getElementById('btn-toggle-coverage-table')?.addEventListener('click', () => {
+      const drawer = document.getElementById('coverage-details-drawer');
+      const btn = document.getElementById('btn-toggle-coverage-table');
+      if (drawer) {
+        const isHidden = drawer.style.display === 'none';
+        drawer.style.display = isHidden ? 'block' : 'none';
+        if (btn) btn.textContent = isHidden ? 'Ẩn chi tiết kiểm toán' : 'Chi tiết 7 địa bàn thiếu';
       }
     });
 
