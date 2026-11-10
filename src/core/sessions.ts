@@ -176,6 +176,70 @@ export function syncReportLabelsWithDatasetDates(workspace: Workspace): void {
   }
 }
 
+export function sanitizeWorkspace(workspace: Workspace): void {
+  if (!Array.isArray(workspace.localities)) workspace.localities = [];
+  if (!Array.isArray(workspace.auditLog)) workspace.auditLog = [];
+  if (!Array.isArray(workspace.datasets)) {
+    workspace.datasets = [];
+  } else {
+    workspace.datasets = workspace.datasets.filter(
+      (d) => Boolean(d && typeof d.id === 'string' && Array.isArray(d.records))
+    );
+    for (const d of workspace.datasets) {
+      if (!Array.isArray(d.issues)) d.issues = [];
+      if (!Array.isArray(d.allSheetsMeta)) d.allSheetsMeta = [];
+    }
+  }
+  if (!Array.isArray(workspace.sessions)) {
+    workspace.sessions = [];
+  } else {
+    workspace.sessions = workspace.sessions.filter(Boolean);
+    for (const s of workspace.sessions) {
+      if (!Array.isArray(s.selectedLocalityIds)) s.selectedLocalityIds = [];
+      if (!Array.isArray(s.templateRows) || s.templateRows.length === 0) {
+        s.templateRows = TEMPLATE_14_ROWS_DEFAULT.map((r) => ({ ...r }));
+      }
+      if (!Array.isArray(s.indicatorIds)) {
+        s.indicatorIds = s.templateRows.map((r) => r.indicatorId);
+      }
+      if (!s.dataBindings) s.dataBindings = {};
+      if (!s.benchmarkBindings) s.benchmarkBindings = {};
+      if (!Array.isArray(s.overrides)) s.overrides = [];
+      const rawRules = (s.comparisonRules || {}) as Partial<ComparisonRuleConfig>;
+      s.comparisonRules = {
+        higherThresholdPp: 0,
+        lowerThresholdPp: 0,
+        higherLabel: 'cao hơn',
+        lowerLabel: 'thấp hơn',
+        equalLabel: 'tương đương',
+        insufficientBasisLabel: 'Chưa đủ cơ sở đánh giá',
+        allowPartialBenchmarkEvaluation: false,
+        ...rawRules,
+      };
+      const rawSettings = (s.settings || {}) as Partial<ReportSession['settings']>;
+      s.settings = {
+        reportTitle: 'TÌNH HÌNH THỰC HIỆN MỘT SỐ CHỈ TIÊU KINH TẾ - XÃ HỘI CỦA CÁC ĐỊA PHƯƠNG',
+        decimalsMoney: 2,
+        decimalsPercent: 2,
+        decimalsArea: 0,
+        decimals: 2,
+        areaUnit: 'm2',
+        moneyUnit: 'billion',
+        gpmbDefaultMethod: 'AREA_WEIGHTED',
+        paperSize: 'A4',
+        orientation: 'landscape',
+        fontFamily: 'Times New Roman',
+        fontSizePx: 13,
+        columnWidthPx: 130,
+        showBenchmarkRows: true,
+        showCommentRows: true,
+        showScopeFootnotes: true,
+        ...rawSettings,
+      };
+    }
+  }
+}
+
 export function migrateLegacySessionLabels(workspace: Workspace): void {
   const legacyToNewMap: Record<string, string> = {
     'Kế hoạch vốn đầu tư công sau điều chỉnh':
@@ -494,6 +558,7 @@ export function resolveSessionDatasets(
   workspace: Workspace,
   session: ReportSession
 ): { REV?: Dataset; DISB?: Dataset; GPMB?: Dataset } {
+  if (!session || !session.dataBindings) return {};
   return {
     REV: session.dataBindings.REV
       ? workspace.datasets.find((d) => d.id === session.dataBindings.REV)

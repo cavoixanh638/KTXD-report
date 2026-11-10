@@ -16,6 +16,7 @@ import {
   setSessionLocalities,
   cloneReportSession,
   migrateLegacySessionLabels,
+  sanitizeWorkspace,
   syncReportLabelsWithDatasetDates,
   formatVnDate,
   formatIsoDate,
@@ -1302,5 +1303,36 @@ describe('KTXH Offline – A4 Report Studio & WYSIWYG Architecture Suite', () =>
         (globalThis as Record<string, unknown>).localStorage = origLocalStorage;
       }
     }
+  });
+
+  it('17. sanitizeWorkspace heals malformed legacy session and dataset records without crashing evaluation', () => {
+    const legacyWs = createEmptyWorkspace('Legacy');
+    registerDatasetInWorkspace(legacyWs, disbDataset, baselineLocalities);
+    registerDatasetInWorkspace(legacyWs, revDataset);
+    registerDatasetInWorkspace(legacyWs, gpmbDataset);
+    const s = createReportSession(legacyWs, { name: 'Legacy Corrupt Session' });
+    setSessionLocalities(legacyWs, s.id, [baselineLocalities[0].id]);
+
+    // Deliberately strip properties as if loaded from broken/partial browser cache
+    delete (s as unknown as Record<string, unknown>).comparisonRules;
+    delete (s as unknown as Record<string, unknown>).settings;
+    delete (s as unknown as Record<string, unknown>).dataBindings;
+    delete (s as unknown as Record<string, unknown>).templateRows;
+    delete (disbDataset as unknown as Record<string, unknown>).issues;
+
+    sanitizeWorkspace(legacyWs);
+    expect(s.templateRows.length).toBeGreaterThanOrEqual(14);
+    expect(s.settings.moneyUnit).toBe('billion');
+    expect(s.comparisonRules.higherLabel).toBe('cao hơn');
+    expect(Array.isArray(disbDataset.issues)).toBe(true);
+
+    // Restore valid bindings and evaluate cleanly
+    s.dataBindings = { DISB: disbDataset.id, REV: revDataset.id, GPMB: gpmbDataset.id };
+    const ev = evaluateSessionReport({
+      session: s,
+      baselineLocalities: legacyWs.localities,
+      datasets: { DISB: disbDataset, REV: revDataset, GPMB: gpmbDataset },
+    });
+    expect(ev.rows.length).toBeGreaterThan(0);
   });
 });

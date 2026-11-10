@@ -739,7 +739,7 @@ export function computeDisbPlanPerUnitBenchmark(
   }
 
   const count = includedIds.length;
-  const avgMillion = sumF.div(count);
+  const avgMillion = count > 0 ? sumF.div(count) : new Decimal(0);
   const avgDisplay =
     moneyUnit === 'billion' ? millionToBillion(avgMillion) : avgMillion;
   const unitText = moneyUnit === 'billion' ? 'tỷ đồng' : 'triệu đồng';
@@ -2944,7 +2944,7 @@ export function evaluateSessionReport(params: {
   const selectedSet = new Set(session.selectedLocalityIds);
   const sessionIssues: QualityIssue[] = [];
   for (const ds of [datasets.DISB, datasets.REV, datasets.GPMB]) {
-    if (!ds) continue;
+    if (!ds || !Array.isArray(ds.issues)) continue;
     for (const iss of ds.issues) {
       if (iss.localityId === 'ALL' || selectedSet.has(iss.localityId)) {
         sessionIssues.push(iss);

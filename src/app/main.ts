@@ -8,6 +8,7 @@ import {
   setSessionLocalities,
   resolveSessionDatasets,
   migrateLegacySessionLabels,
+  sanitizeWorkspace,
   syncReportLabelsWithDatasetDates,
   formatVnDate,
   formatIsoDate,
@@ -136,57 +137,121 @@ export class KtxhOfflineApp {
       if (loaded && loaded.formatVersion === 2 && Array.isArray(loaded.sessions)) {
         this.workspace = loaded;
       }
+      sanitizeWorkspace(this.workspace);
       migrateLegacySessionLabels(this.workspace);
       this.ensureInitialDatasetsAndEmptySession();
+      this.lastSavedTimestamp = new Date().toLocaleTimeString('vi-VN');
+      this.render();
     } catch (err) {
-      this.workspace = createEmptyWorkspace('Hồ sơ Báo cáo KTXH Offline (MASTER V2.2)');
-      this.ensureInitialDatasetsAndEmptySession();
-      this.statusBannerMessage = `Khởi tạo lại phiên mới an toàn (dữ liệu cache cũ lỗi: ${(err as Error).message}).`;
-      this.statusBannerType = 'warning';
+      try {
+        this.workspace = createEmptyWorkspace('Hồ sơ Báo cáo KTXH Offline (MASTER V2.2)');
+        this.ensureInitialDatasetsAndEmptySession();
+        this.lastSavedTimestamp = new Date().toLocaleTimeString('vi-VN');
+        this.statusBannerMessage = `Đã tự động khôi phục phiên mới an toàn (dữ liệu cache cũ lỗi: ${
+          (err as Error)?.message || String(err)
+        }).`;
+        this.statusBannerType = 'warning';
+        this.render();
+      } catch (fatalErr) {
+        this.renderFatalRecoveryScreen(fatalErr);
+      }
     }
-    this.lastSavedTimestamp = new Date().toLocaleTimeString('vi-VN');
-    this.render();
+  }
+
+  private renderFatalRecoveryScreen(err: unknown): void {
+    const root = document.getElementById('app');
+    if (!root) return;
+    const msg = escapeHtmlUi(
+      err instanceof Error ? err.stack || err.message : String(err)
+    );
+    root.innerHTML = `<div style="max-width:720px;margin:32px auto;padding:24px;border:1px solid #fca5a5;border-radius:10px;background:#fef2f2;color:#7f1d1d;font-family:system-ui,Segoe UI,sans-serif;">
+      <h2 style="margin:0 0 10px 0;font-size:18px;">⚠️ Không thể khởi tạo Báo cáo KTXH Offline</h2>
+      <p style="margin:0 0 12px 0;font-size:14px;">Bộ nhớ cache cũ của trình duyệt có thể đang bị lỗi hoặc kẹt khóa. Bạn hãy bấm nút bên dưới để làm sạch bộ nhớ tạm và khởi động lại ngay:</p>
+      <pre style="white-space:pre-wrap;word-break:break-word;background:#fff;padding:10px;border:1px solid #fecaca;border-radius:6px;font-size:12px;max-height:220px;overflow:auto;">${msg}</pre>
+      <div style="margin-top:14px;">
+        <button type="button" id="btn-fatal-reset-storage" style="padding:8px 16px;background:#dc2626;color:#fff;border:none;border-radius:6px;cursor:pointer;font-weight:600;">🔄 Xóa bộ nhớ tạm &amp; Tải lại ứng dụng</button>
+      </div>
+    </div>`;
+    document.getElementById('btn-fatal-reset-storage')?.addEventListener('click', () => {
+      try {
+        localStorage.removeItem('KTXH_OFFLINE_WORKSPACE_CACHE_V2_2');
+        localStorage.removeItem('KTXH_OFFLINE_SESSIONS_COMPACT_V2_2');
+      } catch {
+        // ignore
+      }
+      try {
+        indexedDB.deleteDatabase('KTXH_OFFLINE_STUDIO_DB');
+      } catch {
+        // ignore
+      }
+      window.location.reload();
+    });
   }
 
   private ensureInitialDatasetsAndEmptySession(): void {
+    sanitizeWorkspace(this.workspace);
+    const hasDisb = this.workspace.datasets.some((d) => d.sourceType === 'DISB');
+    const hasRev = this.workspace.datasets.some((d) => d.sourceType === 'REV');
+    const hasGpmb = this.workspace.datasets.some((d) => d.sourceType === 'GPMB');
+    const needsLocalities = this.workspace.localities.length === 0;
+
     if (
-      this.workspace.datasets.length === 0 &&
+      (!hasDisb || !hasRev || !hasGpmb || needsLocalities) &&
       typeof window !== 'undefined' &&
       window.__EMBEDDED_REFERENCE_FIXTURES__
     ) {
       const fixtures = window.__EMBEDDED_REFERENCE_FIXTURES__;
-      const disbBytes = base64ToUint8Array(fixtures.DISB_B64);
-      const revBytes = base64ToUint8Array(fixtures.REV_B64);
-      const gpmbBytes = base64ToUint8Array(fixtures.GPMB_B64);
 
-      const { dataset: disbDs, localities } = importDisbursementWorkbook(
-        disbBytes,
-        'Báo cáo giải ngân 15.10 sửa(1).xlsx'
-      );
-      registerDatasetInWorkspace(this.workspace, disbDs, localities);
-
-      const { dataset: revDs } = importRevenueWorkbook(
-        revBytes,
-        'Bc thu 10 thang-19.10-BC (1)(1).xlsx',
-        {
-          confirmedAsOfDate: '2026-10-19',
-          asOfConfirmationReason: 'Xác nhận ngày chốt sơ bộ kỳ 10 tháng năm 2026',
+      if (!hasDisb || needsLocalities) {
+        const disbBytes = base64ToUint8Array(fixtures.DISB_B64);
+        const { dataset: disbDs, localities } = importDisbursementWorkbook(
+          disbBytes,
+          'Báo cáo giải ngân 15.10 sửa(1).xlsx'
+        );
+        if (!hasDisb) {
+          registerDatasetInWorkspace(this.workspace, disbDs, localities);
+        } else if (needsLocalities && localities.length > 0) {
+          this.workspace.localities = localities;
         }
-      );
-      registerDatasetInWorkspace(this.workspace, revDs);
+      }
 
-      const { dataset: gpmbDs } = importGpmbWorkbook(
-        gpmbBytes,
-        'PL01_Tổng hợp DA_26.12.26(1).xlsx'
-      );
-      registerDatasetInWorkspace(this.workspace, gpmbDs);
+      if (!hasRev) {
+        const revBytes = base64ToUint8Array(fixtures.REV_B64);
+        const { dataset: revDs } = importRevenueWorkbook(
+          revBytes,
+          'Bc thu 10 thang-19.10-BC (1)(1).xlsx',
+          {
+            confirmedAsOfDate: '2026-10-19',
+            asOfConfirmationReason: 'Xác nhận ngày chốt sơ bộ kỳ 10 tháng năm 2026',
+          }
+        );
+        registerDatasetInWorkspace(this.workspace, revDs);
+      }
 
-      const validIds = new Set(this.workspace.datasets.map((d) => d.id));
-      for (const s of this.workspace.sessions) {
-        if (!s.dataBindings) s.dataBindings = {};
-        if (!s.dataBindings.DISB || !validIds.has(s.dataBindings.DISB)) s.dataBindings.DISB = disbDs.id;
-        if (!s.dataBindings.REV || !validIds.has(s.dataBindings.REV)) s.dataBindings.REV = revDs.id;
-        if (!s.dataBindings.GPMB || !validIds.has(s.dataBindings.GPMB)) s.dataBindings.GPMB = gpmbDs.id;
+      if (!hasGpmb) {
+        const gpmbBytes = base64ToUint8Array(fixtures.GPMB_B64);
+        const { dataset: gpmbDs } = importGpmbWorkbook(
+          gpmbBytes,
+          'PL01_Tổng hợp DA_26.12.26(1).xlsx'
+        );
+        registerDatasetInWorkspace(this.workspace, gpmbDs);
+      }
+    }
+
+    const latestDisb = [...this.workspace.datasets].reverse().find((d) => d.sourceType === 'DISB');
+    const latestRev = [...this.workspace.datasets].reverse().find((d) => d.sourceType === 'REV');
+    const latestGpmb = [...this.workspace.datasets].reverse().find((d) => d.sourceType === 'GPMB');
+    const validIds = new Set(this.workspace.datasets.map((d) => d.id));
+    for (const s of this.workspace.sessions) {
+      if (!s.dataBindings) s.dataBindings = {};
+      if (latestDisb && (!s.dataBindings.DISB || !validIds.has(s.dataBindings.DISB))) {
+        s.dataBindings.DISB = latestDisb.id;
+      }
+      if (latestRev && (!s.dataBindings.REV || !validIds.has(s.dataBindings.REV))) {
+        s.dataBindings.REV = latestRev.id;
+      }
+      if (latestGpmb && (!s.dataBindings.GPMB || !validIds.has(s.dataBindings.GPMB))) {
+        s.dataBindings.GPMB = latestGpmb.id;
       }
     }
 
@@ -2997,8 +3062,25 @@ export class KtxhOfflineApp {
 
 // Auto mount if in browser
 if (typeof window !== 'undefined') {
-  window.addEventListener('DOMContentLoaded', () => {
-    const app = new KtxhOfflineApp();
-    window.__KTXH_APP__ = app;
-  });
+  const mountApp = () => {
+    try {
+      const app = new KtxhOfflineApp();
+      window.__KTXH_APP__ = app;
+    } catch (err) {
+      const root = document.getElementById('app');
+      if (root) {
+        root.innerHTML = `<div style="max-width:720px;margin:32px auto;padding:20px;border:1px solid #fca5a5;border-radius:8px;background:#fef2f2;color:#7f1d1d;font-family:sans-serif;">
+          <h3>Lỗi khởi tạo ứng dụng KTXH Offline</h3>
+          <pre style="white-space:pre-wrap;font-size:12px;">${escapeHtmlUi(
+            err instanceof Error ? err.stack || err.message : String(err)
+          )}</pre>
+        </div>`;
+      }
+    }
+  };
+  if (document.readyState === 'loading') {
+    window.addEventListener('DOMContentLoaded', mountApp);
+  } else {
+    mountApp();
+  }
 }
