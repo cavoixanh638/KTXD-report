@@ -1,6 +1,6 @@
 import { EvaluatedSessionReport } from '../core/calculationTrace';
 import { analyzeSourceCoverage } from '../core/coverage';
-import { Dataset, Locality } from '../core/types';
+import { Dataset, formatDisbRange, getDisbSchemaProfile, Locality } from '../core/types';
 import { escapeHtmlUi } from './cellInspector';
 import {
   formatReportCellValue,
@@ -113,6 +113,14 @@ export function renderReportGridHtml(params: {
   const disbDate = datasets.DISB?.asOfDate || '15/10/2026';
   const gpmbDate = datasets.GPMB?.asOfDate || '26/10/2026';
 
+  const disbProfile = getDisbSchemaProfile(datasets.DISB?.schemaFingerprint);
+  const disbUnitCount = datasets.DISB?.unitCount ?? 114;
+  const disbFormulaExpr = `SUM(${formatDisbRange(
+    disbProfile.disbCol,
+    disbProfile,
+    disbUnitCount
+  )})/SUM(${formatDisbRange(disbProfile.planCol, disbProfile, disbUnitCount)})`;
+
   return `<div class="report-grid-wrapper" style="font-family:${escapeHtmlUi(
     session.settings.fontFamily
   )}; font-size:${session.settings.fontSizePx}px">
@@ -140,17 +148,11 @@ export function renderReportGridHtml(params: {
       <ul>
         <li><strong>Giải ngân ĐTC (${escapeHtmlUi(
           disbDate
-        )}):</strong> Phạm vi <strong>${datasets.DISB?.unitCount ?? 114}/114 địa phương</strong>${
-          datasets.DISB?.schemaFingerprint === 'DISB_PHAN_CAP_XA_V1'
-            ? ' (vốn phân cấp cấp xã)'
-            : ''
-        } (mốc chuẩn ${datasets.DISB?.unitCount ?? 114} địa phương = <strong>${escapeHtmlUi(
+        )}):</strong> Phạm vi <strong>${disbUnitCount}/114 địa phương</strong>${
+          disbProfile.isPhanCapXa ? ' (vốn phân cấp cấp xã)' : ''
+        } (mốc chuẩn ${disbUnitCount} địa phương = <strong>${escapeHtmlUi(
           evaluated.benchmarks?.disbRateBenchmark?.displayedText || '67,10%'
-        )}</strong> từ ${
-          datasets.DISB?.schemaFingerprint === 'DISB_PHAN_CAP_XA_V1'
-            ? 'SUM(G8:G121)/SUM(C8:C121)'
-            : 'SUM(I13:I126)/SUM(F13:F126)'
-        }; vốn giao bình quân = <strong>${escapeHtmlUi(
+        )}</strong> từ ${disbFormulaExpr}; vốn giao bình quân = <strong>${escapeHtmlUi(
           evaluated.benchmarks?.disbPlanAvg?.displayedText || '136,41 tỷ đồng'
         )}/địa phương</strong>).</li>
         <li><strong>Thu NSNN (kỳ 10 tháng/2026, ngày chốt: ${escapeHtmlUi(

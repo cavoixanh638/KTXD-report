@@ -4,6 +4,8 @@ import {
   AdjustedScenarioCandidate,
   CalculationTrace,
   Dataset,
+  DisbSchemaFingerprint,
+  getDisbSchemaProfile,
   IdentityCheckResult,
   Locality,
   MetricCellValue,
@@ -102,8 +104,12 @@ function parseWorksheetXml(
     const rawV = vMatch ? decodeXmlEntities(vMatch[1]) : null;
 
     if (tAttr === 'inlineStr') {
-      const isMatch = inner.match(/<t(?:\s+[^>]*)?>([\s\S]*?)<\/t>/);
-      const strVal = isMatch ? decodeXmlEntities(isMatch[1]) : '';
+      const tRegex = /<t(?:\s+[^>]*)?>([\s\S]*?)<\/t>/g;
+      let tMatch: RegExpExecArray | null;
+      let strVal = '';
+      while ((tMatch = tRegex.exec(inner)) !== null) {
+        strVal += decodeXmlEntities(tMatch[1]);
+      }
       cells.set(address, {
         address,
         row,
@@ -460,7 +466,14 @@ export function getCellNumber(
 
 export function detectSheetFingerprint(
   sheet: ParsedWorkbookSheet
-): 'DISB_V1' | 'DISB_PHAN_CAP_XA_V1' | 'REV_V1' | 'GPMB_V1' | 'GPMB_FLAT' | 'RESULT_TEMPLATE_V1' | 'SCHEMA_MODIFIED_NEEDS_MAPPING' | 'UNKNOWN' {
+):
+  | DisbSchemaFingerprint
+  | 'REV_V1'
+  | 'GPMB_V1'
+  | 'GPMB_FLAT'
+  | 'RESULT_TEMPLATE_V1'
+  | 'SCHEMA_MODIFIED_NEEDS_MAPPING'
+  | 'UNKNOWN' {
   const a1 = getCellText(sheet, 'A1');
   const a3 = getCellText(sheet, 'A3');
   const b7 = getCellText(sheet, 'B7');
@@ -499,19 +512,62 @@ export function detectSheetFingerprint(
     }
   }
 
-  // Check DISB_PHAN_CAP_XA_V1 (12 columns A..L, 114 localities at rows 8..121, no pre-adjustment column)
-  const k3 = getCellText(sheet, 'K3').toLowerCase();
-  const g3 = getCellText(sheet, 'G3').toLowerCase();
+  // Check commune-allocated disbursement layouts (DISB_PHAN_CAP_XA_V2: 15 cols A..O; DISB_PHAN_CAP_XA_V1: 12 cols A..L)
   const c3 = getCellText(sheet, 'C3').toLowerCase();
+  const f3 = getCellText(sheet, 'F3').toLowerCase();
+  const g3 = getCellText(sheet, 'G3').toLowerCase();
+  const j3 = getCellText(sheet, 'J3').toLowerCase();
+  const k3 = getCellText(sheet, 'K3').toLowerCase();
+  const n3 = getCellText(sheet, 'N3').toLowerCase();
   const d5 = getCellText(sheet, 'D5').toLowerCase();
   const e5 = getCellText(sheet, 'E5').toLowerCase();
-  const isPhanCapXaHeader =
-    !b12.toLowerCase().includes('địa phương') &&
-    (b7.toUpperCase().includes('TỔNG SỐ') || a1.toLowerCase().includes('giải ngân')) &&
-    ((c3.includes('kế hoạch vốn') && g3.includes('giải ngân') && k3.includes('tỷ lệ')) ||
-      (d5.includes('sử dụng đất') && e5.includes('mục tiêu')));
+  const g5 = getCellText(sheet, 'G5').toLowerCase();
+  const h5 = getCellText(sheet, 'H5').toLowerCase();
 
-  if (isPhanCapXaHeader) {
+  const isPhanCapXaSheet =
+    !b12.toLowerCase().includes('địa phương') &&
+    (b7.toUpperCase().includes('TỔNG SỐ') || a1.toLowerCase().includes('giải ngân'));
+
+  // 15-col layout MUST be checked before 12-col V1 because both share D5/E5 source headers
+  const isPhanCapXaV2Header =
+    isPhanCapXaSheet &&
+    (f3.includes('sau điều chỉnh') ||
+      (c3.includes('đầu năm') && f3.includes('kế hoạch vốn') && j3.includes('giải ngân')) ||
+      (d5.includes('sử dụng đất') &&
+        e5.includes('mục tiêu') &&
+        (g5.includes('sử dụng đất') || h5.includes('mục tiêu') || j3.includes('giải ngân') || n3.includes('tỷ lệ'))));
+
+  if (isPhanCapXaV2Header) {
+    const b8 = getCellText(sheet, 'B8');
+    const c8 = sheet.cells.get('C8');
+    const f8 = sheet.cells.get('F8');
+    const j8 = sheet.cells.get('J8');
+    if (
+      !b8 ||
+      typeof sheet.cells.get('B8')?.value !== 'string' ||
+      !c8 ||
+      c8.cellType !== 'n' ||
+      !f8 ||
+      f8.cellType !== 'n' ||
+      !j8 ||
+      j8.cellType !== 'n'
+    ) {
+      return 'SCHEMA_MODIFIED_NEEDS_MAPPING';
+    }
+    return 'DISB_PHAN_CAP_XA_V2';
+  }
+
+  const isPhanCapXaV1Header =
+    isPhanCapXaSheet &&
+    !c3.includes('đầu năm') &&
+    !f3.includes('sau điều chỉnh') &&
+    ((c3.includes('kế hoạch vốn') && g3.includes('giải ngân') && k3.includes('tỷ lệ')) ||
+      (d5.includes('sử dụng đất') &&
+        e5.includes('mục tiêu') &&
+        !g5.includes('sử dụng đất') &&
+        !j3.includes('giải ngân')));
+
+  if (isPhanCapXaV1Header) {
     const b8 = getCellText(sheet, 'B8');
     const c8 = sheet.cells.get('C8');
     const g8 = sheet.cells.get('G8');
@@ -745,6 +801,10 @@ export interface ImportOptions {
   manualSelectionReason?: string;
 }
 
+function isDisbFingerprint(fp: string): fp is DisbSchemaFingerprint {
+  return fp === 'DISB_V1' || fp === 'DISB_PHAN_CAP_XA_V1' || fp === 'DISB_PHAN_CAP_XA_V2';
+}
+
 export function importDisbursementWorkbook(
   bytes: Uint8Array,
   filename: string,
@@ -758,26 +818,27 @@ export function importDisbursementWorkbook(
   }));
 
   let targetSheet: ParsedWorkbookSheet | undefined;
-  let targetFp: 'DISB_V1' | 'DISB_PHAN_CAP_XA_V1' = 'DISB_V1';
+  let targetFp: DisbSchemaFingerprint = 'DISB_V1';
   let importSelectionMode: 'AUTO_VISIBLE_SINGLE' | 'MANUAL_CONFIRMED' =
     'AUTO_VISIBLE_SINGLE';
 
   if (options.manualSheetName) {
     targetSheet = wb.sheets.find((s) => s.name === options.manualSheetName);
-    if (targetSheet && detectSheetFingerprint(targetSheet) === 'DISB_PHAN_CAP_XA_V1') {
-      targetFp = 'DISB_PHAN_CAP_XA_V1';
+    if (targetSheet) {
+      const detected = detectSheetFingerprint(targetSheet);
+      if (isDisbFingerprint(detected)) {
+        targetFp = detected;
+      }
     }
     importSelectionMode = 'MANUAL_CONFIRMED';
   } else {
-    const visibleCandidates = wb.sheets.filter((s) => {
-      if (s.state !== 'visible') return false;
-      const fp = detectSheetFingerprint(s);
-      return fp === 'DISB_V1' || fp === 'DISB_PHAN_CAP_XA_V1';
-    });
+    const visibleCandidates = wb.sheets.filter(
+      (s) => s.state === 'visible' && isDisbFingerprint(detectSheetFingerprint(s))
+    );
     if (visibleCandidates.length === 1) {
       targetSheet = visibleCandidates[0];
       const detectedFp = detectSheetFingerprint(targetSheet);
-      targetFp = detectedFp === 'DISB_PHAN_CAP_XA_V1' ? 'DISB_PHAN_CAP_XA_V1' : 'DISB_V1';
+      targetFp = isDisbFingerprint(detectedFp) ? detectedFp : 'DISB_V1';
     } else {
       const modified = wb.sheets.find(
         (s) =>
@@ -790,7 +851,7 @@ export function importDisbursementWorkbook(
         );
       }
       throw new Error(
-        'BLOCKER_SHEET_SELECTION: Không tìm thấy sheet visible duy nhất khớp fingerprint DISB_V1 hoặc DISB_PHAN_CAP_XA_V1.'
+        'BLOCKER_SHEET_SELECTION: Không tìm thấy sheet visible duy nhất khớp fingerprint DISB_V1, DISB_PHAN_CAP_XA_V1 hoặc DISB_PHAN_CAP_XA_V2.'
       );
     }
   }
@@ -799,7 +860,7 @@ export function importDisbursementWorkbook(
     throw new Error('Sheet not found in DISB workbook.');
   }
 
-  const isPhanCapXa = targetFp === 'DISB_PHAN_CAP_XA_V1';
+  const profile = getDisbSchemaProfile(targetFp);
   const a1Text = getCellText(targetSheet, 'A1');
   const dateMatch = a1Text.match(/(\d{1,2})\/(\d{1,2})\/(\d{4})/);
   const detectedDate = dateMatch
@@ -807,37 +868,7 @@ export function importDisbursementWorkbook(
     : '2026-10-15';
   const asOfDate = options.confirmedAsOfDate || detectedDate;
   const datasetId = `DISB_${wb.sha256.slice(0, 12)}`;
-  const mappingVersion = isPhanCapXa ? 'DISB_PHAN_CAP_XA_V1' : 'DISB_ADAPTER_V2.2';
-
-  const colMap: Record<string, string> = isPhanCapXa
-    ? {
-        C: 'adjusted_total_plan',
-        D: 'plan_land_use_fee',
-        E: 'plan_targeted_support',
-        F: 'plan_revenue_increase',
-        G: 'disbursed_total',
-        H: 'disbursed_land_use_fee',
-        I: 'disbursed_targeted_support',
-        J: 'disbursed_revenue_increase',
-        K: 'source_disbursed_rate',
-      }
-    : {
-        C: 'initial_total_plan',
-        D: 'initial_city_component',
-        E: 'initial_local_component',
-        F: 'adjusted_total_plan',
-        G: 'adjusted_city_component',
-        H: 'adjusted_local_component',
-        I: 'disbursed_total',
-        J: 'disbursed_city_component',
-        K: 'disbursed_local_component',
-        L: 'disbursed_construction',
-        M: 'disbursed_gpmb',
-        N: 'disbursed_other',
-        O: 'source_disbursed_rate',
-      };
-  const rateCol = isPhanCapXa ? 'K' : 'O';
-  const noteCol = isPhanCapXa ? 'L' : 'Q';
+  const mappingVersion = profile.mappingVersion;
 
   const localities: Locality[] = [];
   const records: SourceRecord[] = [];
@@ -846,8 +877,8 @@ export function importDisbursementWorkbook(
 
   const parseDisbRow = (row: number, locId: string, locName: string): SourceRecord => {
     const metrics: Record<string, MetricCellValue> = {};
-    for (const [col, fieldId] of Object.entries(colMap)) {
-      const unit = col === rateCol ? 'ratio' : 'million_vnd';
+    for (const [col, fieldId] of Object.entries(profile.colMap)) {
+      const unit = col === profile.rateCol ? 'ratio' : 'million_vnd';
       const mCell = buildMetricCell(
         targetSheet,
         col,
@@ -879,8 +910,10 @@ export function importDisbursementWorkbook(
       }
     }
 
-    const pVal = isPhanCapXa ? '' : getCellText(targetSheet, `P${row}`).trim();
-    const noteAddr = `${noteCol}${row}`;
+    const pVal = profile.markerCol
+      ? getCellText(targetSheet, `${profile.markerCol}${row}`).trim()
+      : '';
+    const noteAddr = `${profile.noteCol}${row}`;
     const qRaw = targetSheet.cells.get(noteAddr)?.value;
     const qVal =
       qRaw !== null && qRaw !== undefined && String(qRaw).trim() !== ''
@@ -904,91 +937,40 @@ export function importDisbursementWorkbook(
     };
   };
 
-  const citySummaryRecord = isPhanCapXa
-    ? undefined
-    : parseDisbRow(7, 'CITY_TOTAL', 'TỔNG SỐ TOÀN THÀNH PHỐ');
-  const summaryRecord = isPhanCapXa
-    ? parseDisbRow(7, 'LOCALITIES_BLOCK_114', 'Khối 114 địa phương (vốn phân cấp cấp xã, dòng 7)')
-    : parseDisbRow(12, 'LOCALITIES_BLOCK_114', 'Khối địa phương (dòng 12)');
-  const unplannedDisbursementRecord = isPhanCapXa
-    ? undefined
-    : parseDisbRow(145, 'UNPLANNED_ROW_145', 'Giải ngân ngoài kế hoạch (dòng 145)');
+  const citySummaryRecord = profile.hasCitySummary
+    ? parseDisbRow(7, 'CITY_TOTAL', 'TỔNG SỐ TOÀN THÀNH PHỐ')
+    : undefined;
+  const summaryRecord = parseDisbRow(
+    profile.summaryRow,
+    'LOCALITIES_BLOCK_114',
+    profile.isPhanCapXa
+      ? 'Khối 114 địa phương (vốn phân cấp cấp xã, dòng 7)'
+      : 'Khối địa phương (dòng 12)'
+  );
+  const unplannedDisbursementRecord = profile.hasUnplannedRow
+    ? parseDisbRow(145, 'UNPLANNED_ROW_145', 'Giải ngân ngoài kế hoạch (dòng 145)')
+    : undefined;
 
-  const eqDefs: Array<{
-    eq: 'F=G+H' | 'I=J+K' | 'I=L+M+N' | 'C=D+E+F' | 'G=H+I+J';
-    totalField: string;
-    totalCol: string;
-    compCols: Array<{ col: string; field: string }>;
-  }> = isPhanCapXa
-    ? [
-        {
-          eq: 'C=D+E+F',
-          totalField: 'adjusted_total_plan',
-          totalCol: 'C',
-          compCols: [
-            { col: 'D', field: 'plan_land_use_fee' },
-            { col: 'E', field: 'plan_targeted_support' },
-            { col: 'F', field: 'plan_revenue_increase' },
-          ],
-        },
-        {
-          eq: 'G=H+I+J',
-          totalField: 'disbursed_total',
-          totalCol: 'G',
-          compCols: [
-            { col: 'H', field: 'disbursed_land_use_fee' },
-            { col: 'I', field: 'disbursed_targeted_support' },
-            { col: 'J', field: 'disbursed_revenue_increase' },
-          ],
-        },
-      ]
-    : [
-        {
-          eq: 'F=G+H',
-          totalField: 'adjusted_total_plan',
-          totalCol: 'F',
-          compCols: [
-            { col: 'G', field: 'adjusted_city_component' },
-            { col: 'H', field: 'adjusted_local_component' },
-          ],
-        },
-        {
-          eq: 'I=J+K',
-          totalField: 'disbursed_total',
-          totalCol: 'I',
-          compCols: [
-            { col: 'J', field: 'disbursed_city_component' },
-            { col: 'K', field: 'disbursed_local_component' },
-          ],
-        },
-        {
-          eq: 'I=L+M+N',
-          totalField: 'disbursed_total',
-          totalCol: 'I',
-          compCols: [
-            { col: 'L', field: 'disbursed_construction' },
-            { col: 'M', field: 'disbursed_gpmb' },
-            { col: 'N', field: 'disbursed_other' },
-          ],
-        },
-      ];
-
-  const rowStart = isPhanCapXa ? 8 : 13;
-  const rowEnd = isPhanCapXa ? Math.max(121, targetSheet.maxRow) : 126;
+  const eqDefs = profile.eqDefs;
+  const rowStart = profile.rowStart;
+  const rowEnd = profile.isPhanCapXa
+    ? Math.max(profile.defaultRowEnd, targetSheet.maxRow)
+    : profile.defaultRowEnd;
 
   for (let row = rowStart; row <= rowEnd; row++) {
     const rawName = getCellText(targetSheet, `B${row}`).trim();
     if (!rawName) continue;
-    if (isPhanCapXa) {
+    if (profile.isPhanCapXa) {
       const lowerName = rawName.toLowerCase();
       if (lowerName.startsWith('tổng') || lowerName.startsWith('ghi chú')) {
         continue;
       }
       const aCell = targetSheet.cells.get(`A${row}`);
-      const cCell = targetSheet.cells.get(`C${row}`);
-      const gCell = targetSheet.cells.get(`G${row}`);
+      const planCell = targetSheet.cells.get(`${profile.planCol}${row}`);
+      const disbCell = targetSheet.cells.get(`${profile.disbCol}${row}`);
       const looksLikeLocalityRow =
-        aCell?.cellType === 'n' || (cCell?.cellType === 'n' && gCell?.cellType === 'n');
+        aCell?.cellType === 'n' ||
+        (planCell?.cellType === 'n' && disbCell?.cellType === 'n');
       if (!looksLikeLocalityRow) continue;
     }
 
@@ -1190,9 +1172,12 @@ export function importDisbursementWorkbook(
     periodStart: '2026-01-01',
     periodEnd: asOfDate,
     asOfStatus: 'DETECTED_CONFIRMED',
-    asOfDateEvidence: isPhanCapXa
-      ? `Sheet ${targetSheet.name}!A1 ("${a1Text.trim()}"). Báo cáo nguồn vốn phân cấp cho cấp xã (không bao gồm dự án khối TP và không có cột KHV trước điều chỉnh).`
-      : `Sheet ${targetSheet.name}!A1 ("${a1Text.trim()}"). Không dùng ngày 22/10 ở cột P hay 25/9 ở cột Q làm ngày chốt.`,
+    asOfDateEvidence:
+      targetFp === 'DISB_PHAN_CAP_XA_V2'
+        ? `Sheet ${targetSheet.name}!A1 ("${a1Text.trim()}"). Báo cáo nguồn vốn phân cấp cho cấp xã (gồm KHV đầu năm C–E, sau điều chỉnh F–I, giải ngân J–M, tỷ lệ N, ghi chú O; không gồm dự án khối TP).`
+        : targetFp === 'DISB_PHAN_CAP_XA_V1'
+        ? `Sheet ${targetSheet.name}!A1 ("${a1Text.trim()}"). Báo cáo nguồn vốn phân cấp cho cấp xã (12 cột A–L, không bao gồm dự án khối TP và không có cột KHV trước điều chỉnh).`
+        : `Sheet ${targetSheet.name}!A1 ("${a1Text.trim()}"). Không dùng ngày 22/10 ở cột P hay 25/9 ở cột Q làm ngày chốt.`,
     asOfDateConfirmation: {
       confirmedByUser: true,
       confirmedAt: new Date().toISOString(),

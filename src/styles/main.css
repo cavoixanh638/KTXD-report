@@ -2011,7 +2011,10 @@ code {
 .cell-trace-popover {
   position: absolute;
   z-index: 200;
-  width: 340px;
+  width: 390px;
+  max-width: calc(100vw - 24px);
+  max-height: calc(100vh - 24px);
+  overflow-y: auto;
   background-color: #ffffff;
   border: 1px solid var(--border-color);
   border-radius: var(--radius-md);
@@ -2157,7 +2160,76 @@ code {
   padding-top: 8px;
   border-top: 1px solid #e2e8f0;
   display: flex;
-  justify-content: flex-end;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.popover-shortcut-hint {
+  font-size: 11px;
+  color: #64748b;
+}
+
+.popover-shortcut-hint kbd {
+  background-color: #f1f5f9;
+  border: 1px solid #cbd5e1;
+  border-radius: 3px;
+  padding: 1px 4px;
+  font-size: 10px;
+  font-family: var(--font-mono);
+  color: #334155;
+}
+
+.popover-lookup-box,
+.trace-lookup-box {
+  background-color: #f0f9ff;
+  border: 1px solid #bae6fd;
+  border-radius: 6px;
+  padding: 8px 10px;
+}
+
+.popover-lookup-title {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px;
+  font-size: 11px;
+  font-weight: 700;
+  color: #0369a1;
+  margin-bottom: 5px;
+}
+
+.lookup-schema-pill {
+  font-size: 10px;
+  background-color: #e0f2fe;
+  color: #0c4a6e;
+  padding: 1px 5px;
+  border-radius: 4px;
+  max-width: 190px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.popover-lookup-steps {
+  margin: 0;
+  padding-left: 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 11px;
+  line-height: 1.35;
+  color: #0f172a;
+}
+
+.lookup-steps-list {
+  margin: 6px 0 0;
+  padding-left: 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  font-size: 12.5px;
+  line-height: 1.4;
 }
 
 /* 8. Unified Locality Picker */
@@ -2775,24 +2847,30 @@ code {
     color: #000000 !important;
     font-family: 'Times New Roman', Times, serif !important;
     font-size: 10pt !important;
+    height: auto !important;
+    min-height: 0 !important;
+    overflow: visible !important;
     margin: 0 !important;
     padding: 0 !important;
   }
 
   .print-page-chunk {
+    break-after: page;
     page-break-after: always;
-    page-break-inside: avoid;
     margin: 0;
     padding: 0;
   }
 
   .print-page-chunk:last-child {
+    break-after: auto;
     page-break-after: avoid;
   }
 
   .print-title-center {
     text-align: center;
     margin-bottom: 4pt;
+    break-after: avoid;
+    page-break-after: avoid;
   }
 
   .print-title-center h2 {
@@ -2803,6 +2881,8 @@ code {
     margin: 0;
     line-height: 1.25;
     font-family: 'Times New Roman', Times, serif;
+    break-after: avoid;
+    page-break-after: avoid;
   }
 
   .print-subtitle-block {
@@ -2814,6 +2894,8 @@ code {
     font-weight: normal;
     color: #000000;
     font-family: 'Times New Roman', Times, serif;
+    break-after: avoid;
+    page-break-after: avoid;
   }
 
   .print-table {
@@ -2823,7 +2905,8 @@ code {
     font-size: 8.5pt;
     table-layout: fixed;
     margin: 0 auto;
-    page-break-inside: avoid;
+    break-inside: auto;
+    page-break-inside: auto;
   }
 
   .print-table thead {
@@ -2831,6 +2914,7 @@ code {
   }
 
   .print-table tr {
+    break-inside: avoid;
     page-break-inside: avoid;
   }
 
@@ -2897,11 +2981,16 @@ code {
     margin-left: 2pt;
   }
 
-  .print-table tr.doc-row-sub td,
   .print-table tr.doc-row-sub td.label-col {
     font-weight: normal !important;
     font-style: italic !important;
     text-align: left;
+  }
+
+  .print-table tr.doc-row-sub td.stt-col {
+    font-weight: normal !important;
+    font-style: italic !important;
+    text-align: center;
   }
 
   .print-table tr.doc-row-sub td.print-cell,
@@ -2926,7 +3015,8 @@ code {
    ========================================================================== */
 .doc-appendix-projects {
   margin-top: 14pt;
-  page-break-inside: avoid;
+  break-inside: auto;
+  page-break-inside: auto;
 }
 
 .projects-header-wrap {
@@ -2934,6 +3024,8 @@ code {
   justify-content: space-between;
   align-items: center;
   margin-bottom: 6pt;
+  break-after: avoid;
+  page-break-after: avoid;
 }
 
 .projects-title-text {

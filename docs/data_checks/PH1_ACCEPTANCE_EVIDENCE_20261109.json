@@ -1,7 +1,7 @@
 {
   "phase": "PH1",
   "specVersion": "MASTER_V2.2_CURRENT",
-  "generatedAt": "2026-11-10T09:58:17.510Z",
+  "generatedAt": "2026-11-10T16:25:06.586Z",
   "sourceSha256": {
     "DISB_20261015": "3ba33b3efd579499500d956c2580a170e84dd38b8d700fdfaaf9a361ea7cb38c",
     "REV_10M_2026": "b41227d1444c581e6f3b65d761fad8918b65aedfbd8114443e6dee9d4938356f",
@@ -36,7 +36,7 @@
         "rowNumber": 3,
         "stt": "1",
         "indicatorId": "REV_BUDGET_Y",
-        "label": "Dự toán thu NSNN năm",
+        "label": "Dự toán thu NSNN giao từng địa phương tại QĐ 5055",
         "values": {
           "Phường Hưng Đạo": {
             "displayed": "250,16",
@@ -79,7 +79,7 @@
         "rowNumber": 4,
         "stt": "2",
         "indicatorId": "REV_RATE_Y",
-        "label": "Tỷ lệ thu NSNN so với dự toán (đến ngày 19/10/2026)",
+        "label": "Tỷ lệ thu NSNN của từng xã so với dự toán (đến ngày 19/10/2026)",
         "values": {
           "Phường Hưng Đạo": {
             "displayed": "174,42%",
@@ -208,7 +208,7 @@
         "rowNumber": 7,
         "stt": "3",
         "indicatorId": "DISB_PLAN",
-        "label": "Kế hoạch vốn đầu tư công sau NQ điều chỉnh, bổ sung của HĐND",
+        "label": "Kế hoạch vốn đầu tư công sau điều chỉnh, bổ sung",
         "values": {
           "Phường Hưng Đạo": {
             "displayed": "45,62",
@@ -337,7 +337,7 @@
         "rowNumber": 10,
         "stt": "",
         "indicatorId": "DISB_RATE",
-        "label": "Tỷ lệ giải ngân của địa phương",
+        "label": "Tỷ lệ giải ngân của từng địa phương",
         "values": {
           "Phường Hưng Đạo": {
             "displayed": "99,66%",
@@ -423,7 +423,7 @@
         "rowNumber": 12,
         "stt": "5",
         "indicatorId": "GPMB_BUDGET",
-        "label": "Kinh phí phân bổ GPMB",
+        "label": "Kinh phí phân bổ GPMB cho từng xã",
         "values": {
           "Phường Hưng Đạo": {
             "displayed": "249,05",
@@ -466,7 +466,7 @@
         "rowNumber": 13,
         "stt": "6",
         "indicatorId": "GPMB_AREA_PLAN",
-        "label": "Diện tích phải GPMB",
+        "label": "Diện tích phải GPMB của từng xã",
         "values": {
           "Phường Hưng Đạo": {
             "displayed": "113.969",
@@ -652,7 +652,7 @@
         "rowNumber": 3,
         "stt": "1",
         "indicatorId": "REV_BUDGET_Y",
-        "label": "Dự toán thu NSNN năm",
+        "label": "Dự toán thu NSNN giao từng địa phương tại QĐ 5055",
         "values": {
           "Phường Hưng Đạo": {
             "displayed": "250,16",
@@ -709,7 +709,7 @@
         "rowNumber": 4,
         "stt": "2",
         "indicatorId": "REV_RATE_Y",
-        "label": "Tỷ lệ thu NSNN so với dự toán (đến ngày 19/10/2026)",
+        "label": "Tỷ lệ thu NSNN của từng xã so với dự toán (đến ngày 19/10/2026)",
         "values": {
           "Phường Hưng Đạo": {
             "displayed": "174,42%",
@@ -880,7 +880,7 @@
         "rowNumber": 7,
         "stt": "3",
         "indicatorId": "DISB_PLAN",
-        "label": "Kế hoạch vốn đầu tư công sau NQ điều chỉnh, bổ sung của HĐND",
+        "label": "Kế hoạch vốn đầu tư công sau điều chỉnh, bổ sung",
         "values": {
           "Phường Hưng Đạo": {
             "displayed": "45,62",
@@ -1051,7 +1051,7 @@
         "rowNumber": 10,
         "stt": "",
         "indicatorId": "DISB_RATE",
-        "label": "Tỷ lệ giải ngân của địa phương",
+        "label": "Tỷ lệ giải ngân của từng địa phương",
         "values": {
           "Phường Hưng Đạo": {
             "displayed": "99,66%",
@@ -1165,7 +1165,7 @@
         "rowNumber": 12,
         "stt": "5",
         "indicatorId": "GPMB_BUDGET",
-        "label": "Kinh phí phân bổ GPMB",
+        "label": "Kinh phí phân bổ GPMB cho từng xã",
         "values": {
           "Phường Hưng Đạo": {
             "displayed": "249,05",
@@ -1222,7 +1222,7 @@
         "rowNumber": 13,
         "stt": "6",
         "indicatorId": "GPMB_AREA_PLAN",
-        "label": "Diện tích phải GPMB",
+        "label": "Diện tích phải GPMB của từng xã",
         "values": {
           "Phường Hưng Đạo": {
             "displayed": "113.969",

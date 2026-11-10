@@ -7,7 +7,11 @@ import {
   TemplateRowCustomConfig,
   Workspace,
 } from './types';
-import { TEMPLATE_14_ROWS_DEFAULT } from './indicators';
+import {
+  formatVnDateText,
+  replaceDateInLabel,
+  TEMPLATE_14_ROWS_DEFAULT,
+} from './indicators';
 
 export function createEmptyWorkspace(name = 'Hồ sơ Báo cáo KTXH 2026'): Workspace {
   return {
@@ -109,17 +113,7 @@ export function confirmDatasetAsOfDate(
 }
 
 export function formatVnDate(dateStr: string | undefined): string {
-  if (!dateStr) return '';
-  const clean = dateStr.trim();
-  if (/^\d{1,2}\/\d{1,2}\/\d{4}$/.test(clean)) return clean;
-  const m = clean.match(/^(\d{4})-(\d{1,2})-(\d{1,2})/);
-  if (m) {
-    const d = m[3].padStart(2, '0');
-    const mon = m[2].padStart(2, '0');
-    const y = m[1];
-    return `${d}/${mon}/${y}`;
-  }
-  return clean;
+  return formatVnDateText(dateStr);
 }
 
 export function formatIsoDate(dateStr: string | undefined): string {
@@ -139,39 +133,24 @@ export function formatIsoDate(dateStr: string | undefined): string {
 export function syncReportLabelsWithDatasetDates(workspace: Workspace): void {
   for (const session of workspace.sessions) {
     const datasets = resolveSessionDatasets(workspace, session);
-    const disbDateVn = formatVnDate(datasets.DISB?.asOfDate);
-    const revDateVn = formatVnDate(datasets.REV?.asOfDate);
-    const gpmbDateVn = formatVnDate(datasets.GPMB?.asOfDate);
+    const dateByIndicator: Record<string, string> = {
+      DISB_BENCHMARK_RATE: formatVnDate(datasets.DISB?.asOfDate),
+      REV_RATE_Y: formatVnDate(datasets.REV?.asOfDate),
+      GPMB_BENCHMARK_AREA_RATE: formatVnDate(datasets.GPMB?.asOfDate),
+    };
 
     for (const r of session.templateRows) {
-      if (r.indicatorId === 'DISB_BENCHMARK_RATE' && disbDateVn) {
-        if (/\(đến ngày[^\)]*\)/i.test(r.customLabel)) {
-          r.customLabel = r.customLabel.replace(
-            /\(đến ngày[^\)]*\)/i,
-            `(đến ngày ${disbDateVn})`
-          );
-        } else {
-          r.customLabel = `${r.customLabel} (đến ngày ${disbDateVn})`;
-        }
-      } else if (r.indicatorId === 'REV_RATE_Y' && revDateVn) {
-        if (/\(đến ngày[^\)]*\)/i.test(r.customLabel)) {
-          r.customLabel = r.customLabel.replace(
-            /\(đến ngày[^\)]*\)/i,
-            `(đến ngày ${revDateVn})`
-          );
-        } else {
-          r.customLabel = `${r.customLabel} (đến ngày ${revDateVn})`;
-        }
-      } else if (r.indicatorId === 'GPMB_BENCHMARK_AREA_RATE' && gpmbDateVn) {
-        if (/\(đến ngày[^\)]*\)/i.test(r.customLabel)) {
-          r.customLabel = r.customLabel.replace(
-            /\(đến ngày[^\)]*\)/i,
-            `(đến ngày ${gpmbDateVn})`
-          );
-        } else {
-          r.customLabel = `${r.customLabel} (đến ngày ${gpmbDateVn})`;
-        }
+      const dateVn = dateByIndicator[r.indicatorId];
+      if (dateVn) {
+        r.customLabel = replaceDateInLabel(r.customLabel, dateVn);
       }
+    }
+
+    if (session.settings.revBenchmarkRowCustomLabel && dateByIndicator.REV_RATE_Y) {
+      session.settings.revBenchmarkRowCustomLabel = replaceDateInLabel(
+        session.settings.revBenchmarkRowCustomLabel,
+        dateByIndicator.REV_RATE_Y
+      );
     }
   }
 }
@@ -242,14 +221,20 @@ export function sanitizeWorkspace(workspace: Workspace): void {
 
 export function migrateLegacySessionLabels(workspace: Workspace): void {
   const legacyToNewMap: Record<string, string> = {
-    'Kế hoạch vốn đầu tư công sau điều chỉnh':
-      'Kế hoạch vốn đầu tư công sau NQ điều chỉnh, bổ sung của HĐND',
+    'Dự toán thu NSNN năm': 'Dự toán thu NSNN giao từng địa phương tại QĐ 5055',
     'Tỷ lệ thu NSNN so với dự toán':
-      'Tỷ lệ thu NSNN so với dự toán (đến ngày 19/10/2026)',
+      'Tỷ lệ thu NSNN của từng xã so với dự toán (đến ngày 19/10/2026)',
+    'Kế hoạch vốn đầu tư công sau điều chỉnh':
+      'Kế hoạch vốn đầu tư công sau điều chỉnh, bổ sung',
+    'Kế hoạch vốn đầu tư công sau NQ điều chỉnh, bổ sung của HĐND':
+      'Kế hoạch vốn đầu tư công sau điều chỉnh, bổ sung',
     'Tỷ lệ giải ngân chung của 114 địa phương':
       'Tỷ lệ giải ngân chung của các địa phương (đến ngày 15/10/2026)',
+    'Tỷ lệ giải ngân của địa phương': 'Tỷ lệ giải ngân của từng địa phương',
     'Nhận xét tỷ lệ giải ngân':
       'Kết quả giải ngân so với tỷ lệ trung bình',
+    'Kinh phí phân bổ GPMB': 'Kinh phí phân bổ GPMB cho từng xã',
+    'Diện tích phải GPMB': 'Diện tích phải GPMB của từng xã',
     'Tỷ lệ GPMB của danh mục địa bàn có dữ liệu (108/114 địa bàn)':
       'Tỷ lệ GPMB trung bình của các địa phương (đến ngày 26/10/2026)',
     'Tỷ lệ GPMB địa phương theo diện tích':
@@ -260,16 +245,38 @@ export function migrateLegacySessionLabels(workspace: Workspace): void {
 
   for (const s of workspace.sessions) {
     if (!s || !s.settings) continue;
+    if (
+      s.settings.revBenchmarkRowCustomLabel &&
+      /^Tỷ lệ thu NSNN chung của \d+\/\d+ địa phương có dữ liệu/i.test(
+        s.settings.revBenchmarkRowCustomLabel.trim()
+      )
+    ) {
+      delete s.settings.revBenchmarkRowCustomLabel;
+    }
     if (!Array.isArray(s.templateRows)) continue;
     for (const r of s.templateRows) {
-      if (r.customLabel && legacyToNewMap[r.customLabel]) {
+      if (
+        r.indicatorId === 'REV_RATE_Y' &&
+        r.customLabel &&
+        /^Tỷ lệ thu NSNN so với dự toán\b/i.test(r.customLabel.trim())
+      ) {
+        const rest = r.customLabel
+          .trim()
+          .replace(/^Tỷ lệ thu NSNN so với dự toán/i, '')
+          .trim();
+        r.customLabel = rest
+          ? `Tỷ lệ thu NSNN của từng xã so với dự toán ${rest}`
+          : 'Tỷ lệ thu NSNN của từng xã so với dự toán (đến ngày 19/10/2026)';
+      } else if (r.customLabel && legacyToNewMap[r.customLabel]) {
         r.customLabel = legacyToNewMap[r.customLabel];
       }
       if (
         r.indicatorId === 'DISB_PLAN' &&
-        (r.customLabel === 'Kế hoạch vốn đầu tư công sau điều chỉnh' || !r.customLabel)
+        (r.customLabel === 'Kế hoạch vốn đầu tư công sau điều chỉnh' ||
+          r.customLabel === 'Kế hoạch vốn đầu tư công sau NQ điều chỉnh, bổ sung của HĐND' ||
+          !r.customLabel)
       ) {
-        r.customLabel = 'Kế hoạch vốn đầu tư công sau NQ điều chỉnh, bổ sung của HĐND';
+        r.customLabel = 'Kế hoạch vốn đầu tư công sau điều chỉnh, bổ sung';
       }
     }
     if (

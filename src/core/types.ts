@@ -252,7 +252,15 @@ export interface QualityIssue {
 }
 
 export interface IdentityCheckResult {
-  equation: 'F=G+H' | 'I=J+K' | 'I=L+M+N' | 'C=D+E+F' | 'G=H+I+J';
+  equation:
+    | 'F=G+H'
+    | 'I=J+K'
+    | 'I=L+M+N'
+    | 'C=D+E+F'
+    | 'G=H+I+J'
+    | 'C=D+E'
+    | 'F=G+H+I'
+    | 'J=K+L+M';
   row: number;
   localityId: string;
   localityName: string;
@@ -445,6 +453,8 @@ export interface ReportSession {
       deadline?: string;
       isHidden?: boolean;
     }>;
+    showRevBenchmarkRow?: boolean;
+    revBenchmarkRowCustomLabel?: string;
   };
   overrides: ManualOverride[];
   templateId?: string;
@@ -471,4 +481,247 @@ export interface Workspace {
   activeSessionId?: string;
   auditLog: AuditEntry[];
   checksum?: string;
+}
+
+export type DisbSchemaFingerprint =
+  | 'DISB_V1'
+  | 'DISB_PHAN_CAP_XA_V1'
+  | 'DISB_PHAN_CAP_XA_V2';
+
+export interface DisbIdentityEqDef {
+  eq: IdentityCheckResult['equation'];
+  totalField: string;
+  totalCol: string;
+  compCols: Array<{ col: string; field: string }>;
+}
+
+export interface DisbSchemaProfile {
+  fingerprint: DisbSchemaFingerprint;
+  isPhanCapXa: boolean;
+  hasInitialPlan: boolean;
+  mappingVersion: string;
+  rowStart: number;
+  defaultRowEnd: number;
+  summaryRow: number;
+  hasCitySummary: boolean;
+  hasUnplannedRow: boolean;
+  planCol: string;
+  disbCol: string;
+  rateCol: string;
+  noteCol: string;
+  markerCol: string | null;
+  colMap: Record<string, string>;
+  componentCols: Array<{ field: string; col: string }>;
+  eqDefs: DisbIdentityEqDef[];
+}
+
+export const DISB_SCHEMA_PROFILES: Record<DisbSchemaFingerprint, DisbSchemaProfile> = {
+  DISB_V1: {
+    fingerprint: 'DISB_V1',
+    isPhanCapXa: false,
+    hasInitialPlan: true,
+    mappingVersion: 'DISB_ADAPTER_V2.2',
+    rowStart: 13,
+    defaultRowEnd: 126,
+    summaryRow: 12,
+    hasCitySummary: true,
+    hasUnplannedRow: true,
+    planCol: 'F',
+    disbCol: 'I',
+    rateCol: 'O',
+    noteCol: 'Q',
+    markerCol: 'P',
+    colMap: {
+      C: 'initial_total_plan',
+      D: 'initial_city_component',
+      E: 'initial_local_component',
+      F: 'adjusted_total_plan',
+      G: 'adjusted_city_component',
+      H: 'adjusted_local_component',
+      I: 'disbursed_total',
+      J: 'disbursed_city_component',
+      K: 'disbursed_local_component',
+      L: 'disbursed_construction',
+      M: 'disbursed_gpmb',
+      N: 'disbursed_other',
+      O: 'source_disbursed_rate',
+    },
+    componentCols: [
+      { field: 'adjusted_city_component', col: 'G' },
+      { field: 'disbursed_city_component', col: 'J' },
+      { field: 'disbursed_gpmb', col: 'M' },
+      { field: 'disbursed_other', col: 'N' },
+    ],
+    eqDefs: [
+      {
+        eq: 'F=G+H',
+        totalField: 'adjusted_total_plan',
+        totalCol: 'F',
+        compCols: [
+          { col: 'G', field: 'adjusted_city_component' },
+          { col: 'H', field: 'adjusted_local_component' },
+        ],
+      },
+      {
+        eq: 'I=J+K',
+        totalField: 'disbursed_total',
+        totalCol: 'I',
+        compCols: [
+          { col: 'J', field: 'disbursed_city_component' },
+          { col: 'K', field: 'disbursed_local_component' },
+        ],
+      },
+      {
+        eq: 'I=L+M+N',
+        totalField: 'disbursed_total',
+        totalCol: 'I',
+        compCols: [
+          { col: 'L', field: 'disbursed_construction' },
+          { col: 'M', field: 'disbursed_gpmb' },
+          { col: 'N', field: 'disbursed_other' },
+        ],
+      },
+    ],
+  },
+  DISB_PHAN_CAP_XA_V1: {
+    fingerprint: 'DISB_PHAN_CAP_XA_V1',
+    isPhanCapXa: true,
+    hasInitialPlan: false,
+    mappingVersion: 'DISB_PHAN_CAP_XA_V1',
+    rowStart: 8,
+    defaultRowEnd: 121,
+    summaryRow: 7,
+    hasCitySummary: false,
+    hasUnplannedRow: false,
+    planCol: 'C',
+    disbCol: 'G',
+    rateCol: 'K',
+    noteCol: 'L',
+    markerCol: null,
+    colMap: {
+      C: 'adjusted_total_plan',
+      D: 'plan_land_use_fee',
+      E: 'plan_targeted_support',
+      F: 'plan_revenue_increase',
+      G: 'disbursed_total',
+      H: 'disbursed_land_use_fee',
+      I: 'disbursed_targeted_support',
+      J: 'disbursed_revenue_increase',
+      K: 'source_disbursed_rate',
+    },
+    componentCols: [
+      { field: 'plan_land_use_fee', col: 'D' },
+      { field: 'plan_targeted_support', col: 'E' },
+      { field: 'plan_revenue_increase', col: 'F' },
+      { field: 'disbursed_land_use_fee', col: 'H' },
+      { field: 'disbursed_targeted_support', col: 'I' },
+      { field: 'disbursed_revenue_increase', col: 'J' },
+    ],
+    eqDefs: [
+      {
+        eq: 'C=D+E+F',
+        totalField: 'adjusted_total_plan',
+        totalCol: 'C',
+        compCols: [
+          { col: 'D', field: 'plan_land_use_fee' },
+          { col: 'E', field: 'plan_targeted_support' },
+          { col: 'F', field: 'plan_revenue_increase' },
+        ],
+      },
+      {
+        eq: 'G=H+I+J',
+        totalField: 'disbursed_total',
+        totalCol: 'G',
+        compCols: [
+          { col: 'H', field: 'disbursed_land_use_fee' },
+          { col: 'I', field: 'disbursed_targeted_support' },
+          { col: 'J', field: 'disbursed_revenue_increase' },
+        ],
+      },
+    ],
+  },
+  DISB_PHAN_CAP_XA_V2: {
+    fingerprint: 'DISB_PHAN_CAP_XA_V2',
+    isPhanCapXa: true,
+    hasInitialPlan: true,
+    mappingVersion: 'DISB_PHAN_CAP_XA_V2',
+    rowStart: 8,
+    defaultRowEnd: 121,
+    summaryRow: 7,
+    hasCitySummary: false,
+    hasUnplannedRow: false,
+    planCol: 'F',
+    disbCol: 'J',
+    rateCol: 'N',
+    noteCol: 'O',
+    markerCol: null,
+    colMap: {
+      C: 'initial_total_plan',
+      D: 'initial_land_use_fee',
+      E: 'initial_targeted_support',
+      F: 'adjusted_total_plan',
+      G: 'plan_land_use_fee',
+      H: 'plan_targeted_support',
+      I: 'plan_revenue_increase',
+      J: 'disbursed_total',
+      K: 'disbursed_land_use_fee',
+      L: 'disbursed_targeted_support',
+      M: 'disbursed_revenue_increase',
+      N: 'source_disbursed_rate',
+    },
+    componentCols: [
+      { field: 'initial_land_use_fee', col: 'D' },
+      { field: 'initial_targeted_support', col: 'E' },
+      { field: 'plan_land_use_fee', col: 'G' },
+      { field: 'plan_targeted_support', col: 'H' },
+      { field: 'plan_revenue_increase', col: 'I' },
+      { field: 'disbursed_land_use_fee', col: 'K' },
+      { field: 'disbursed_targeted_support', col: 'L' },
+      { field: 'disbursed_revenue_increase', col: 'M' },
+    ],
+    eqDefs: [
+      {
+        eq: 'C=D+E',
+        totalField: 'initial_total_plan',
+        totalCol: 'C',
+        compCols: [
+          { col: 'D', field: 'initial_land_use_fee' },
+          { col: 'E', field: 'initial_targeted_support' },
+        ],
+      },
+      {
+        eq: 'F=G+H+I',
+        totalField: 'adjusted_total_plan',
+        totalCol: 'F',
+        compCols: [
+          { col: 'G', field: 'plan_land_use_fee' },
+          { col: 'H', field: 'plan_targeted_support' },
+          { col: 'I', field: 'plan_revenue_increase' },
+        ],
+      },
+      {
+        eq: 'J=K+L+M',
+        totalField: 'disbursed_total',
+        totalCol: 'J',
+        compCols: [
+          { col: 'K', field: 'disbursed_land_use_fee' },
+          { col: 'L', field: 'disbursed_targeted_support' },
+          { col: 'M', field: 'disbursed_revenue_increase' },
+        ],
+      },
+    ],
+  },
+};
+
+/** Returns schema metadata for a DISB workbook variant (defaults to DISB_V1). */
+export function getDisbSchemaProfile(schemaFingerprint?: string): DisbSchemaProfile {
+  if (schemaFingerprint === 'DISB_PHAN_CAP_XA_V1') return DISB_SCHEMA_PROFILES.DISB_PHAN_CAP_XA_V1;
+  if (schemaFingerprint === 'DISB_PHAN_CAP_XA_V2') return DISB_SCHEMA_PROFILES.DISB_PHAN_CAP_XA_V2;
+  return DISB_SCHEMA_PROFILES.DISB_V1;
+}
+
+/** Formats a column range string (e.g., F8:F121 or F13:F126) for traces and footnotes. */
+export function formatDisbRange(col: string, profile: DisbSchemaProfile, count = 114): string {
+  const endRow = profile.rowStart + Math.max(count, 1) - 1;
+  return `${col}${profile.rowStart}:${col}${endRow}`;
 }

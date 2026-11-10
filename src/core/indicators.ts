@@ -29,7 +29,7 @@ export interface IndicatorDefinition {
 export const DEFAULT_INDICATORS: Record<string, IndicatorDefinition> = {
   REV_BUDGET_Y: {
     id: 'REV_BUDGET_Y',
-    label: 'Dự toán thu NSNN năm',
+    label: 'Dự toán thu NSNN giao từng địa phương tại QĐ 5055',
     sourceType: 'REV',
     fieldOrFormula: 'C / 1000',
     numeratorField: 'annual_total_budget',
@@ -55,9 +55,25 @@ export const DEFAULT_INDICATORS: Record<string, IndicatorDefinition> = {
     benchmarkPolicy: 'SUM(I) across available 113 localities',
     datePolicy: 'STRICT_SAME_DATASET_AS_OF_DATE',
   },
+  REV_BENCHMARK_RATE: {
+    id: 'REV_BENCHMARK_RATE',
+    label: 'Tỷ lệ thu NSNN chung của các địa phương (đến ngày 19/10/2026)',
+    sourceType: 'REV',
+    fieldOrFormula: 'SUM(I11:I123) / SUM(C11:C123) * 100',
+    numeratorField: 'actual_total_revenue',
+    denominatorField: 'annual_total_budget',
+    originalUnit: 'ratio',
+    displayUnit: 'percent',
+    precision: 2,
+    aggregationPolicy: 'BENCHMARK_RATIO_OF_SUMS',
+    benchmarkPolicy:
+      'LOCALITIES_AVAILABLE_N (113/114 địa phương có dữ liệu; đủ 114/114 mới ghi toàn bộ 114)',
+    datePolicy: 'STRICT_SAME_DATASET_AS_OF_DATE',
+    defaultStt: '2',
+  },
   REV_RATE_Y: {
     id: 'REV_RATE_Y',
-    label: 'Tỷ lệ thu NSNN so với dự toán (đến ngày 19/10/2026)',
+    label: 'Tỷ lệ thu NSNN của từng xã so với dự toán (đến ngày 19/10/2026)',
     sourceType: 'REV',
     fieldOrFormula: '(I / C) * 100',
     numeratorField: 'actual_total_revenue',
@@ -147,7 +163,7 @@ export const DEFAULT_INDICATORS: Record<string, IndicatorDefinition> = {
   },
   DISB_PLAN: {
     id: 'DISB_PLAN',
-    label: 'Kế hoạch vốn đầu tư công sau NQ điều chỉnh, bổ sung của HĐND',
+    label: 'Kế hoạch vốn đầu tư công sau điều chỉnh, bổ sung',
     sourceType: 'DISB',
     fieldOrFormula: 'F / 1000',
     numeratorField: 'adjusted_total_plan',
@@ -219,7 +235,7 @@ export const DEFAULT_INDICATORS: Record<string, IndicatorDefinition> = {
   },
   DISB_RATE: {
     id: 'DISB_RATE',
-    label: 'Tỷ lệ giải ngân của địa phương',
+    label: 'Tỷ lệ giải ngân của từng địa phương',
     sourceType: 'DISB',
     fieldOrFormula: '(I / F) * 100',
     numeratorField: 'disbursed_total',
@@ -264,7 +280,7 @@ export const DEFAULT_INDICATORS: Record<string, IndicatorDefinition> = {
   },
   GPMB_BUDGET: {
     id: 'GPMB_BUDGET',
-    label: 'Kinh phí phân bổ GPMB',
+    label: 'Kinh phí phân bổ GPMB cho từng xã',
     sourceType: 'GPMB',
     fieldOrFormula: 'SUM(G_project) / 1e9',
     numeratorField: 'gpmb_allocated_budget',
@@ -306,7 +322,7 @@ export const DEFAULT_INDICATORS: Record<string, IndicatorDefinition> = {
   },
   GPMB_AREA_PLAN: {
     id: 'GPMB_AREA_PLAN',
-    label: 'Diện tích phải GPMB',
+    label: 'Diện tích phải GPMB của từng xã',
     sourceType: 'GPMB',
     fieldOrFormula: 'SUM(D_project)',
     numeratorField: 'gpmb_declared_area',
@@ -419,7 +435,7 @@ export const TEMPLATE_14_ROWS_DEFAULT: TemplateRowCustomConfig[] = [
     rowNumber: 3,
     indicatorId: 'REV_BUDGET_Y',
     sttLabel: '1',
-    customLabel: 'Dự toán thu NSNN năm',
+    customLabel: 'Dự toán thu NSNN giao từng địa phương tại QĐ 5055',
     groupName: 'I. Thu ngân sách nhà nước',
     visible: true,
     order: 1,
@@ -428,7 +444,7 @@ export const TEMPLATE_14_ROWS_DEFAULT: TemplateRowCustomConfig[] = [
     rowNumber: 4,
     indicatorId: 'REV_RATE_Y',
     sttLabel: '2',
-    customLabel: 'Tỷ lệ thu NSNN so với dự toán (đến ngày 19/10/2026)',
+    customLabel: 'Tỷ lệ thu NSNN của từng xã so với dự toán (đến ngày 19/10/2026)',
     groupName: 'I. Thu ngân sách nhà nước',
     visible: true,
     order: 2,
@@ -455,7 +471,7 @@ export const TEMPLATE_14_ROWS_DEFAULT: TemplateRowCustomConfig[] = [
     rowNumber: 7,
     indicatorId: 'DISB_PLAN',
     sttLabel: '3',
-    customLabel: 'Kế hoạch vốn đầu tư công sau NQ điều chỉnh, bổ sung của HĐND',
+    customLabel: 'Kế hoạch vốn đầu tư công sau điều chỉnh, bổ sung',
     groupName: 'II. Giải ngân vốn đầu tư công',
     visible: true,
     order: 5,
@@ -482,7 +498,7 @@ export const TEMPLATE_14_ROWS_DEFAULT: TemplateRowCustomConfig[] = [
     rowNumber: 10,
     indicatorId: 'DISB_RATE',
     sttLabel: '',
-    customLabel: 'Tỷ lệ giải ngân của địa phương',
+    customLabel: 'Tỷ lệ giải ngân của từng địa phương',
     groupName: 'II. Giải ngân vốn đầu tư công',
     visible: true,
     order: 8,
@@ -500,7 +516,7 @@ export const TEMPLATE_14_ROWS_DEFAULT: TemplateRowCustomConfig[] = [
     rowNumber: 12,
     indicatorId: 'GPMB_BUDGET',
     sttLabel: '5',
-    customLabel: 'Kinh phí phân bổ GPMB',
+    customLabel: 'Kinh phí phân bổ GPMB cho từng xã',
     groupName: 'III. Công tác giải phóng mặt bằng (GPMB)',
     visible: true,
     order: 10,
@@ -509,7 +525,7 @@ export const TEMPLATE_14_ROWS_DEFAULT: TemplateRowCustomConfig[] = [
     rowNumber: 13,
     indicatorId: 'GPMB_AREA_PLAN',
     sttLabel: '6',
-    customLabel: 'Diện tích phải GPMB',
+    customLabel: 'Diện tích phải GPMB của từng xã',
     groupName: 'III. Công tác giải phóng mặt bằng (GPMB)',
     visible: true,
     order: 11,
@@ -542,3 +558,42 @@ export const TEMPLATE_14_ROWS_DEFAULT: TemplateRowCustomConfig[] = [
     order: 14,
   },
 ];
+
+/** Formats YYYY-MM-DD (or DD/MM/YYYY) into VN date string DD/MM/YYYY. */
+export function formatVnDateText(dateStr: string | undefined): string {
+  if (!dateStr) return '';
+  const clean = dateStr.trim();
+  if (/^\d{1,2}\/\d{1,2}\/\d{4}$/.test(clean)) return clean;
+  const m = clean.match(/^(\d{4})-(\d{1,2})-(\d{1,2})/);
+  if (m) {
+    return `${m[3].padStart(2, '0')}/${m[2].padStart(2, '0')}/${m[1]}`;
+  }
+  return clean;
+}
+
+/** Replaces existing "(đến ngày ...)" suffix in an indicator label or appends one. */
+export function replaceDateInLabel(label: string, dateVn: string): string {
+  if (!dateVn) return label;
+  if (/\(đến ngày[^\)]*\)/i.test(label)) {
+    return label.replace(/\(đến ngày[^\)]*\)/i, `(đến ngày ${dateVn})`);
+  }
+  return `${label} (đến ngày ${dateVn})`;
+}
+
+/** Builds display label for the optional common revenue rate row (matches report convention without claiming 114 when incomplete). */
+export function formatRevBenchmarkRowLabel(params: {
+  customLabel?: string;
+  unitCount?: number;
+  expectedCount?: number;
+  asOfDate?: string;
+}): string {
+  const { customLabel, asOfDate } = params;
+  const dateVn = formatVnDateText(asOfDate);
+  if (customLabel && customLabel.trim()) {
+    return dateVn && /\(đến ngày[^\)]*\)/i.test(customLabel)
+      ? replaceDateInLabel(customLabel.trim(), dateVn)
+      : customLabel.trim();
+  }
+  const dateSuffix = dateVn ? ` (đến ngày ${dateVn})` : '';
+  return `Tỷ lệ thu NSNN chung của các địa phương${dateSuffix}`;
+}

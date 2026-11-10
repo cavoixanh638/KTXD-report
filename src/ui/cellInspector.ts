@@ -1,5 +1,324 @@
 import Decimal from 'decimal.js';
-import { CalculationTrace } from '../core/types';
+import {
+  CalculationTrace,
+  Dataset,
+  getDisbSchemaProfile,
+  SourceCellRef,
+} from '../core/types';
+
+export interface TraceInspectorExtraMeta {
+  officialNote?: string | null;
+  inspectionMarker?: string | null;
+  datasets?: { REV?: Dataset; DISB?: Dataset; GPMB?: Dataset };
+}
+
+interface LookupStep {
+  label: string;
+  detail: string;
+}
+
+interface SourceLookupDescription {
+  summaryBadge: string;
+  steps: LookupStep[];
+}
+
+function uniqueOrdered<T>(items: T[]): T[] {
+  const seen = new Set<T>();
+  const out: T[] = [];
+  for (const item of items) {
+    if (!seen.has(item)) {
+      seen.add(item);
+      out.push(item);
+    }
+  }
+  return out;
+}
+
+function parseCellAddress(addr: string): { col: string; row: number } | null {
+  const m = String(addr || '').trim().match(/^([A-Z]+)(\d+)$/i);
+  if (!m) return null;
+  return { col: m[1].toUpperCase(), row: parseInt(m[2], 10) };
+}
+
+function summarizeSourceRefs(refs: SourceCellRef[]): {
+  cols: string[];
+  rows: number[];
+  addrsPreview: string;
+} {
+  const cols: string[] = [];
+  const rows: number[] = [];
+  const addrs: string[] = [];
+  for (const r of refs) {
+    if (r.address) addrs.push(r.address);
+    const parsed = parseCellAddress(r.address);
+    if (parsed) {
+      cols.push(parsed.col);
+      rows.push(parsed.row);
+    }
+  }
+  const uCols = uniqueOrdered(cols);
+  const uRows = uniqueOrdered(rows);
+  const uAddrs = uniqueOrdered(addrs);
+  const preview =
+    uAddrs.length <= 6
+      ? uAddrs.join(', ')
+      : `${uAddrs.slice(0, 5).join(', ')}... (+${uAddrs.length - 5} ô)`;
+  return { cols: uCols, rows: uRows, addrsPreview: preview };
+}
+
+function describeSourceLookupMethod(
+  trace: CalculationTrace,
+  extraMeta?: TraceInspectorExtraMeta
+): SourceLookupDescription {
+  const indId = trace.indicatorId;
+  const primaryRef = trace.sourceRefs[0];
+  const mappingVer = primaryRef?.mappingVersion || '';
+
+  let sourceKind: 'DISB' | 'REV' | 'GPMB' | 'UNKNOWN' = 'UNKNOWN';
+  if (indId.startsWith('DISB_')) sourceKind = 'DISB';
+  else if (indId.startsWith('REV_')) sourceKind = 'REV';
+  else if (indId.startsWith('GPMB_')) sourceKind = 'GPMB';
+  else if (mappingVer.includes('DISB')) sourceKind = 'DISB';
+  else if (mappingVer.includes('REV')) sourceKind = 'REV';
+  else if (mappingVer.includes('GPMB')) sourceKind = 'GPMB';
+
+  const ds =
+    sourceKind !== 'UNKNOWN' ? extraMeta?.datasets?.[sourceKind] : undefined;
+  const schemaFp = ds?.schemaFingerprint || mappingVer || 'N/A';
+  const sheetName =
+    ds?.sourceSheet || primaryRef?.sheetName || '(chưa gắn sheet nguồn)';
+  const sheetVis = ds?.sheetVisibility || primaryRef?.sheetVisibility || 'visible';
+  const allRefsSummary = summarizeSourceRefs(trace.sourceRefs);
+
+  const numOp = trace.operands.find(
+    (o) =>
+      o.role === 'NUMERATOR' ||
+      o.role === 'SUM_NUMERATOR' ||
+      o.role === 'LOCALITY_DISB' ||
+      o.role === 'LOCALITY_AREA_RATE'
+  );
+  const denOp = trace.operands.find(
+    (o) =>
+      o.role === 'DENOMINATOR' ||
+      o.role === 'SUM_DENOMINATOR' ||
+      o.role === 'BENCHMARK_RATE'
+  );
+  const numCols = numOp
+    ? summarizeSourceRefs(numOp.sources).cols.join(', ')
+    : '';
+  const denCols = denOp
+    ? summarizeSourceRefs(denOp.sources).cols.join(', ')
+    : '';
+
+  if (sourceKind === 'DISB') {
+    const profile = getDisbSchemaProfile(schemaFp);
+    const schemaDesc =
+      profile.fingerprint === 'DISB_PHAN_CAP_XA_V2'
+        ? '15 cột A–O (có KHV đầu năm C–E & sau ĐC F–I)'
+        : profile.fingerprint === 'DISB_PHAN_CAP_XA_V1'
+        ? '12 cột A–L (vốn phân cấp không có cột đầu năm)'
+        : 'bảng chuẩn 31 cột A–AE';
+    const isBench =
+      indId === 'DISB_BENCHMARK_RATE' || indId === 'DISB_AVG_PLAN';
+    const rowNum =
+      allRefsSummary.rows[0] ??
+      ds?.records.find((r) => r.localityId === trace.localityId)?.sourceRow;
+
+    const step1: LookupStep = {
+      label: '1. Tự động chọn sheet & nhận diện mẫu',
+      detail: `Quét sheet ${sheetVis} "${sheetName}", khớp dấu vân tay ${profile.fingerprint} (${schemaDesc}; dữ liệu từ hàng ${profile.rowStart}).`,
+    };
+
+    const step2: LookupStep = isBench
+      ? {
+          label: '2. Khoanh vùng khối địa phương',
+          detail: `Duyệt cột B từ hàng ${profile.rowStart}, chuẩn hóa Unicode NFC tên địa phương (bỏ qua dòng tổng toàn TP) → gom đủ ${trace.population.includedCount} địa phương.`,
+        }
+      : {
+          label: '2. Dò đúng dòng địa phương',
+          detail: `Chuẩn hóa Unicode NFC tên trong cột B (từ hàng ${profile.rowStart}) → khớp "${
+            trace.localityName || ''
+          }" tại dòng ${rowNum ?? '?'} (${sheetName}!B${rowNum ?? '?'}).`,
+        };
+
+    let colStepDetail = `Ánh xạ ô nguồn: ${allRefsSummary.addrsPreview || 'chưa có'}.`;
+    if (indId === 'DISB_PLAN') {
+      const rStr = rowNum ?? '';
+      colStepDetail = profile.hasInitialPlan
+        ? `Lấy KHV sau ĐC tại cột ${profile.planCol} (${profile.planCol}${rStr}) và KHV đầu năm tại cột C (C${rStr}) để tự tính chênh lệch; kiểm tra cân đối tổng & đổi triệu → tỷ đồng.`
+        : `Lấy KHV sau ĐC tại cột ${profile.planCol} (${profile.planCol}${rStr}) (mẫu 12 cột không có KHV đầu năm); đổi triệu → tỷ đồng.`;
+    } else if (indId === 'DISB_RATE') {
+      const rStr = rowNum ?? '';
+      colStepDetail = `Lấy Giải ngân cột ${profile.disbCol} (${profile.disbCol}${rStr}) ÷ KHV sau ĐC cột ${profile.planCol} (${profile.planCol}${rStr}) × 100% bằng Decimal (tự tính lại thay vì chép cột ${profile.rateCol}).`;
+    } else if (indId === 'DISB_BENCHMARK_RATE') {
+      colStepDetail = `Cộng SUM(${profile.disbCol}) ÷ SUM(${profile.planCol}) trên ${trace.population.includedCount} địa phương (không tính bình quân cộng tỷ lệ).`;
+    } else if (indId === 'DISB_COMPARISON_LABEL') {
+      const rStr = rowNum ?? '';
+      colStepDetail = `Lấy tỷ lệ xã (${profile.disbCol}${rStr}/${profile.planCol}${rStr}) trừ mốc chung SUM(${profile.disbCol})/SUM(${profile.planCol}) để phân loại cao/thấp hơn.`;
+    }
+
+    return {
+      summaryBadge: `${profile.fingerprint} · Sheet ${sheetName}`,
+      steps: [
+        step1,
+        step2,
+        { label: '3. Ánh xạ cột & quy đổi đơn vị', detail: colStepDetail },
+      ],
+    };
+  }
+
+  if (sourceKind === 'REV') {
+    const isBench = indId === 'REV_BENCHMARK_RATE';
+    const rowNum =
+      allRefsSummary.rows[0] ??
+      ds?.records.find((r) => r.localityId === trace.localityId)?.sourceRow;
+
+    const step1: LookupStep = {
+      label: '1. Tự động chọn sheet & nhận diện mẫu',
+      detail: `Quét sheet ${sheetVis} "${sheetName}", khớp dấu vân tay ${schemaFp} (dòng tổng tại B10, vùng địa phương B11:B123).`,
+    };
+
+    let step2: LookupStep;
+    if (isBench) {
+      step2 = {
+        label: '2. Khoanh vùng 114 địa phương',
+        detail: `Duyệt cột B (hàng 11–123) chuẩn hóa Unicode NFC → khớp ${trace.population.includedCount} địa phương có bản ghi (địa phương thiếu không tự điền 0).`,
+      };
+    } else if (trace.sourceRefs.length === 0) {
+      step2 = {
+        label: '2. Dò dòng địa phương theo NFC',
+        detail: `Quét B11:B123 tìm "${
+          trace.localityName || ''
+        }" → 0 dòng khớp trong file nguồn (NO_LOCALITY_RECORD).`,
+      };
+    } else {
+      step2 = {
+        label: '2. Dò đúng dòng địa phương',
+        detail: `Chuẩn hóa Unicode NFC cột B (B11:B123) → khớp "${
+          trace.localityName || ''
+        }" tại dòng ${rowNum ?? '?'} (${sheetName}!B${rowNum ?? '?'}).`,
+      };
+    }
+
+    const rStr = rowNum ?? '';
+    let step3Detail = `Đọc trực tiếp ô ${allRefsSummary.addrsPreview || 'nguồn'}.`;
+    if (indId === 'REV_BUDGET_Y') {
+      step3Detail = `Lấy Dự toán thu năm tại cột C (C${rStr}), chia 1.000 quy đổi triệu đồng → tỷ đồng.`;
+    } else if (indId === 'REV_RATE_Y') {
+      step3Detail = `Lấy Thực thu cột I (I${rStr}) ÷ Dự toán cột C (C${rStr}) × 100% bằng Decimal (không dùng cột tỷ lệ X).`;
+    } else if (indId === 'REV_LAND_RATE_Y') {
+      step3Detail = `Lấy Thu tiền sử dụng đất cột R (R${rStr}) ÷ Dự toán tiền SDĐ cột D (D${rStr}) × 100%.`;
+    } else if (indId === 'REV_NONLAND_RATE_Y') {
+      step3Detail = `Lấy Thu không gồm tiền đất cột W (W${rStr}) ÷ Dự toán cột E (E${rStr}) × 100%.`;
+    } else if (isBench) {
+      step3Detail = `Cộng tổng thực thu cột I (${trace.population.includedCount} ô) ÷ tổng dự toán cột C (${trace.population.includedCount} ô) × 100%.`;
+    }
+
+    return {
+      summaryBadge: `${schemaFp} · Sheet ${sheetName}`,
+      steps: [
+        step1,
+        step2,
+        { label: '3. Ánh xạ cột & phép tính', detail: step3Detail },
+      ],
+    };
+  }
+
+  if (sourceKind === 'GPMB') {
+    const isFlat = schemaFp === 'GPMB_FLAT';
+    const isBench = indId === 'GPMB_BENCHMARK_AREA_RATE';
+    const totalProjects = ds?.projectRowCount || trace.population.eligibleCount;
+    const rowPreview =
+      allRefsSummary.rows.length <= 5
+        ? allRefsSummary.rows.join(', ')
+        : `${allRefsSummary.rows.slice(0, 4).join(', ')}... (+${
+            allRefsSummary.rows.length - 4
+          } dòng)`;
+    const locProjCount =
+      ds && trace.localityId
+        ? ds.records.filter((r) => r.localityId === trace.localityId).length
+        : allRefsSummary.rows.length;
+
+    const step1: LookupStep = {
+      label: '1. Tự động nhận diện sheet & cấu trúc',
+      detail: isFlat
+        ? `Quét tiêu đề hàng 1–5 trên sheet "${sheetName}" (${sheetVis}) khớp mẫu bảng phẳng GPMB_FLAT (tự định vị cột Địa phương, Tổng DT GPMB, DT đã thu hồi, Tiền phân bổ).`
+        : `Chọn sheet ${sheetVis} "${sheetName}", khớp mẫu GPMB_V1 (cột A trống & B là tiêu đề nhóm xã/phường từ hàng 3; các dòng dưới có A là STT dự án, D = DT phải GPMB, G = kinh phí, I = DT đã GPMB).`,
+    };
+
+    let step2: LookupStep;
+    if (isBench) {
+      step2 = {
+        label: '2. Gom nhóm toàn bộ dự án theo địa bàn',
+        detail: `Duyệt toàn bộ ${totalProjects || trace.population.includedCount} dòng dự án hợp lệ, gom theo tiêu đề nhóm địa bàn chuẩn Unicode NFC → phạm vi ${
+          ds?.unitCount || 108
+        } địa bàn có dữ liệu.`,
+      };
+    } else if (trace.sourceRefs.length === 0) {
+      step2 = {
+        label: '2. Quét danh mục dự án theo tên xã',
+        detail: `Duyệt toàn bộ ${
+          totalProjects || ''
+        } dòng dự án theo chuẩn Unicode NFC tìm nhóm "${
+          trace.localityName || ''
+        }" → 0 dòng khớp → xác định "Không có nhiệm vụ GPMB".`,
+      };
+    } else {
+      step2 = {
+        label: '2. Gom nhóm các dự án của địa phương',
+        detail: `Lọc ${
+          isFlat ? 'cột Phường/Xã' : 'dòng nhóm địa bàn ở cột B'
+        } theo tên chuẩn Unicode NFC "${
+          trace.localityName || ''
+        }" → gom ${locProjCount} dòng dự án (hàng ${rowPreview || '?'}).`,
+      };
+    }
+
+    const colDisplay = allRefsSummary.cols.join(', ') || 'D, I';
+    const effectiveNumCols = numCols || (isFlat ? colDisplay : 'I');
+    const effectiveDenCols = denCols || (isFlat ? colDisplay : 'D');
+    let step3Detail = `Tổng hợp trực tiếp từ các ô ${
+      allRefsSummary.addrsPreview || colDisplay
+    }.`;
+    if (trace.sourceRefs.length === 0 && !isBench) {
+      step3Detail =
+        'Áp dụng quy tắc minh bạch: không phát sinh dòng dự án nên giữ nguyên "Không có nhiệm vụ GPMB", không điền 0% giả.';
+    } else if (indId === 'GPMB_BUDGET') {
+      step3Detail = `Cộng tiền phân bổ từ cột ${allRefsSummary.cols.join(', ') || 'G'} trên các dự án đã gom; quy đổi đồng → tỷ đồng (÷ 10⁹).`;
+    } else if (indId === 'GPMB_AREA_PLAN') {
+      step3Detail = `Cộng diện tích phải GPMB từ cột ${allRefsSummary.cols.join(', ') || 'D'} trên các dự án đã gom (m2${
+        trace.result.displayUnit === 'ha' ? ' ÷ 10.000 → ha' : ''
+      }).`;
+    } else if (indId === 'GPMB_AREA_RATE') {
+      step3Detail = `Tính chuẩn theo diện tích: SUM(cột ${effectiveNumCols}) ÷ SUM(cột ${effectiveDenCols}) × 100% (loại dự án thiếu I nếu có, không bình quân cột M).`;
+    } else if (isBench) {
+      step3Detail = `Cộng SUM(cột ${effectiveNumCols}) ÷ SUM(cột ${effectiveDenCols}) × 100% trên toàn bộ dự án hợp lệ có đủ tử và mẫu.`;
+    } else if (indId === 'GPMB_COMPARISON_LABEL') {
+      step3Detail = `Tính tỷ lệ xã SUM(${effectiveNumCols})/SUM(${effectiveDenCols}) trừ mốc trung bình toàn nguồn GPMB để phân loại cao/thấp hơn.`;
+    }
+
+    return {
+      summaryBadge: `${schemaFp} · Sheet ${sheetName}`,
+      steps: [
+        step1,
+        step2,
+        { label: '3. Ánh xạ cột & công thức GPMB', detail: step3Detail },
+      ],
+    };
+  }
+
+  return {
+    summaryBadge: `${schemaFp} · Sheet ${sheetName}`,
+    steps: [
+      {
+        label: '1. Tự động ánh xạ nguồn',
+        detail: `Đọc từ sheet "${sheetName}" (${sheetVis}), ô ${
+          allRefsSummary.addrsPreview || 'tổng hợp'
+        }.`,
+      },
+    ],
+  };
+}
 
 export function escapeHtmlUi(str: unknown): string {
   return String(str ?? '')
@@ -29,10 +348,7 @@ export function formatMax4Decimals(val: unknown): string {
 
 export function renderTraceInspectorHtml(
   trace: CalculationTrace | null,
-  extraMeta?: {
-    officialNote?: string | null;
-    inspectionMarker?: string | null;
-  }
+  extraMeta?: TraceInspectorExtraMeta
 ): string {
   if (!trace) {
     return `<div class="trace-inspector-empty">
@@ -184,9 +500,13 @@ export function renderTraceInspectorHtml(
     )
     .join('');
 
+  const traceDisbProfile = getDisbSchemaProfile(trace.sourceRefs[0]?.mappingVersion);
+  const noteCol = traceDisbProfile.noteCol;
+  const ratioSymbol = `${traceDisbProfile.disbCol}/${traceDisbProfile.planCol}`;
+
   const noteHtml = extraMeta?.officialNote
     ? `<div class="trace-section trace-official-note">
-        <h4>Ghi chú nguyên văn cột Q (UNVERIFIED_NOTE — không tự thay tỷ lệ I/F)</h4>
+        <h4>Ghi chú nguyên văn cột ${escapeHtmlUi(noteCol)} (UNVERIFIED_NOTE — không tự thay tỷ lệ ${escapeHtmlUi(ratioSymbol)})</h4>
         <pre class="official-note-box">${escapeHtmlUi(extraMeta.officialNote)}</pre>
         ${
           extraMeta.inspectionMarker
@@ -197,6 +517,24 @@ export function renderTraceInspectorHtml(
         }
       </div>`
     : '';
+
+  const lookupInfo = describeSourceLookupMethod(trace, extraMeta);
+  const lookupSectionHtml = `<div class="trace-section trace-lookup-box">
+      <h4>4. Phương pháp hệ thống tự động tìm đúng ô giá trị trong file Excel nguồn</h4>
+      <div style="margin-bottom: 6px;"><span class="badge badge-primary">${escapeHtmlUi(
+        lookupInfo.summaryBadge
+      )}</span></div>
+      <ol class="lookup-steps-list">
+        ${lookupInfo.steps
+          .map(
+            (st) =>
+              `<li><strong>${escapeHtmlUi(st.label)}:</strong> ${escapeHtmlUi(
+                st.detail
+              )}</li>`
+          )
+          .join('')}
+      </ol>
+    </div>`;
 
   return `<div class="trace-inspector-card" data-trace-id="${escapeHtmlUi(trace.traceId)}">
     <div class="trace-header">
@@ -286,8 +624,10 @@ export function renderTraceInspectorHtml(
 
     ${noteHtml}
 
+    ${lookupSectionHtml}
+
     <div class="trace-section">
-      <h4>4. Chứng cứ Ô nguồn &amp; SHA-256 (${trace.sourceRefs.length} tham chiếu)</h4>
+      <h4>5. Chứng cứ Ô nguồn &amp; SHA-256 (${trace.sourceRefs.length} tham chiếu)</h4>
       <ul class="trace-sources-list">${sourceRefsHtml}</ul>
     </div>
   </div>`;
@@ -295,13 +635,16 @@ export function renderTraceInspectorHtml(
 
 export function renderCellTracePopoverHtml(
   trace: CalculationTrace,
-  extraMeta?: { officialNote?: string | null; inspectionMarker?: string | null }
+  extraMeta?: TraceInspectorExtraMeta
 ): string {
   const primarySource = trace.sourceRefs[0];
   const sourceText = primarySource
     ? `${primarySource.sheetName}!${primarySource.address}`
+    : trace.indicatorId.startsWith('GPMB_')
+    ? 'Không có dòng dự án khớp trong nguồn GPMB'
     : 'Tổng hợp nhiều ô';
   const asOf = trace.scope.asOfDates.join(', ') || primarySource?.asOfDate || 'Chưa rõ';
+  const lookupInfo = describeSourceLookupMethod(trace, extraMeta);
 
   const numOp = trace.operands.find((o) => o.role === 'NUMERATOR' || o.role === 'SUM_NUMERATOR');
   const denOp = trace.operands.find((o) => o.role === 'DENOMINATOR' || o.role === 'SUM_DENOMINATOR');
@@ -320,11 +663,18 @@ export function renderCellTracePopoverHtml(
         </div>`
       : '';
 
+  const lookupStepsHtml = lookupInfo.steps
+    .map(
+      (st) =>
+        `<li><strong>${escapeHtmlUi(st.label)}:</strong> ${escapeHtmlUi(st.detail)}</li>`
+    )
+    .join('');
+
   return `<div class="cell-trace-popover" role="dialog" aria-label="Chi tiết phép tính ô">
     <div class="popover-header">
       <div class="popover-title-row">
         <h4 class="popover-title">${escapeHtmlUi(trace.localityName || trace.scope.type)}</h4>
-        <button type="button" class="popover-btn-close" id="btn-close-popover" title="Đóng">&times;</button>
+        <button type="button" class="popover-btn-close" id="btn-close-popover" title="Đóng (Esc)">&times;</button>
       </div>
       <div class="popover-subtitle">${escapeHtmlUi(trace.indicatorLabel || trace.indicatorId)}</div>
     </div>
@@ -346,16 +696,26 @@ export function renderCellTracePopoverHtml(
         <span class="popover-meta-label">Ô nguồn:</span>
         <span><strong>${escapeHtmlUi(sourceText)}</strong> (chốt: ${escapeHtmlUi(asOf)})</span>
       </div>
+      <div class="popover-lookup-box">
+        <div class="popover-lookup-title">
+          <span>Phương pháp tự tìm ô Excel nguồn</span>
+          <code class="lookup-schema-pill" title="${escapeHtmlUi(lookupInfo.summaryBadge)}">${escapeHtmlUi(lookupInfo.summaryBadge)}</code>
+        </div>
+        <ul class="popover-lookup-steps">${lookupStepsHtml}</ul>
+      </div>
       ${
         extraMeta?.officialNote
           ? `<div class="popover-note-snippet">
-              <span class="note-pill">Ghi chú cột Q</span>
+              <span class="note-pill">Ghi chú cột ${escapeHtmlUi(
+                getDisbSchemaProfile(primarySource?.mappingVersion).noteCol
+              )}</span>
               <div class="note-text">${escapeHtmlUi(extraMeta.officialNote)}</div>
             </div>`
           : ''
       }
     </div>
     <div class="popover-footer">
+      <span class="popover-shortcut-hint">Nhấn <kbd>Esc</kbd> để bỏ chọn ô</span>
       <button type="button" class="btn btn-sm btn-primary" id="btn-open-full-trace" data-trace-id="${escapeHtmlUi(
         trace.traceId
       )}">

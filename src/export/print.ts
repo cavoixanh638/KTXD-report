@@ -369,7 +369,14 @@ export function generatePrintableReportHtml(params: {
     `;
   }
 
+  const dynamicPageStyle =
+    session.settings.paperSize !== 'A4' ||
+    session.settings.orientation !== 'landscape'
+      ? `<style media="print">@page { size: ${session.settings.paperSize} ${session.settings.orientation}; margin: 5mm 8mm; }</style>`
+      : '';
+
   return `<div class="printable-report-container" data-paper="${session.settings.paperSize}" data-orientation="${session.settings.orientation}">
+    ${dynamicPageStyle}
     ${pagesHtml}
     ${appendixHtml}
   </div>`;

@@ -31,7 +31,12 @@ import { summarizeDatasetWarnings, filterWarningsForSession } from '../core/warn
 import { searchLocalities } from '../core/localities';
 import { renderA4DocumentStudioHtml, computeAutoLayoutMode } from '../ui/reportStudio';
 import { renderReportGridHtml } from '../ui/reportGrid';
-import { renderTraceInspectorHtml, renderCellTracePopoverHtml, escapeHtmlUi } from '../ui/cellInspector';
+import {
+  renderTraceInspectorHtml,
+  renderCellTracePopoverHtml,
+  escapeHtmlUi,
+  TraceInspectorExtraMeta,
+} from '../ui/cellInspector';
 import { exportSessionReportToXlsxBytes } from '../export/xlsx';
 import { generatePrintableReportHtml } from '../export/print';
 import {
@@ -39,7 +44,16 @@ import {
   restoreWorkspaceFromBackupJson,
 } from '../backup/workspace';
 import { saveWorkspacePersistent, loadWorkspacePersistent } from '../core/storage';
-import { CalculationTrace, LocalityType, Workspace, QualityIssue, ReportSession, Dataset } from '../core/types';
+import {
+  CalculationTrace,
+  LocalityType,
+  Workspace,
+  QualityIssue,
+  ReportSession,
+  Dataset,
+  getDisbSchemaProfile,
+} from '../core/types';
+import { formatRevBenchmarkRowLabel } from '../core/indicators';
 import {
   getUncompletedProjectsForSession,
   formatProjectDeadline,
@@ -84,10 +98,56 @@ export class KtxhOfflineApp {
   public rightPanelMode: RightPanelMode = 'NONE';
   public activeTraceId: string | undefined;
   public activeTrace: CalculationTrace | null = null;
-  public activeTraceExtraMeta?: {
-    officialNote?: string | null;
-    inspectionMarker?: string | null;
-  };
+  public activeTraceExtraMeta?: TraceInspectorExtraMeta;
+
+  public clearCellSelection(closeTracePanel = true): boolean {
+    const hadSelection = Boolean(
+      this.popoverCell ||
+        this.activeTraceId ||
+        this.activeTrace ||
+        (closeTracePanel && this.rightPanelMode === 'TRACE')
+    );
+    if (!hadSelection) return false;
+    this.popoverCell = null;
+    this.activeTraceId = undefined;
+    this.activeTrace = null;
+    this.activeTraceExtraMeta = undefined;
+    if (closeTracePanel && this.rightPanelMode === 'TRACE') {
+      this.rightPanelMode = 'NONE';
+    }
+    return true;
+  }
+
+  public handleEscapeKey(
+    activeEl?: { matches?: (sel: string) => boolean; blur?: () => void } | null
+  ): boolean {
+    if (this.editingProjectId || this.isAddingProject) {
+      this.editingProjectId = null;
+      this.isAddingProject = false;
+      this.render();
+      return true;
+    }
+    if (this.editingNq11Id || this.isAddingNq11) {
+      this.editingNq11Id = null;
+      this.isAddingNq11 = false;
+      this.targetNq11LocalityId = null;
+      this.render();
+      return true;
+    }
+    if (this.clearCellSelection(true)) {
+      if (activeEl?.matches?.('.doc-cell, .report-cell')) {
+        activeEl.blur?.();
+      }
+      this.render();
+      return true;
+    }
+    if (this.rightPanelMode !== 'NONE') {
+      this.rightPanelMode = 'NONE';
+      this.render();
+      return true;
+    }
+    return false;
+  }
 
   // Popover state
   public popoverCell: {
@@ -363,7 +423,11 @@ export class KtxhOfflineApp {
       const visibleSheets = wb.sheets.filter((s) => s.state === 'visible');
       for (const s of visibleSheets) {
         const fp = detectSheetFingerprint(s);
-        if (fp === 'DISB_V1' || fp === 'DISB_PHAN_CAP_XA_V1') {
+        if (
+          fp === 'DISB_V1' ||
+          fp === 'DISB_PHAN_CAP_XA_V1' ||
+          fp === 'DISB_PHAN_CAP_XA_V2'
+        ) {
           const { dataset, localities } = importDisbursementWorkbook(bytes, filename);
           registerDatasetInWorkspace(this.workspace, dataset, localities);
           for (const sess of this.workspace.sessions) {
@@ -380,7 +444,9 @@ export class KtxhOfflineApp {
           syncReportLabelsWithDatasetDates(this.workspace);
           this.triggerAutosave();
           this.setStatus(
-            fp === 'DISB_PHAN_CAP_XA_V1'
+            fp === 'DISB_PHAN_CAP_XA_V2'
+              ? `Đã nhận diện & nhập nguồn Giải ngân (Vốn phân cấp cấp xã · 15 cột) "${filename}" (${dataset.unitCount} địa phương, ngày chốt ${formatVnDate(dataset.asOfDate)}; bật so sánh KHV sau ĐC với đầu năm).`
+              : fp === 'DISB_PHAN_CAP_XA_V1'
               ? `Đã nhận diện & nhập nguồn Giải ngân (Vốn phân cấp cấp xã) "${filename}" (${dataset.unitCount} địa phương, ngày chốt ${formatVnDate(dataset.asOfDate)}; tự động bỏ so sánh đầu năm do nguồn không có cột trước ĐC).`
               : `Đã nhận diện & nhập nguồn Giải ngân "${filename}" (${dataset.unitCount} địa phương, ngày chốt ${formatVnDate(dataset.asOfDate)}).`,
             'success'
@@ -522,11 +588,11 @@ export class KtxhOfflineApp {
     if (this.popoverCell && evaluatedReport) {
       const trace = evaluatedReport.tracesById.get(this.popoverCell.traceId);
       if (trace) {
-        popoverHtml = `<div id="active-cell-popover" style="position:fixed; left:${Math.min(
-          this.popoverCell.clientX + 10,
-          window.innerWidth - 360
-        )}px; top:${Math.min(this.popoverCell.clientY + 10, window.innerHeight - 300)}px;">
-          ${renderCellTracePopoverHtml(trace, this.activeTraceExtraMeta)}
+        popoverHtml = `<div id="active-cell-popover" style="position:fixed; left:${Math.max(
+          12,
+          Math.min(this.popoverCell.clientX + 10, window.innerWidth - 410)
+        )}px; top:${Math.max(12, Math.min(this.popoverCell.clientY + 10, window.innerHeight - 440))}px;">
+          ${renderCellTracePopoverHtml(trace, { ...this.activeTraceExtraMeta, datasets })}
         </div>`;
       }
     }
@@ -699,7 +765,7 @@ export class KtxhOfflineApp {
     if (this.activeTab === 'INSPECTOR') {
       return `<section class="page-section"><div class="card">${renderTraceInspectorHtml(
         this.activeTrace,
-        this.activeTraceExtraMeta
+        { ...this.activeTraceExtraMeta, datasets }
       )}</div></section>`;
     }
     if (this.activeTab === 'EXPORT') {
@@ -809,10 +875,10 @@ export class KtxhOfflineApp {
 
     if (this.rightPanelMode === 'TRACE') {
       panelTitle = 'Hồ sơ giải trình phép tính (CalculationTrace)';
-      panelContent = renderTraceInspectorHtml(
-        this.activeTrace,
-        this.activeTraceExtraMeta
-      );
+      panelContent = renderTraceInspectorHtml(this.activeTrace, {
+        ...this.activeTraceExtraMeta,
+        datasets,
+      });
     } else if (this.rightPanelMode === 'TITLE') {
       panelTitle = 'Tùy chỉnh tiêu đề & Văn bản hành chính';
       panelContent = this.renderTitleSettingsForm(activeSession);
@@ -999,7 +1065,20 @@ export class KtxhOfflineApp {
           Hiện so sánh đầu năm (tăng/giảm/giữ nguyên) khi file nguồn có cột trước điều chỉnh
         </label>
         <small class="text-muted" style="font-size: 11px; display: block; margin-top: 2px;">
-          Với file Vốn phân cấp cấp xã không có cột trước ĐC (như bản 08/11), hệ thống tự động bỏ phần so sánh này.
+          Tự động so sánh khi nguồn có cột KHV đầu năm (bản 17 cột &amp; bản Phân cấp xã 15 cột); bản Phân cấp xã 12 cột thiếu cột trước ĐC sẽ tự bỏ qua.
+        </small>
+      </div>
+
+      <div class="form-group" style="border-top: 1px dashed var(--border-color); padding-top: 12px; margin-top: 12px;">
+        <label style="font-weight: 600;">Tỷ lệ thu NSNN chung (Nhóm I):</label>
+        <label class="checkbox-label" style="margin-top:6px;">
+          <input type="checkbox" id="setting-show-rev-benchmark-row" ${
+            s.showRevBenchmarkRow ? 'checked' : ''
+          } />
+          Hiện dòng "Tỷ lệ thu NSNN chung của các địa phương" (${this.getLatestDatasetsMap().REV?.unitCount ?? 113}/114 địa phương)
+        </label>
+        <small class="text-muted" style="font-size: 11px; display: block; margin-top: 2px;">
+          Tính theo tổng thực thu / tổng dự toán trên các địa phương có dữ liệu (${this.getLatestDatasetsMap().REV?.unitCount ?? 113}/114). Khi bật, dòng này nhận STT 2 (in đậm), dòng tỷ lệ thu từng xã bỏ STT (in nghiêng) và bỏ phần "(đến ngày ...)" để tránh lặp.
         </small>
       </div>
 
@@ -1009,6 +1088,31 @@ export class KtxhOfflineApp {
 
   private renderIndicatorsManager(activeSession: Workspace['sessions'][number] | undefined): string {
     if (!activeSession) return '<p>Chưa chọn phiên.</p>';
+
+    const revDs = this.getLatestDatasetsMap().REV;
+    const revUnits = revDs?.unitCount ?? 113;
+    const totalExpected = this.workspace.localities.length || 114;
+    const revBmDefaultLabel = formatRevBenchmarkRowLabel({
+      customLabel: activeSession.settings.revBenchmarkRowCustomLabel,
+      unitCount: revUnits,
+      expectedCount: totalExpected,
+      asOfDate: revDs?.asOfDate,
+    });
+
+    const revBmOptHtml = `<div class="indicator-config-item" style="border-color: var(--primary); background: #f8fafc;">
+      <div class="ind-config-header">
+        <span class="badge badge-sm">Tùy chọn Nhóm Thu</span>
+        <code class="ind-config-code">REV_BENCHMARK_RATE</code>
+        <label class="toggle-eye" title="Bật / Tắt dòng tỷ lệ thu NSNN chung của các địa phương">
+          <input type="checkbox" class="chk-toggle-rev-benchmark-instant" ${
+            activeSession.settings.showRevBenchmarkRow ? 'checked' : ''
+          }/> Hiển thị thêm
+        </label>
+      </div>
+      <div class="muted" style="font-size: 11px; margin-top: 4px;">
+        Nhãn: <strong>${escapeHtmlUi(revBmDefaultLabel)}</strong> (SUM thu / SUM dự toán trên ${revUnits}/${totalExpected} địa phương). Khi bật, dòng này nhận STT <strong>2</strong>, dòng tỷ lệ thu từng xã bỏ STT và bỏ phần "(đến ngày ...)" để tránh lặp.
+      </div>
+    </div>`;
 
     const rowsHtml = activeSession.templateRows
       .sort((a, b) => a.order - b.order)
@@ -1035,6 +1139,7 @@ export class KtxhOfflineApp {
     return `<div class="indicators-manager-container">
       <p class="muted">Tùy chỉnh nhãn hiển thị và ẩn/hiện cho từng dòng trong 14 dòng mẫu. Việc đổi nhãn không làm thay đổi ID, công thức và dữ liệu nguồn.</p>
       <div class="indicators-list-scroll">
+        ${revBmOptHtml}
         ${rowsHtml}
       </div>
       <button type="button" class="btn btn-secondary" id="btn-restore-default-indicator-labels" style="width:100%; margin-top:10px">
@@ -1323,7 +1428,7 @@ export class KtxhOfflineApp {
 
     const kpiHtml = `<div class="kpi-summary-grid">
       <div class="kpi-box">
-        <div class="kpi-box-title">1. Giải ngân Đầu tư công (DISB)${datasets.DISB?.schemaFingerprint === 'DISB_PHAN_CAP_XA_V1' ? ' · Phân cấp xã' : ''}</div>
+        <div class="kpi-box-title">1. Giải ngân Đầu tư công (DISB)${datasets.DISB && getDisbSchemaProfile(datasets.DISB.schemaFingerprint).isPhanCapXa ? ' · Phân cấp xã' : ''}</div>
         <div class="kpi-box-value">${datasets.DISB ? `${datasets.DISB.unitCount}/114 địa phương` : 'Chưa nạp'}</div>
         <div class="kpi-box-sub">Ngày chốt: <strong>${escapeHtmlUi(formatVnDate(datasets.DISB?.asOfDate) || '15/10/2026')}</strong> | Mốc chuẩn: <strong>${escapeHtmlUi(liveDisbBmText)}</strong></div>
       </div>
@@ -1446,7 +1551,7 @@ export class KtxhOfflineApp {
           <div class="source-card-header">
             <div class="source-card-title">
               <strong>${label}</strong>
-              <span class="source-card-code">(${type}${ds?.schemaFingerprint === 'DISB_PHAN_CAP_XA_V1' ? ' · phân cấp xã' : ''})</span>
+              <span class="source-card-code">(${type}${type === 'DISB' && getDisbSchemaProfile(ds?.schemaFingerprint).isPhanCapXa ? ' · phân cấp xã' : ''})</span>
             </div>
             <span class="badge badge-COMPLETE">Đã nạp</span>
           </div>
@@ -1601,14 +1706,25 @@ export class KtxhOfflineApp {
         <ul class="benchmark-summary-list">
           <li><strong>Giải ngân ${datasets.DISB?.unitCount ?? 114} địa phương (${escapeHtmlUi(
             formatVnDate(datasets.DISB?.asOfDate) || '15/10/2026'
-          )})${datasets.DISB?.schemaFingerprint === 'DISB_PHAN_CAP_XA_V1' ? ' [vốn phân cấp cấp xã]' : ''}:</strong> Tỷ lệ chung = <strong>${escapeHtmlUi(
+          )})${datasets.DISB && getDisbSchemaProfile(datasets.DISB.schemaFingerprint).isPhanCapXa ? ' [vốn phân cấp cấp xã]' : ''}:</strong> Tỷ lệ chung = <strong>${escapeHtmlUi(
             bm?.disbRateBenchmark?.displayedText || '67,10%'
           )}</strong> | Vốn giao bình quân = <strong>${escapeHtmlUi(
       bm?.disbPlanAvg?.displayedText || '136,41 tỷ đồng'
     )}</strong>.</li>
-          <li><strong>Thu NSNN 113 địa phương:</strong> Tổng thu/Dự toán năm = <strong>${escapeHtmlUi(
+          <li><strong>Thu NSNN ${datasets.REV?.unitCount ?? 113}${
+            (datasets.REV?.unitCount ?? 113) < (this.workspace.localities.length || 114)
+              ? `/${this.workspace.localities.length || 114} địa phương có dữ liệu`
+              : ' địa phương'
+          }:</strong> Tổng thu/Dự toán năm = <strong>${escapeHtmlUi(
             bm?.revRateBenchmark?.displayedText || '111,30%'
-          )}</strong>.</li>
+          )}</strong>.
+            <label class="checkbox-label" style="display:inline-flex; align-items:center; gap:6px; margin-left:10px; font-weight:500;">
+              <input type="checkbox" class="chk-toggle-rev-benchmark-instant" ${
+                activeSession.settings.showRevBenchmarkRow ? 'checked' : ''
+              } />
+              Hiển thị thêm dòng tỷ lệ chung này trong bảng báo cáo
+            </label>
+          </li>
           <li><strong>GPMB danh mục 108 địa bàn:</strong> Tỷ lệ diện tích = <strong>${escapeHtmlUi(
             bm?.gpmbRateBenchmark?.displayedText || '72,13%'
           )}</strong> (<code>PARTIAL_AGGREGATE</code>).</li>
@@ -2153,7 +2269,11 @@ export class KtxhOfflineApp {
 
     // Close Context Panel
     document.getElementById('btn-close-context-panel')?.addEventListener('click', () => {
+      const closingTrace = this.rightPanelMode === 'TRACE';
       this.rightPanelMode = 'NONE';
+      if (closingTrace && !this.popoverCell) {
+        this.activeTraceId = undefined;
+      }
       this.render();
     });
 
@@ -2188,6 +2308,7 @@ export class KtxhOfflineApp {
       const showUncompletedTableEl = document.getElementById('setting-show-uncompleted-table') as HTMLInputElement | null;
       const showNq11RowEl = document.getElementById('setting-show-nq11-row') as HTMLInputElement | null;
       const showDisbAdjEl = document.getElementById('setting-show-disb-adjustment') as HTMLInputElement | null;
+      const showRevBmEl = document.getElementById('setting-show-rev-benchmark-row') as HTMLInputElement | null;
       const splitRow8El = document.getElementById('setting-split-row8-to-new-page') as HTMLInputElement | null;
       const projFontEl = document.getElementById('setting-proj-font-size') as HTMLInputElement | null;
 
@@ -2211,6 +2332,9 @@ export class KtxhOfflineApp {
       }
       if (showDisbAdjEl) {
         activeSession.settings.showDisbPlanAdjustmentComparison = showDisbAdjEl.checked;
+      }
+      if (showRevBmEl) {
+        activeSession.settings.showRevBenchmarkRow = showRevBmEl.checked;
       }
       if (splitRow8El) {
         activeSession.settings.splitRow8ToNewPage = splitRow8El.checked;
@@ -2289,6 +2413,24 @@ export class KtxhOfflineApp {
       this.render();
     });
 
+    document.querySelectorAll('.chk-toggle-rev-benchmark-instant').forEach((el) => {
+      el.addEventListener('change', (e) => {
+        const activeSession = this.getActiveSession();
+        if (!activeSession) return;
+        activeSession.settings.showRevBenchmarkRow = (e.target as HTMLInputElement).checked;
+        this.triggerAutosave();
+        const revUnits = this.getLatestDatasetsMap().REV?.unitCount ?? 113;
+        const expected = this.workspace.localities.length || 114;
+        this.setStatus(
+          activeSession.settings.showRevBenchmarkRow
+            ? `Đã bật hiển thị dòng tỷ lệ hoàn thành thu NSNN chung (${revUnits}/${expected} địa phương có dữ liệu) trong bảng báo cáo.`
+            : 'Đã tắt dòng tỷ lệ thu NSNN chung (trở về 14 dòng mẫu chuẩn).',
+          'info'
+        );
+        this.render();
+      });
+    });
+
     // Inline edit indicator display label
     document.querySelectorAll('.btn-inline-edit-ind').forEach((btn) => {
       btn.addEventListener('click', (e) => {
@@ -2297,6 +2439,26 @@ export class KtxhOfflineApp {
         const rowNum = Number(btn.getAttribute('data-row-number'));
         const activeSession = this.getActiveSession();
         if (!activeSession) return;
+
+        if (indId === 'REV_BENCHMARK_RATE') {
+          const revDs = this.getLatestDatasetsMap().REV;
+          const currentLabel = formatRevBenchmarkRowLabel({
+            customLabel: activeSession.settings.revBenchmarkRowCustomLabel,
+            unitCount: revDs?.unitCount ?? 113,
+            expectedCount: this.workspace.localities.length || 114,
+            asOfDate: revDs?.asOfDate,
+          });
+          const nextLabel = window.prompt(
+            'Đổi tên hiển thị dòng tỷ lệ hoàn thành thu NSNN chung:',
+            currentLabel
+          );
+          if (nextLabel !== null && nextLabel.trim()) {
+            activeSession.settings.revBenchmarkRowCustomLabel = nextLabel.trim();
+            this.triggerAutosave();
+            this.render();
+          }
+          return;
+        }
 
         const row = activeSession.templateRows.find((r) => r.rowNumber === rowNum);
         if (!row) return;
@@ -2677,11 +2839,12 @@ export class KtxhOfflineApp {
         this.activeTraceId = traceId;
         this.activeTrace = trace;
 
-        // Check for official note in DISB dataset
+        // Check for official note in DISB dataset and store dataset refs for source-lookup explanation
         const disbRec = datasets.DISB?.records.find((r) => r.localityId === locId);
         this.activeTraceExtraMeta = {
           officialNote: disbRec?.officialNote || null,
           inspectionMarker: disbRec?.inspectionMarker || null,
+          datasets,
         };
 
         this.popoverCell = {
@@ -2696,9 +2859,12 @@ export class KtxhOfflineApp {
       });
     });
 
-    // Close popover
+    // Close popover (clear cell selection unless trace panel is open)
     document.getElementById('btn-close-popover')?.addEventListener('click', () => {
       this.popoverCell = null;
+      if (this.rightPanelMode !== 'TRACE') {
+        this.activeTraceId = undefined;
+      }
       this.render();
     });
 
@@ -3045,17 +3211,14 @@ export class KtxhOfflineApp {
       }
     });
 
-    // Close popover on Escape key
+    // Clear cell selection / popover / inspector or modals on Escape key
     window.onkeydown = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') {
-        if (this.popoverCell) {
-          this.popoverCell = null;
-          this.render();
-        } else if (this.rightPanelMode !== 'NONE') {
-          this.rightPanelMode = 'NONE';
-          this.render();
-        }
-      }
+      if (e.key !== 'Escape') return;
+      const activeEl =
+        typeof document !== 'undefined' && document.activeElement instanceof HTMLElement
+          ? document.activeElement
+          : null;
+      this.handleEscapeKey(activeEl);
     };
   }
 }

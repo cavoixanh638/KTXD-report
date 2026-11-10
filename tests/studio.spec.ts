@@ -39,8 +39,10 @@ import {
 } from '../src/core/uncompletedProjects';
 import {
   renderCellTracePopoverHtml,
+  renderTraceInspectorHtml,
   formatMax4Decimals,
 } from '../src/ui/cellInspector';
+import { KtxhOfflineApp } from '../src/app/main';
 import { Dataset, Locality } from '../src/core/types';
 
 const rootDir = process.cwd();
@@ -50,6 +52,44 @@ const manifest = JSON.parse(
 const filePaths: Record<string, string> = {};
 for (const f of manifest.files) {
   filePaths[f.id] = path.join(rootDir, f.path);
+}
+
+function buildSingleSheetXlsx(
+  sheetName: string,
+  rowDefs: Array<[number, Array<[string, string | number]>]>
+): Uint8Array {
+  const cellXml = (addr: string, val: string | number) => {
+    if (typeof val === 'number') {
+      return `<c r="${addr}" t="n"><v>${val}</v></c>`;
+    }
+    const escaped = String(val)
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;');
+    return `<c r="${addr}" t="inlineStr"><is><t>${escaped}</t></is></c>`;
+  };
+  const rows = rowDefs.map(
+    ([r, cols]) =>
+      `<row r="${r}">${cols.map(([c, v]) => cellXml(`${c}${r}`, v)).join('')}</row>`
+  );
+  const sheetXml = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main"><sheetData>${rows.join('')}</sheetData></worksheet>`;
+  const workbookXml = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<workbook xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships"><sheets><sheet name="${sheetName}" sheetId="1" state="visible" r:id="rId1"/></sheets></workbook>`;
+  const relsXml = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet" Target="worksheets/sheet1.xml"/></Relationships>`;
+  const rootRels = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="xl/workbook.xml"/></Relationships>`;
+  const contentTypes = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types"><Default Extension="rels" ContentType="application/vnd.openxmlformats-officedocument.relationships+xml"/><Default Extension="xml" ContentType="application/xml"/><Override PartName="/xl/workbook.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet.main+xml"/><Override PartName="/xl/worksheets/sheet1.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"/></Types>`;
+
+  return zipSync({
+    '[Content_Types].xml': strToU8(contentTypes),
+    '_rels/.rels': strToU8(rootRels),
+    'xl/workbook.xml': strToU8(workbookXml),
+    'xl/_rels/workbook.xml.rels': strToU8(relsXml),
+    'xl/worksheets/sheet1.xml': strToU8(sheetXml),
+  });
 }
 
 describe('KTXH Offline – A4 Report Studio & WYSIWYG Architecture Suite', () => {
@@ -376,7 +416,7 @@ describe('KTXH Offline – A4 Report Studio & WYSIWYG Architecture Suite', () =>
 
     // 4. Check renamed indicators & as-of date bolding
     const row4 = evalReport.rows.find((r) => r.rowConfig.rowNumber === 4)!;
-    expect(row4.rowConfig.customLabel).toContain('Tỷ lệ thu NSNN so với dự toán (đến ngày');
+    expect(row4.rowConfig.customLabel).toContain('Tỷ lệ thu NSNN của từng xã so với dự toán (đến ngày');
     const row9 = evalReport.rows.find((r) => r.rowConfig.rowNumber === 9)!;
     expect(row9.rowConfig.customLabel).toContain('Tỷ lệ giải ngân chung của các địa phương (đến ngày');
     const row11 = evalReport.rows.find((r) => r.rowConfig.rowNumber === 11)!;
@@ -421,7 +461,7 @@ describe('KTXH Offline – A4 Report Studio & WYSIWYG Architecture Suite', () =>
 
     // 7. Check updated row 7 name
     const row7 = evalReport.rows.find((r) => r.rowConfig.rowNumber === 7)!;
-    expect(row7.rowConfig.customLabel).toBe('Kế hoạch vốn đầu tư công sau NQ điều chỉnh, bổ sung của HĐND');
+    expect(row7.rowConfig.customLabel).toBe('Kế hoạch vốn đầu tư công sau điều chỉnh, bổ sung');
 
     // 8. Check GPMB comparison format (>X,XX%) or (<X,XX%)
     const row16Comp = evalReport.rows.find((r) => r.rowConfig.rowNumber === 16)!;
@@ -456,9 +496,17 @@ describe('KTXH Offline – A4 Report Studio & WYSIWYG Architecture Suite', () =>
     // Simulate legacy saved labels from previous session in localStorage
     const legacyRow = session.templateRows.find((r) => r.indicatorId === 'DISB_PLAN')!;
     legacyRow.customLabel = 'Kế hoạch vốn đầu tư công sau điều chỉnh';
+    const prevRevRateRow = session.templateRows.find((r) => r.indicatorId === 'REV_RATE_Y')!;
+    prevRevRateRow.customLabel = 'Tỷ lệ thu NSNN so với dự toán (đến ngày 09/11/2026)';
+    const prevRevBudgetRow = session.templateRows.find((r) => r.indicatorId === 'REV_BUDGET_Y')!;
+    prevRevBudgetRow.customLabel = 'Dự toán thu NSNN năm';
 
     migrateLegacySessionLabels(ws);
-    expect(legacyRow.customLabel).toBe('Kế hoạch vốn đầu tư công sau NQ điều chỉnh, bổ sung của HĐND');
+    expect(legacyRow.customLabel).toBe('Kế hoạch vốn đầu tư công sau điều chỉnh, bổ sung');
+    expect(prevRevRateRow.customLabel).toBe(
+      'Tỷ lệ thu NSNN của từng xã so với dự toán (đến ngày 09/11/2026)'
+    );
+    expect(prevRevBudgetRow.customLabel).toBe('Dự toán thu NSNN giao từng địa phương tại QĐ 5055');
 
     // Reorder test: select 3 localities [loc0, loc1, loc2]
     const loc0 = baselineLocalities[0].id;
@@ -489,7 +537,7 @@ describe('KTXH Offline – A4 Report Studio & WYSIWYG Architecture Suite', () =>
     expect(cleanPrintHtml).not.toContain('Phiên:');
     expect(cleanPrintHtml).not.toContain('Ngày chốt độc lập');
     expect(cleanPrintHtml).not.toContain('Trang 1 / 1');
-    expect(cleanPrintHtml).toContain('Kế hoạch vốn đầu tư công sau NQ điều chỉnh, bổ sung của HĐND');
+    expect(cleanPrintHtml).toContain('Kế hoạch vốn đầu tư công sau điều chỉnh, bổ sung');
   });
 
   it('9. Automatic recognition of flat-table GPMB data (.csv) and correct locality grouping', () => {
@@ -577,7 +625,7 @@ describe('KTXH Offline – A4 Report Studio & WYSIWYG Architecture Suite', () =>
     syncReportLabelsWithDatasetDates(ws);
 
     expect(rowDisb.customLabel).toBe('Tỷ lệ giải ngân chung của các địa phương (đến ngày 25/10/2026)');
-    expect(rowRev.customLabel).toBe('Tỷ lệ thu NSNN so với dự toán (đến ngày 31/10/2026)');
+    expect(rowRev.customLabel).toBe('Tỷ lệ thu NSNN của từng xã so với dự toán (đến ngày 31/10/2026)');
     expect(rowGpmb.customLabel).toBe('Tỷ lệ GPMB trung bình của các địa phương (đến ngày 05/11/2026)');
 
     // Verify rendered HTML on Document Studio bolds the new date
@@ -1068,116 +1116,98 @@ describe('KTXH Offline – A4 Report Studio & WYSIWYG Architecture Suite', () =>
   });
 
   it('15. Recognizes DISB_PHAN_CAP_XA_V1 (12-col allocated capital workbook without pre-adjustment column) and omits plan adjustment comparison', () => {
-    const buildMinimalPhanCapXaXlsx = (): Uint8Array => {
-      const cellXml = (addr: string, val: string | number) => {
-        if (typeof val === 'number') {
-          return `<c r="${addr}" t="n"><v>${val}</v></c>`;
-        }
-        const escaped = String(val)
-          .replace(/&/g, '&amp;')
-          .replace(/</g, '&lt;')
-          .replace(/>/g, '&gt;');
-        return `<c r="${addr}" t="inlineStr"><is><t>${escaped}</t></is></c>`;
-      };
-      const rows: string[] = [];
-      const pushRow = (r: number, cols: Array<[string, string | number]>) => {
-        rows.push(`<row r="${r}">${cols.map(([c, v]) => cellXml(`${c}${r}`, v)).join('')}</row>`);
-      };
-      pushRow(1, [['A', 'TÌNH HÌNH GIẢI NGÂN KẾ HOẠCH VỐN ĐẦU TƯ CÔNG NĂM 2026 ĐẾN HẾT NGÀY 08/11/2026']]);
-      pushRow(2, [['A', 'Đơn vị: Triệu đồng']]);
-      pushRow(3, [
-        ['A', 'Stt'],
-        ['B', 'Chủ đầu tư'],
-        ['C', 'Kế hoạch vốn năm 2026'],
-        ['G', 'Giải ngân đến hết ngày 08/11/2026 theo báo cáo của Kho bạc Nhà nước khu vực III'],
-        ['K', 'Tỷ lệ'],
-        ['L', 'Ghi chú'],
-      ]);
-      pushRow(4, [['C', 'Tổng số'], ['D', 'Chi tiết theo nguồn vốn'], ['G', 'Tổng số'], ['H', 'Chi tiết theo nguồn vốn']]);
-      pushRow(5, [
-        ['D', 'Nguồn thu tiền sử dụng đất'],
-        ['E', 'Bổ sung có mục tiêu'],
-        ['F', 'Nguồn tăng thu'],
-        ['H', 'Nguồn thu tiền sử dụng đất'],
-        ['I', 'Bổ sung có mục tiêu'],
-        ['J', 'Nguồn tăng thu'],
-      ]);
-      pushRow(6, [['A', 1], ['B', 2], ['C', '3=4+5+6'], ['G', '7=8+9+10'], ['K', '11=7/3'], ['L', 12]]);
-      // Row 7 summary = sum of 3 sample communes
-      pushRow(7, [
-        ['B', 'Tổng số'],
-        ['C', 258787.89399932264],
-        ['D', 22854],
-        ['E', 135933.89399932264],
-        ['F', 100000],
-        ['G', 195050],
-        ['H', 22363],
-        ['I', 134549],
-        ['J', 38138],
-        ['K', 0.7537060405768989],
-      ]);
-      pushRow(8, [
-        ['A', 1],
-        ['B', 'Xã Nam Sách'],
-        ['C', 88745.03866983537],
-        ['D', 10172],
-        ['E', 28573.03866983536],
-        ['F', 50000],
-        ['G', 76883],
-        ['H', 10172],
-        ['I', 28573],
-        ['J', 38138],
-        ['K', 0.8663357541150376],
-      ]);
-      pushRow(9, [
-        ['A', 2],
-        ['B', 'Xã Thái Tân'],
-        ['C', 24169.16741313712],
-        ['D', 3570],
-        ['E', 20599.16741313712],
-        ['F', 0],
-        ['G', 23157],
-        ['H', 3081],
-        ['I', 20076],
-        ['J', 0],
-        ['K', 0.9581215440385027],
-      ]);
-      pushRow(10, [
-        ['A', 3],
-        ['B', 'Phường Phù Liễn'],
-        ['C', 145873.68791631915],
-        ['D', 9112],
-        ['E', 86761.68791631915],
-        ['F', 50000],
-        ['G', 95010],
-        ['H', 9110],
-        ['I', 85900],
-        ['J', 0],
-        ['K', 0.6513169130633202],
-        ['L', 'Loại trừ nguồn tăng thu bổ sung theo Quyết định số 4581/QĐ-UBND ngày 31/10/2026, tỷ lệ giải ngân đạt 99%'],
-      ]);
-
-      const sheetXml = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
-<worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main"><sheetData>${rows.join('')}</sheetData></worksheet>`;
-      const workbookXml = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
-<workbook xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships"><sheets><sheet name="Tổng hợp" sheetId="1" state="visible" r:id="rId1"/></sheets></workbook>`;
-      const relsXml = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
-<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet" Target="worksheets/sheet1.xml"/></Relationships>`;
-      const rootRels = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
-<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="xl/workbook.xml"/></Relationships>`;
-      const contentTypes = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
-<Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types"><Default Extension="rels" ContentType="application/vnd.openxmlformats-officedocument.relationships+xml"/><Default Extension="xml" ContentType="application/xml"/><Override PartName="/xl/workbook.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet.main+xml"/><Override PartName="/xl/worksheets/sheet1.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"/></Types>`;
-
-      return zipSync({
-        '[Content_Types].xml': strToU8(contentTypes),
-        '_rels/.rels': strToU8(rootRels),
-        'xl/workbook.xml': strToU8(workbookXml),
-        'xl/_rels/workbook.xml.rels': strToU8(relsXml),
-        'xl/worksheets/sheet1.xml': strToU8(sheetXml),
-      });
-    };
-
-    const bytes = buildMinimalPhanCapXaXlsx();
+    const bytes = buildSingleSheetXlsx('Tổng hợp', [
+      [1, [['A', 'TÌNH HÌNH GIẢI NGÂN KẾ HOẠCH VỐN ĐẦU TƯ CÔNG NĂM 2026 ĐẾN HẾT NGÀY 08/11/2026']]],
+      [2, [['A', 'Đơn vị: Triệu đồng']]],
+      [
+        3,
+        [
+          ['A', 'Stt'],
+          ['B', 'Chủ đầu tư'],
+          ['C', 'Kế hoạch vốn năm 2026'],
+          ['G', 'Giải ngân đến hết ngày 08/11/2026 theo báo cáo của Kho bạc Nhà nước khu vực III'],
+          ['K', 'Tỷ lệ'],
+          ['L', 'Ghi chú'],
+        ],
+      ],
+      [4, [['C', 'Tổng số'], ['D', 'Chi tiết theo nguồn vốn'], ['G', 'Tổng số'], ['H', 'Chi tiết theo nguồn vốn']]],
+      [
+        5,
+        [
+          ['D', 'Nguồn thu tiền sử dụng đất'],
+          ['E', 'Bổ sung có mục tiêu'],
+          ['F', 'Nguồn tăng thu'],
+          ['H', 'Nguồn thu tiền sử dụng đất'],
+          ['I', 'Bổ sung có mục tiêu'],
+          ['J', 'Nguồn tăng thu'],
+        ],
+      ],
+      [6, [['A', 1], ['B', 2], ['C', '3=4+5+6'], ['G', '7=8+9+10'], ['K', '11=7/3'], ['L', 12]]],
+      [
+        7,
+        [
+          ['B', 'Tổng số'],
+          ['C', 258787.89399932264],
+          ['D', 22854],
+          ['E', 135933.89399932264],
+          ['F', 100000],
+          ['G', 195050],
+          ['H', 22363],
+          ['I', 134549],
+          ['J', 38138],
+          ['K', 0.7537060405768989],
+        ],
+      ],
+      [
+        8,
+        [
+          ['A', 1],
+          ['B', 'Xã Nam Sách'],
+          ['C', 88745.03866983537],
+          ['D', 10172],
+          ['E', 28573.03866983536],
+          ['F', 50000],
+          ['G', 76883],
+          ['H', 10172],
+          ['I', 28573],
+          ['J', 38138],
+          ['K', 0.8663357541150376],
+        ],
+      ],
+      [
+        9,
+        [
+          ['A', 2],
+          ['B', 'Xã Thái Tân'],
+          ['C', 24169.16741313712],
+          ['D', 3570],
+          ['E', 20599.16741313712],
+          ['F', 0],
+          ['G', 23157],
+          ['H', 3081],
+          ['I', 20076],
+          ['J', 0],
+          ['K', 0.9581215440385027],
+        ],
+      ],
+      [
+        10,
+        [
+          ['A', 3],
+          ['B', 'Phường Phù Liễn'],
+          ['C', 145873.68791631915],
+          ['D', 9112],
+          ['E', 86761.68791631915],
+          ['F', 50000],
+          ['G', 95010],
+          ['H', 9110],
+          ['I', 85900],
+          ['J', 0],
+          ['K', 0.6513169130633202],
+          ['L', 'Loại trừ nguồn tăng thu bổ sung theo Quyết định số 4581/QĐ-UBND ngày 31/10/2026, tỷ lệ giải ngân đạt 99%'],
+        ],
+      ],
+    ]);
     const parsedWb = parseWorkbookBytes(bytes, 'Von_phan_cap_xa_08.11.xlsx');
     expect(detectSheetFingerprint(parsedWb.sheets[0])).toBe('DISB_PHAN_CAP_XA_V1');
 
@@ -1336,5 +1366,528 @@ describe('KTXH Offline – A4 Report Studio & WYSIWYG Architecture Suite', () =>
       datasets: { DISB: disbDataset, REV: revDataset, GPMB: gpmbDataset },
     });
     expect(ev.rows.length).toBeGreaterThan(0);
+  });
+
+  it('18. Recognizes DISB_PHAN_CAP_XA_V2 (15-col A..O with KHV dau nam C..E, sau DC F..I, Giai ngan J..M, Ty le N, Ghi chu O) and restores plan adjustment comparison', () => {
+    const bytes = buildSingleSheetXlsx('Tổng hợp', [
+      [1, [['A', 'TÌNH HÌNH GIẢI NGÂN KẾ HOẠCH VỐN ĐẦU TƯ CÔNG NĂM 2026 ĐẾN HẾT NGÀY 08/11/2026']]],
+      [2, [['A', 'Đơn vị: Triệu đồng']]],
+      [
+        3,
+        [
+          ['A', 'Stt'],
+          ['B', 'Chủ đầu tư'],
+          ['C', 'Kế hoạch vốn năm 2026 đầu năm'],
+          ['F', 'Kế hoạch vốn năm 2026 sau điều chỉnh'],
+          ['J', 'Giải ngân đến hết ngày 08/11/2026 theo báo cáo của Kho bạc Nhà nước khu vực III'],
+          ['N', 'Tỷ lệ'],
+          ['O', 'Ghi chú'],
+        ],
+      ],
+      [
+        4,
+        [
+          ['C', 'Tổng số'],
+          ['D', 'Chi tiết theo nguồn vốn'],
+          ['F', 'Tổng số'],
+          ['G', 'Chi tiết theo nguồn vốn'],
+          ['J', 'Tổng số'],
+          ['K', 'Chi tiết theo nguồn vốn'],
+        ],
+      ],
+      [
+        5,
+        [
+          ['D', 'Nguồn thu tiền sử dụng đất'],
+          ['E', 'Bổ sung có mục tiêu'],
+          ['G', 'Nguồn thu tiền sử dụng đất'],
+          ['H', 'Bổ sung có mục tiêu'],
+          ['I', 'Nguồn tăng thu'],
+          ['K', 'Nguồn thu tiền sử dụng đất'],
+          ['L', 'Bổ sung có mục tiêu'],
+          ['M', 'Nguồn tăng thu'],
+        ],
+      ],
+      [
+        6,
+        [
+          ['A', 1],
+          ['B', 2],
+          ['C', '3=4+5'],
+          ['F', '6=7+8+9'],
+          ['J', '10=11+12+13'],
+          ['N', '14=10/6'],
+          ['O', 12],
+        ],
+      ],
+      [
+        7,
+        [
+          ['B', 'Tổng số'],
+          ['C', 91261.03938393337],
+          ['D', 20503],
+          ['E', 70758.03938393337],
+          ['F', 113261.03938393336],
+          ['G', 20503],
+          ['H', 70758.03938393337],
+          ['I', 22000],
+          ['J', 102081],
+          ['K', 20168],
+          ['L', 70619],
+          ['M', 11294],
+          ['N', 0.9012896269708046],
+        ],
+      ],
+      [
+        8,
+        [
+          ['A', 1],
+          ['B', 'Phường Hưng Đạo'],
+          ['C', 45616.175876626716],
+          ['D', 18503],
+          ['E', 27113.17587662672],
+          ['F', 45616.175876626716],
+          ['G', 18503],
+          ['H', 27113.17587662672],
+          ['I', 0],
+          ['J', 45459],
+          ['K', 18346],
+          ['L', 27113],
+          ['M', 0],
+          ['N', 0.9965543828783059],
+        ],
+      ],
+      [
+        9,
+        [
+          ['A', 2],
+          ['B', 'Phường Trần Hưng Đạo'],
+          ['C', 45644.86350730665],
+          ['D', 2000],
+          ['E', 43644.86350730665],
+          ['F', 67644.86350730664],
+          ['G', 2000],
+          ['H', 43644.86350730665],
+          ['I', 22000],
+          ['J', 56622],
+          ['K', 1822],
+          ['L', 43506],
+          ['M', 11294],
+          ['N', 0.8370480338671094],
+          ['O', 'Loại trừ nguồn tăng thu bổ sung theo Quyết định số 4581/QĐ-UBND ngày 31/10/2026, tỷ lệ giải ngân đạt 99%'],
+        ],
+      ],
+    ]);
+
+    const parsedWb = parseWorkbookBytes(bytes, 'Vốn_phân_cấp_xã_08.11..xlsx');
+    expect(detectSheetFingerprint(parsedWb.sheets[0])).toBe('DISB_PHAN_CAP_XA_V2');
+
+    const imported = importDisbursementWorkbook(bytes, 'Vốn_phân_cấp_xã_08.11..xlsx');
+    expect(imported.dataset.schemaFingerprint).toBe('DISB_PHAN_CAP_XA_V2');
+    expect(imported.dataset.mappingVersion).toBe('DISB_PHAN_CAP_XA_V2');
+    expect(imported.dataset.asOfDate).toBe('2026-11-08');
+    expect(imported.dataset.unitCount).toBe(2);
+    expect(imported.dataset.summaryRecord?.metrics.initial_total_plan?.normalizedDecimal).toBe('91261.03938393337');
+    expect(imported.dataset.summaryRecord?.metrics.adjusted_total_plan?.normalizedDecimal).toBe('113261.03938393336');
+    expect(imported.dataset.summaryRecord?.metrics.disbursed_total?.normalizedDecimal).toBe('102081');
+    expect(imported.dataset.identityChecks?.length).toBe(6); // 2 rows x (C=D+E, F=G+H+I, J=K+L+M)
+    expect(imported.dataset.identityChecks?.every((c) => c.status === 'PASS_COMPLETE')).toBe(true);
+
+    const thdRec = imported.dataset.records.find((r) => r.localityName === 'Phường Trần Hưng Đạo')!;
+    expect(thdRec.officialNote).toContain('4581/QĐ-UBND');
+    expect(thdRec.adjustedScenarios?.[0].excludedItems[0]).toContain('4581');
+
+    const ws = createEmptyWorkspace();
+    registerDatasetInWorkspace(ws, imported.dataset, imported.localities);
+    registerDatasetInWorkspace(ws, revDataset);
+    registerDatasetInWorkspace(ws, gpmbDataset);
+    const session = createReportSession(ws, {
+      name: 'Phân cấp xã 15 cột 08.11',
+      dataBindings: { DISB: imported.dataset.id, REV: revDataset.id, GPMB: gpmbDataset.id },
+    });
+    const hungDaoId = imported.localities.find((l) => l.displayName === 'Phường Hưng Đạo')!.id;
+    const thdId = imported.localities.find((l) => l.displayName === 'Phường Trần Hưng Đạo')!.id;
+    setSessionLocalities(ws, session.id, [hungDaoId, thdId]);
+
+    const evaluated = evaluateSessionReport({
+      session,
+      baselineLocalities: ws.localities,
+      datasets: { DISB: imported.dataset, REV: revDataset, GPMB: gpmbDataset },
+    });
+
+    // Indicator row title dynamically synchronized to 08/11/2026
+    const row4Benchmark = evaluated.rows.find((r) => r.indicator.id === 'DISB_BENCHMARK_RATE')!;
+    expect(row4Benchmark.rowConfig.customLabel).toBe(
+      'Tỷ lệ giải ngân chung của các địa phương (đến ngày 08/11/2026)'
+    );
+    expect(evaluated.benchmarks?.disbRateBenchmark?.displayedText).toBe('90,13%');
+
+    // Row 3 DISB_PLAN shows post-adjustment values AND restored comparison vs KHV đầu năm
+    const row3 = evaluated.rows.find((r) => r.indicator.id === 'DISB_PLAN')!;
+    const hungDaoPlan = row3.cellsByLocalityId[hungDaoId];
+    const thdPlan = row3.cellsByLocalityId[thdId];
+    expect(hungDaoPlan.adjustmentNote).toBe('giữ nguyên');
+    expect(formatReportCellValue(hungDaoPlan, row3.indicator.displayUnit, 'billion')).toBe(
+      '45,62 tỷ (giữ nguyên)'
+    );
+    expect(thdPlan.adjustmentNote).toBe('tăng 22,00 tỷ');
+    expect(formatReportCellValue(thdPlan, row3.indicator.displayUnit, 'billion')).toBe(
+      '67,64 tỷ (tăng 22,00 tỷ)'
+    );
+
+    // Rate calculated from J/F accurately
+    const rateRow = evaluated.rows.find((r) => r.indicator.id === 'DISB_RATE')!;
+    expect(rateRow.cellsByLocalityId[hungDaoId].displayedText).toBe('99,66%');
+    expect(rateRow.cellsByLocalityId[thdId].displayedText).toBe('83,70%');
+
+    const studioHtml = renderA4DocumentStudioHtml({
+      evaluated,
+      baselineLocalities: ws.localities,
+      datasets: { DISB: imported.dataset, REV: revDataset, GPMB: gpmbDataset },
+    });
+    expect(studioHtml).toContain('(đến ngày 08/11/2026)');
+    expect(studioHtml).toContain('67,64 tỷ');
+    expect(studioHtml).toContain('(tăng 22,00 tỷ)');
+    expect(studioHtml).toContain('(giữ nguyên)');
+
+    // Turning off comparison toggle hides adjustmentNote cleanly
+    session.settings.showDisbPlanAdjustmentComparison = false;
+    const evalNoCmp = evaluateSessionReport({
+      session,
+      baselineLocalities: ws.localities,
+      datasets: { DISB: imported.dataset, REV: revDataset, GPMB: gpmbDataset },
+    });
+    expect(
+      evalNoCmp.rows.find((r) => r.indicator.id === 'DISB_PLAN')!.cellsByLocalityId[thdId].adjustmentNote
+    ).toBeNull();
+  });
+
+  it('19. Optional showRevBenchmarkRow displays 113/114 REV completion benchmark honestly across Studio, Print, and XLSX while keeping 14-row default', () => {
+    const revDsLocal: Dataset = { ...revDataset, asOfDate: '2026-10-19' };
+    const ws = createEmptyWorkspace();
+    registerDatasetInWorkspace(ws, disbDataset, baselineLocalities);
+    registerDatasetInWorkspace(ws, revDsLocal);
+    registerDatasetInWorkspace(ws, gpmbDataset);
+
+    const session = createReportSession(ws, { name: 'REV Benchmark Option' });
+    setSessionLocalities(ws, session.id, [baselineLocalities[0].id]);
+
+    // Default remains strictly 14 rows and REV_RATE_Y keeps STT "2"
+    const evalDefault = evaluateSessionReport({
+      session,
+      baselineLocalities,
+      datasets: { DISB: disbDataset, REV: revDsLocal, GPMB: gpmbDataset },
+    });
+    expect(evalDefault.rows).toHaveLength(14);
+    expect(evalDefault.rows.some((r) => r.indicator.id === 'REV_BENCHMARK_RATE')).toBe(false);
+    const defaultRevRateRow = evalDefault.rows.find((r) => r.indicator.id === 'REV_RATE_Y')!;
+    expect(defaultRevRateRow.rowConfig.sttLabel).toBe('2');
+    expect(defaultRevRateRow.rowConfig.customLabel).toBe(
+      'Tỷ lệ thu NSNN của từng xã so với dự toán (đến ngày 19/10/2026)'
+    );
+
+    // Enable optional REV benchmark row -> placed right before REV_RATE_Y with STT "2", while REV_RATE_Y loses STT
+    session.settings.showRevBenchmarkRow = true;
+    const evalWithRevBm = evaluateSessionReport({
+      session,
+      baselineLocalities,
+      datasets: { DISB: disbDataset, REV: revDsLocal, GPMB: gpmbDataset },
+    });
+    expect(evalWithRevBm.rows).toHaveLength(15);
+
+    const bmIdx = evalWithRevBm.rows.findIndex((r) => r.indicator.id === 'REV_BENCHMARK_RATE');
+    const rateYIdx = evalWithRevBm.rows.findIndex((r) => r.indicator.id === 'REV_RATE_Y');
+    expect(bmIdx).toBeGreaterThan(0);
+    expect(bmIdx).toBe(rateYIdx - 1);
+
+    const revBmRow = evalWithRevBm.rows[bmIdx];
+    const revRateRowWithBm = evalWithRevBm.rows[rateYIdx];
+    expect(revBmRow.rowConfig.sttLabel).toBe('2');
+    expect(revBmRow.rowConfig.customLabel).toBe(
+      'Tỷ lệ thu NSNN chung của các địa phương (đến ngày 19/10/2026)'
+    );
+    expect(revRateRowWithBm.rowConfig.sttLabel).toBe('');
+    expect(revRateRowWithBm.rowConfig.customLabel).toBe(
+      'Tỷ lệ thu NSNN của từng xã so với dự toán'
+    );
+    // Verify templateRows on session were not mutated in-place
+    const rawSessionRevRateRow = session.templateRows.find((r) => r.indicatorId === 'REV_RATE_Y')!;
+    expect(rawSessionRevRateRow.sttLabel).toBe('2');
+    expect(rawSessionRevRateRow.customLabel).toBe(
+      'Tỷ lệ thu NSNN của từng xã so với dự toán (đến ngày 19/10/2026)'
+    );
+
+    const cell = revBmRow.cellsByLocalityId[baselineLocalities[0].id];
+    expect(cell.displayedText).toBe('111,30%');
+    expect(cell.qualityStatus).toBe('PARTIAL_AGGREGATE');
+    expect(cell.trace.coverageDetails.some((c) => c.localityName === 'Đặc khu Bạch Long Vĩ')).toBe(true);
+
+    // Renders in Studio (primary bold STT 2 for REV_BENCHMARK_RATE, italic sub-row without STT or duplicate date for REV_RATE_Y), Print, and XLSX
+    const studioHtml = renderA4DocumentStudioHtml({
+      evaluated: evalWithRevBm,
+      baselineLocalities,
+      datasets: { DISB: disbDataset, REV: revDsLocal, GPMB: gpmbDataset },
+    });
+    expect(studioHtml).toContain('Tỷ lệ thu NSNN chung của các địa phương');
+    expect(studioHtml).toContain('Tỷ lệ thu NSNN của từng xã so với dự toán');
+    expect(studioHtml).not.toContain('Tỷ lệ thu NSNN của từng xã so với dự toán (đến ngày');
+    expect(studioHtml).toContain(
+      '<tr class="doc-row doc-row-primary" data-row-number="30">\n            <td class="doc-td doc-td-stt">2</td>'
+    );
+    expect(studioHtml).toContain(
+      '<tr class="doc-row doc-row-sub" data-row-number="4">\n            <td class="doc-td doc-td-stt"></td>'
+    );
+    expect(studioHtml).toContain('111,30%');
+
+    const printHtml = generatePrintableReportHtml({
+      evaluated: evalWithRevBm,
+      baselineLocalities,
+      datasets: { DISB: disbDataset, REV: revDsLocal, GPMB: gpmbDataset },
+      includeAppendix: false,
+    });
+    expect(printHtml).toContain('Tỷ lệ thu NSNN chung của các địa phương');
+    expect(printHtml).not.toContain('Tỷ lệ thu NSNN của từng xã so với dự toán (đến ngày');
+    expect(printHtml).toContain('111,30%');
+
+    const xlsxBytes = exportSessionReportToXlsxBytes({
+      evaluated: evalWithRevBm,
+      baselineLocalities,
+      datasets: { DISB: disbDataset, REV: revDsLocal, GPMB: gpmbDataset },
+    });
+    const sheet1Xml = strFromU8(unzipSync(xlsxBytes)['xl/worksheets/sheet1.xml']);
+    const sheet3Xml = strFromU8(unzipSync(xlsxBytes)['xl/worksheets/sheet3.xml']);
+    expect(sheet1Xml).toContain('Tỷ lệ thu NSNN chung của các địa phương');
+    expect(sheet1Xml).not.toContain('Tỷ lệ thu NSNN của từng xã so với dự toán (đến ngày');
+    expect(sheet1Xml).toContain('s="5"><v>1.113022333245347</v>');
+    expect(sheet3Xml).toContain('REV_BENCHMARK_RATE');
+
+    // Toggling off restores REV_RATE_Y STT "2" and as-of date cleanly
+    session.settings.showRevBenchmarkRow = false;
+    const evalRestored = evaluateSessionReport({
+      session,
+      baselineLocalities,
+      datasets: { DISB: disbDataset, REV: revDsLocal, GPMB: gpmbDataset },
+    });
+    expect(evalRestored.rows).toHaveLength(14);
+    const restoredRevRateRow = evalRestored.rows.find((r) => r.indicator.id === 'REV_RATE_Y')!;
+    expect(restoredRevRateRow.rowConfig.sttLabel).toBe('2');
+    expect(restoredRevRateRow.rowConfig.customLabel).toBe(
+      'Tỷ lệ thu NSNN của từng xã so với dự toán (đến ngày 19/10/2026)'
+    );
+  });
+
+  it('20. Excel export mirrors Webapp formatting (column widths, row heights, bold/italic rows, top/center align, clean dash, numeric unit formats)', () => {
+    const revDsLocal: Dataset = { ...revDataset, asOfDate: '2026-11-09' };
+    const ws = createEmptyWorkspace();
+    registerDatasetInWorkspace(ws, disbDataset, baselineLocalities);
+    registerDatasetInWorkspace(ws, revDsLocal);
+    registerDatasetInWorkspace(ws, gpmbDataset);
+
+    const session = createReportSession(ws, { name: 'Excel Formatting Parity' });
+    session.settings.showSubtitle = true;
+    session.settings.subtitle = '(Số liệu tổng hợp phục vụ công tác chỉ đạo, điều hành)';
+    session.settings.showRevBenchmarkRow = true;
+
+    const chosenNames = ['Xã Nam Sách', 'Xã Thái Tân', 'Xã Trần Phú', 'Xã Hợp Tiến', 'Xã An Phú'];
+    const chosenLocs = baselineLocalities.filter((l) => chosenNames.includes(l.displayName));
+    setSessionLocalities(
+      ws,
+      session.id,
+      chosenLocs.map((l) => l.id)
+    );
+
+    const evaluated = evaluateSessionReport({
+      session,
+      baselineLocalities,
+      datasets: { DISB: disbDataset, REV: revDsLocal, GPMB: gpmbDataset },
+    });
+    const xlsxBytes = exportSessionReportToXlsxBytes({
+      evaluated,
+      baselineLocalities,
+      datasets: { DISB: disbDataset, REV: revDsLocal, GPMB: gpmbDataset },
+    });
+
+    const files = unzipSync(xlsxBytes);
+    const sheet1Xml = strFromU8(files['xl/worksheets/sheet1.xml']);
+    const stylesXml = strFromU8(files['xl/styles.xml']);
+
+    // Column widths aligned with Webapp proportions (A=6, B=46, C..G=27 for 5 locs)
+    expect(sheet1Xml).toContain('<col min="1" max="1" width="6" customWidth="1"/>');
+    expect(sheet1Xml).toContain('<col min="2" max="2" width="46" customWidth="1"/>');
+    expect(sheet1Xml).toContain('<col min="3" max="3" width="27" customWidth="1"/>');
+
+    // Explicit dynamic row heights + fitToPage landscape setup
+    expect(sheet1Xml).toContain('customHeight="1"');
+    expect(sheet1Xml).toContain('<pageSetUpPr fitToPage="1"/>');
+    expect(sheet1Xml).toContain('fitToWidth="1" fitToHeight="0"');
+
+    // Merged rich-text Title (bold) + Subtitle (italic) on Row 1 while keeping Header Row 2 and C3 numeric
+    expect(sheet1Xml).toContain('Chỉ đạo'.toLowerCase());
+    expect(sheet1Xml).toContain('<mergeCell ref="A1:G1"/>');
+    expect(sheet1Xml).toContain('Chỉ tiêu / Kết quả thực hiện');
+    expect(sheet1Xml).toContain('r="C3" s="4"><v>');
+
+    // Primary STT rows vs italic sub-rows & clean placeholder '-' (no leading apostrophe)
+    expect(sheet1Xml).toContain('s="13"><is><t xml:space="preserve">1</t>');
+    expect(sheet1Xml).toContain('s="16"><is><t xml:space="preserve">Tỷ lệ thu NSNN của từng xã so với dự toán</t>');
+    expect(sheet1Xml).toContain('<t xml:space="preserve">-</t>');
+    expect(sheet1Xml).not.toContain("<t xml:space=\"preserve\">'-</t>");
+
+    // Numeric unit format codes ("tỷ", "m2", "%") & vertical top alignment styles present
+    expect(stylesXml).toContain('#,##0.00 &quot;tỷ&quot;');
+    expect(stylesXml).toContain('#,##0 &quot;m2&quot;');
+    expect(stylesXml).toContain('vertical="top"');
+  });
+
+  it('21. Shows automated Excel source lookup method on cell click and clears cell selection highlight on Escape', () => {
+    const ws = createEmptyWorkspace();
+    registerDatasetInWorkspace(ws, disbDataset, baselineLocalities);
+    registerDatasetInWorkspace(ws, revDataset);
+    registerDatasetInWorkspace(ws, gpmbDataset);
+
+    const session = createReportSession(ws, { name: 'Lookup & Esc Test' });
+    const namSach = baselineLocalities.find((l) => l.displayName.includes('Nam Sách'))!;
+    const thaiTan = baselineLocalities.find((l) => l.displayName.includes('Thái Tân'))!;
+    expect(namSach).toBeDefined();
+    expect(thaiTan).toBeDefined();
+    setSessionLocalities(ws, session.id, [namSach.id, thaiTan.id]);
+
+    const datasets = { DISB: disbDataset, REV: revDataset, GPMB: gpmbDataset };
+    const evaluated = evaluateSessionReport({
+      session,
+      baselineLocalities,
+      datasets,
+    });
+
+    // 1. Popover and Trace Inspector display automated Excel cell lookup method (DISB, REV, GPMB, and no-record GPMB)
+    const disbPlanRow = evaluated.rows.find((r) => r.indicator.id === 'DISB_PLAN')!;
+    const disbCell = disbPlanRow.cellsByLocalityId[namSach.id];
+    const disbTrace = evaluated.tracesById.get(disbCell.traceId)!;
+
+    const disbPopoverHtml = renderCellTracePopoverHtml(disbTrace, { datasets });
+    expect(disbPopoverHtml).toContain('Phương pháp tự tìm ô Excel nguồn');
+    expect(disbPopoverHtml).toContain('DISB_V1');
+    expect(disbPopoverHtml).toContain('Chuẩn hóa Unicode NFC');
+    expect(disbPopoverHtml).toContain('cột F');
+    expect(disbPopoverHtml).toContain('Nhấn <kbd>Esc</kbd> để bỏ chọn ô');
+
+    const disbInspectorHtml = renderTraceInspectorHtml(disbTrace, { datasets });
+    expect(disbInspectorHtml).toContain(
+      '4. Phương pháp hệ thống tự động tìm đúng ô giá trị trong file Excel nguồn'
+    );
+    expect(disbInspectorHtml).toContain('Xã Nam Sách');
+
+    // REV_BUDGET_Y lookup method
+    const revBudgetRow = evaluated.rows.find((r) => r.indicator.id === 'REV_BUDGET_Y')!;
+    const revTrace = evaluated.tracesById.get(revBudgetRow.cellsByLocalityId[namSach.id].traceId)!;
+    const revPopoverHtml = renderCellTracePopoverHtml(revTrace, { datasets });
+    expect(revPopoverHtml).toContain('REV_V1');
+    expect(revPopoverHtml).toContain('B11:B123');
+    expect(revPopoverHtml).toContain('cột C');
+
+    // GPMB_AREA_RATE lookup method (with project grouping vs no-record "Không có nhiệm vụ GPMB")
+    const gpmbRateRow = evaluated.rows.find((r) => r.indicator.id === 'GPMB_AREA_RATE')!;
+    const gpmbNamSachTrace = evaluated.tracesById.get(
+      gpmbRateRow.cellsByLocalityId[namSach.id].traceId
+    )!;
+    const gpmbNamSachPopover = renderCellTracePopoverHtml(gpmbNamSachTrace, { datasets });
+    expect(gpmbNamSachPopover).toContain('GPMB_V1');
+    expect(gpmbNamSachPopover).toContain('SUM(cột I) ÷ SUM(cột D)');
+
+    const gpmbThaiTanTrace = evaluated.tracesById.get(
+      gpmbRateRow.cellsByLocalityId[thaiTan.id].traceId
+    )!;
+    const gpmbThaiTanPopover = renderCellTracePopoverHtml(gpmbThaiTanTrace, { datasets });
+    expect(gpmbThaiTanPopover).toContain('Không có dòng dự án khớp trong nguồn GPMB');
+    expect(gpmbThaiTanPopover).toContain('0 dòng khớp');
+    expect(gpmbThaiTanPopover).toContain('Không có nhiệm vụ GPMB');
+
+    // 2. Active cell selection highlight renders when activeTraceId is set and disappears cleanly when cleared (Esc)
+    const activeHtml = renderA4DocumentStudioHtml({
+      evaluated,
+      baselineLocalities,
+      datasets,
+      activeTraceId: disbTrace.traceId,
+    });
+    expect(activeHtml).toContain('doc-cell-active');
+
+    const clearedHtml = renderA4DocumentStudioHtml({
+      evaluated,
+      baselineLocalities,
+      datasets,
+      activeTraceId: undefined,
+    });
+    expect(clearedHtml).not.toContain('doc-cell-active');
+
+    // 3. Exercise KtxhOfflineApp.handleEscapeKey clearing active cell highlight, popover, focus, and TRACE panel
+    let renderCount = 0;
+    let blurred = false;
+    const mockAppState: Record<string, unknown> = {
+      editingProjectId: null,
+      isAddingProject: false,
+      editingNq11Id: null,
+      isAddingNq11: false,
+      targetNq11LocalityId: null,
+      popoverCell: null,
+      activeTraceId: disbTrace.traceId,
+      activeTrace: disbTrace,
+      activeTraceExtraMeta: { datasets },
+      rightPanelMode: 'TRACE',
+      clearCellSelection: KtxhOfflineApp.prototype.clearCellSelection,
+      render: () => {
+        renderCount += 1;
+      },
+    };
+    const handled = KtxhOfflineApp.prototype.handleEscapeKey.call(mockAppState, {
+      matches: (sel: string) => sel.includes('.doc-cell'),
+      blur: () => {
+        blurred = true;
+      },
+    });
+    expect(handled).toBe(true);
+    expect(renderCount).toBe(1);
+    expect(blurred).toBe(true);
+    expect(mockAppState.activeTraceId).toBeUndefined();
+    expect(mockAppState.activeTrace).toBeNull();
+    expect(mockAppState.popoverCell).toBeNull();
+    expect(mockAppState.rightPanelMode).toBe('NONE');
+  });
+
+  it('22. Print/PDF CSS prevents orphaned blank page 1 under title and supports dynamic paper size', () => {
+    const cssText = fs.readFileSync(path.join(rootDir, 'src/styles/main.css'), 'utf-8');
+    const printSection = cssText.slice(cssText.indexOf('@media print'));
+    expect(printSection).toContain('min-height: 0 !important;');
+    expect(printSection).toContain('overflow: visible !important;');
+
+    const chunkMatch = printSection.match(/\.print-page-chunk\s*\{[^}]*\}/);
+    expect(chunkMatch?.[0] || '').not.toContain('page-break-inside: avoid');
+
+    const titleMatch = printSection.match(/\.print-title-center\s*\{[^}]*\}/);
+    expect(titleMatch?.[0] || '').toContain('page-break-after: avoid');
+
+    const tableMatch = printSection.match(/\.print-table\s*\{[^}]*\}/);
+    expect(tableMatch?.[0] || '').toContain('page-break-inside: auto');
+    expect(tableMatch?.[0] || '').not.toContain('page-break-inside: avoid');
+
+    // Dynamic @page override when paper size differs from default A4 landscape
+    const ws = createEmptyWorkspace();
+    registerDatasetInWorkspace(ws, disbDataset, baselineLocalities);
+    registerDatasetInWorkspace(ws, revDataset);
+    registerDatasetInWorkspace(ws, gpmbDataset);
+    const session = createReportSession(ws, { name: 'A3 Print Test' });
+    session.settings.paperSize = 'A3';
+    setSessionLocalities(ws, session.id, [baselineLocalities[0].id]);
+    const evaluated = evaluateSessionReport({
+      session,
+      baselineLocalities,
+      datasets: { DISB: disbDataset, REV: revDataset, GPMB: gpmbDataset },
+    });
+    const a3PrintHtml = generatePrintableReportHtml({
+      evaluated,
+      baselineLocalities,
+      datasets: { DISB: disbDataset, REV: revDataset, GPMB: gpmbDataset },
+      includeAppendix: false,
+    });
+    expect(a3PrintHtml).toContain('@page { size: A3 landscape; margin: 5mm 8mm; }');
   });
 });

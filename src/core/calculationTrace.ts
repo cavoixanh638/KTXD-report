@@ -12,16 +12,23 @@ import {
   CalculationTrace,
   CoverageDetail,
   Dataset,
+  formatDisbRange,
+  getDisbSchemaProfile,
   Locality,
   MetricCellValue,
   QualityIssue,
   ReportSession,
   SourceCellRef,
   SourceRecord,
+  TemplateRowCustomConfig,
   ValueState,
   ZeroDenominatorContributor,
 } from './types';
-import { DEFAULT_INDICATORS, IndicatorDefinition } from './indicators';
+import {
+  DEFAULT_INDICATORS,
+  formatRevBenchmarkRowLabel,
+  IndicatorDefinition,
+} from './indicators';
 import { getUncompletedProjectsForSession } from './uncompletedProjects';
 
 export function makeSourceCellRef(
@@ -744,11 +751,9 @@ export function computeDisbPlanPerUnitBenchmark(
     moneyUnit === 'billion' ? millionToBillion(avgMillion) : avgMillion;
   const unitText = moneyUnit === 'billion' ? 'tỷ đồng' : 'triệu đồng';
   const displayedText = `${formatVnNumber(avgDisplay, decimals)} ${unitText}`;
-  const planCol = disbDataset.schemaFingerprint === 'DISB_PHAN_CAP_XA_V1' ? 'C' : 'F';
-  const planRange =
-    disbDataset.schemaFingerprint === 'DISB_PHAN_CAP_XA_V1'
-      ? `${planCol}8:${planCol}${7 + count}`
-      : `${planCol}13:${planCol}${12 + count}`;
+  const disbProfile = getDisbSchemaProfile(disbDataset.schemaFingerprint);
+  const planCol = disbProfile.planCol;
+  const planRange = formatDisbRange(planCol, disbProfile, count);
 
   const trace: CalculationTrace = {
     traceId: `TRACE_BM_DISB_PLAN_PER_UNIT_${disbDataset.id}`,
@@ -866,6 +871,31 @@ export interface EvaluatedReportCell {
   trace: CalculationTrace;
 }
 
+function buildBenchmarkReportCell(params: {
+  bm: ReturnType<typeof computeBenchmarkRatio>;
+  indicatorId: string;
+  locality: Locality;
+  qualityStatus?: CalculationQuality;
+}): EvaluatedReportCell {
+  const { bm, indicatorId, locality, qualityStatus } = params;
+  return {
+    traceId: bm.trace.traceId,
+    indicatorId,
+    localityId: locality.id,
+    localityName: locality.canonicalNameNFC,
+    exactDecimal: bm.exactPercent ? bm.exactPercent.toString() : null,
+    numericValueForExcel: bm.exactRatio ? bm.exactRatio.toNumber() : null,
+    excelFormatType: 'PERCENT_RATIO',
+    displayedText: bm.displayedText,
+    unitLabel: '%',
+    state: bm.trace.result.state,
+    qualityStatus: qualityStatus ?? bm.trace.quality.status,
+    hasWarning: false,
+    warningCount: 0,
+    trace: bm.trace,
+  };
+}
+
 export function evaluateLocalityIndicator(params: {
   indicator: IndicatorDefinition;
   locality: Locality;
@@ -875,6 +905,7 @@ export function evaluateLocalityIndicator(params: {
   precomputedBenchmarks?: {
     disbPlanAvg?: ReturnType<typeof computeDisbPlanPerUnitBenchmark>;
     disbRateBenchmark?: ReturnType<typeof computeBenchmarkRatio>;
+    revRateBenchmark?: ReturnType<typeof computeBenchmarkRatio>;
     gpmbRateBenchmark?: ReturnType<typeof computeBenchmarkRatio>;
   };
 }): EvaluatedReportCell {
@@ -902,7 +933,7 @@ export function evaluateLocalityIndicator(params: {
   );
   void manualOverride;
 
-  // 1. Benchmark rows (Row 9 DISB_BENCHMARK_RATE, Row 14 GPMB_BENCHMARK_AREA_RATE)
+  // 1. Benchmark rows (DISB_BENCHMARK_RATE, GPMB_BENCHMARK_AREA_RATE, optional REV_BENCHMARK_RATE)
   if (indicator.id === 'DISB_BENCHMARK_RATE') {
     const disb = datasets.DISB!;
     const bm =
@@ -917,22 +948,31 @@ export function evaluateLocalityIndicator(params: {
         decimals: decPct,
       });
 
-    return {
-      traceId: bm.trace.traceId,
+    return buildBenchmarkReportCell({ bm, indicatorId: indicator.id, locality });
+  }
+
+  if (indicator.id === 'REV_BENCHMARK_RATE') {
+    const rev = datasets.REV!;
+    const isFullCoverage =
+      baselineLocalities.length > 0 && rev.unitCount >= baselineLocalities.length;
+    const bm =
+      precomputedBenchmarks?.revRateBenchmark ??
+      computeBenchmarkRatio({
+        indicatorId: 'REV_RATE_Y',
+        dataset: rev,
+        baselineLocalities,
+        numeratorField: 'actual_total_revenue',
+        denominatorField: 'annual_total_budget',
+        scopeType: isFullCoverage ? 'LOCALITIES_FULL_114' : 'LOCALITIES_AVAILABLE_N',
+        decimals: decPct,
+      });
+
+    return buildBenchmarkReportCell({
+      bm,
       indicatorId: indicator.id,
-      localityId: locality.id,
-      localityName: locality.canonicalNameNFC,
-      exactDecimal: bm.exactPercent ? bm.exactPercent.toString() : null,
-      numericValueForExcel: bm.exactRatio ? bm.exactRatio.toNumber() : null,
-      excelFormatType: 'PERCENT_RATIO',
-      displayedText: bm.displayedText,
-      unitLabel: '%',
-      state: bm.trace.result.state,
-      qualityStatus: bm.trace.quality.status,
-      hasWarning: false,
-      warningCount: 0,
-      trace: bm.trace,
-    };
+      locality,
+      qualityStatus: isFullCoverage ? bm.trace.quality.status : 'PARTIAL_AGGREGATE',
+    });
   }
 
   if (indicator.id === 'GPMB_BENCHMARK_AREA_RATE') {
@@ -949,22 +989,12 @@ export function evaluateLocalityIndicator(params: {
         decimals: decPct,
       });
 
-    return {
-      traceId: bm.trace.traceId,
+    return buildBenchmarkReportCell({
+      bm,
       indicatorId: indicator.id,
-      localityId: locality.id,
-      localityName: locality.canonicalNameNFC,
-      exactDecimal: bm.exactPercent ? bm.exactPercent.toString() : null,
-      numericValueForExcel: bm.exactRatio ? bm.exactRatio.toNumber() : null,
-      excelFormatType: 'PERCENT_RATIO',
-      displayedText: bm.displayedText,
-      unitLabel: '%',
-      state: bm.trace.result.state,
+      locality,
       qualityStatus: 'PARTIAL_AGGREGATE',
-      hasWarning: false,
-      warningCount: 0,
-      trace: bm.trace,
-    };
+    });
   }
 
   if (indicator.id === 'DISB_PLAN_PER_UNIT') {
@@ -1628,10 +1658,11 @@ export function evaluateLocalityIndicator(params: {
           expressionTree: {
             op: 'COMPARE',
             lhs: fRef.address,
-            rhs:
-              disb.schemaFingerprint === 'DISB_PHAN_CAP_XA_V1'
-                ? 'SUM(C8:C121)/114'
-                : 'SUM(F13:F126)/114',
+            rhs: `SUM(${formatDisbRange(
+              getDisbSchemaProfile(disb.schemaFingerprint).planCol,
+              getDisbSchemaProfile(disb.schemaFingerprint),
+              114
+            )})/114`,
           },
           method: 'COMPARISON_RULE',
           roundingPolicy: 'EXACT_DECIMAL_BEFORE_COMPARE',
@@ -1725,6 +1756,8 @@ export function evaluateLocalityIndicator(params: {
       const pct = ratio.mul(100);
       const displayedText = formatVnPercent(pct, decPct);
       const traceId = `TRACE_DISB_RATE_${locality.id}_${disb.id}`;
+      const disbProfile = getDisbSchemaProfile(disb.schemaFingerprint);
+      const ratioSymbol = `${disbProfile.disbCol}/${disbProfile.planCol}`;
 
       const trace: CalculationTrace = {
         traceId,
@@ -1744,7 +1777,7 @@ export function evaluateLocalityIndicator(params: {
           formulaVersion: '2.2',
           readableExpression: `${iRef.address} / ${fRef.address} * 100${
             rec.officialNote
-              ? ` (Có ghi chú Q${rec.sourceRow} nguyên văn, kịch bản điều chỉnh chưa xác minh tử/mẫu nên không tự thay tỷ lệ I/F)`
+              ? ` (Có ghi chú ${disbProfile.noteCol}${rec.sourceRow} nguyên văn, kịch bản điều chỉnh chưa xác minh tử/mẫu nên không tự thay tỷ lệ ${ratioSymbol})`
               : ''
           }`,
           expressionTree: { op: 'MUL', lhs: { op: 'DIV', num: iRef.address, den: fRef.address }, rhs: 100 },
@@ -1807,7 +1840,9 @@ export function evaluateLocalityIndicator(params: {
         ],
         quality: {
           status: 'COMPLETE',
-          warningIds: rec.officialNote ? [`NOTE_Q${rec.sourceRow}`] : [],
+          warningIds: rec.officialNote
+            ? [`NOTE_${getDisbSchemaProfile(disb.schemaFingerprint).noteCol}${rec.sourceRow}`]
+            : [],
         },
         sourceRefs: [iRef, fRef],
         createdAt: new Date().toISOString(),
@@ -2810,7 +2845,11 @@ export function evaluateSessionReport(params: {
         baselineLocalities,
         numeratorField: 'actual_total_revenue',
         denominatorField: 'annual_total_budget',
-        scopeType: 'LOCALITIES_AVAILABLE_N',
+        scopeType:
+          baselineLocalities.length > 0 &&
+          datasets.REV.unitCount >= baselineLocalities.length
+            ? 'LOCALITIES_FULL_114'
+            : 'LOCALITIES_AVAILABLE_N',
         decimals: decPct,
       })
     : undefined;
@@ -2910,9 +2949,51 @@ export function evaluateSessionReport(params: {
     })
     .sort((a, b) => a.order - b.order);
 
+  let evalRowConfigs: TemplateRowCustomConfig[] = sortedTemplateRows.map((r) => ({ ...r }));
+  if (
+    session.settings.showRevBenchmarkRow &&
+    datasets.REV &&
+    session.settings.showBenchmarkRows !== false
+  ) {
+    // When displaying the common revenue rate row, it takes STT "2" while REV_RATE_Y
+    // becomes a sub-row (empty STT) and drops the repeated "(đến ngày ...)" suffix.
+    evalRowConfigs = evalRowConfigs.map((r) =>
+      r.indicatorId === 'REV_RATE_Y'
+        ? {
+            ...r,
+            sttLabel: '',
+            customLabel: r.customLabel
+              .replace(/\s*\(đến ngày[^)]*\)/gi, '')
+              .replace(/\s{2,}/g, ' ')
+              .trim(),
+          }
+        : r
+    );
+    const revBmConfig: TemplateRowCustomConfig = {
+      rowNumber: 30,
+      indicatorId: 'REV_BENCHMARK_RATE',
+      sttLabel: '2',
+      customLabel: formatRevBenchmarkRowLabel({
+        customLabel: session.settings.revBenchmarkRowCustomLabel,
+        unitCount: datasets.REV.unitCount,
+        expectedCount: baselineLocalities.length || 114,
+        asOfDate: datasets.REV.asOfDate,
+      }),
+      groupName: 'I. Thu ngân sách nhà nước',
+      visible: true,
+      order: 1.5,
+    };
+    const revRateIdx = evalRowConfigs.findIndex((r) => r.indicatorId === 'REV_RATE_Y');
+    if (revRateIdx >= 0) {
+      evalRowConfigs.splice(revRateIdx, 0, revBmConfig);
+    } else {
+      evalRowConfigs.unshift(revBmConfig);
+    }
+  }
+
   const rows: EvaluatedReportRow[] = [];
 
-  for (const rowCfg of sortedTemplateRows) {
+  for (const rowCfg of evalRowConfigs) {
     const ind = DEFAULT_INDICATORS[rowCfg.indicatorId];
     if (!ind || ind.isQualityCheckOnly) continue;
 
@@ -2927,6 +3008,7 @@ export function evaluateSessionReport(params: {
         precomputedBenchmarks: {
           disbPlanAvg,
           disbRateBenchmark,
+          revRateBenchmark,
           gpmbRateBenchmark,
         },
       });
