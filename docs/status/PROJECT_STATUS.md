@@ -25,7 +25,7 @@
 ## KẾT QUẢ KIỂM THỬ RUNTIME (`T01`–`T66` & STUDIO SUITE)
 
 - **Lệnh kiểm thử:** `npm run typecheck; npm test; npm run build; python tools/verify_reference_files.py`
-- **Bộ kiểm thử runtime:** 2 test suites, **26/26 tests PASS** (`tests/ph1.spec.ts` 18 tests, `tests/studio.spec.ts` 8 tests bao gồm kiểm thử di chuyển nhãn cũ localStorage, sắp xếp thứ tự địa phương, in 1 trang không phụ lục và các kiểm thử định dạng).
+- **Bộ kiểm thử runtime:** 2 test suites, **28/28 tests PASS** (`tests/ph1.spec.ts` 18 tests, `tests/studio.spec.ts` 10 tests bao gồm kiểm thử nhận diện GPMB bảng phẳng CSV/XLSX, điều chỉnh ngày chốt tự động đồng bộ báo cáo, sắp xếp địa phương, in 1 trang không phụ lục và các kiểm thử định dạng).
 - **Tinh chỉnh giao diện, tìm kiếm và công thức tính đã hoàn thiện:**
   1. Loại bỏ hoàn toàn khối cơ quan chủ quản (Sở KH&ĐT), quốc hiệu tiêu ngữ và dòng ngày chốt số liệu meta ở đầu trang báo cáo.
   2. Loại bỏ phụ đề và huy hiệu phiên ở đầu báo cáo; căn giữa tiêu đề chính `TÌNH HÌNH THỰC HIỆN MỘT SỐ CHỈ TIÊU KINH TẾ - XÃ HỘI CỦA CÁC ĐỊA PHƯƠNG`.
@@ -52,6 +52,8 @@
   23. **Sắp xếp thứ tự địa phương linh hoạt:** Mặc định đưa các địa phương được chọn lên đầu danh sách (`SELECTED_FIRST`); bổ sung thanh công cụ sắp xếp thứ tự cột báo cáo (nút di chuyển ▲/▼, sắp xếp A→Z, Z→A, đảo ngược và gỡ bỏ ✕ trực tiếp).
   24. **Giao diện Nhập nguồn thu gọn (Compact One-Screen):** Thiết kế lại thanh kéo thả compact và hiển thị 3 nguồn dữ liệu (DISB, REV, GPMB) theo dạng lưới 3 cột ngang (`.card-grid-3`), gom gọn kiểm toán nguồn thiếu dạng pills giúp toàn bộ trang hiển thị trọn vẹn trên 1 màn hình không cần cuộn; khắc phục lỗi thanh cuộn cho khu vực làm việc trung tâm.
   25. **Loại bỏ hiển thị số trang:** Đã gỡ bỏ toàn bộ dòng chữ "Trang 1 / 1" ở cuối báo cáo trong cả giao diện Document Studio lẫn bản in theo yêu cầu.
+  26. **Bộ đọc tự động GPMB Bảng phẳng CSDL (`GPMB_FLAT`):** Hỗ trợ nhận diện và nạp trực tiếp cả tệp `.xlsx` và `.csv` dạng bảng phẳng (flat table) có cột định danh `Phường xã`, tự động nhận dạng các cột diện tích (`Tổng DT GPMB`, `DT đã thu hồi`), tiền phân bổ và tỷ lệ để gom nhóm theo địa bàn và tính toán đúng công thức `SUM(I)/SUM(D)`.
+  27. **Điều chỉnh ngày chốt số liệu & Tự động đồng bộ báo cáo:** Cho phép người dùng chỉnh sửa trực tiếp ngày chốt của cả 3 nguồn (DISB, REV, GPMB) trong thẻ dữ liệu nguồn; hệ thống tự động cập nhật ngày chốt vào các tiêu đề chỉ tiêu tương ứng trong bảng báo cáo A4, bản in và bản xuất Excel (`(đến ngày DD/MM/YYYY)`).
 - **Bằng chứng JSON xuất tự động từ runtime:** [`docs/data_checks/PH1_ACCEPTANCE_EVIDENCE_20261109.json`](../data_checks/PH1_ACCEPTANCE_EVIDENCE_20261109.json) (chứa bảng đối chiếu 14 dòng cho Phiên A 5 xã và Phiên B 7 phường cùng trạng thái từng mã `T01`–`T66`).
 - **Minh chứng Microsoft Edge Headless Offline (`file://`):**
   - [`docs/evidence/EDGE_HEADLESS_DOM_DUMP.html`](../evidence/EDGE_HEADLESS_DOM_DUMP.html) (2.04 MB DOM dump xác nhận khởi chạy JS & Document Studio hoàn chỉnh).

@@ -5,6 +5,8 @@ import {
   importDisbursementWorkbook,
   importRevenueWorkbook,
   importGpmbWorkbook,
+  detectSheetFingerprint,
+  parseWorkbookBytes,
 } from '../src/core/sourceReaders';
 import {
   createEmptyWorkspace,
@@ -13,6 +15,9 @@ import {
   setSessionLocalities,
   cloneReportSession,
   migrateLegacySessionLabels,
+  syncReportLabelsWithDatasetDates,
+  formatVnDate,
+  formatIsoDate,
 } from '../src/core/sessions';
 import { evaluateSessionReport } from '../src/core/calculationTrace';
 import { searchLocalities } from '../src/core/localities';
@@ -475,5 +480,111 @@ describe('KTXH Offline – A4 Report Studio & WYSIWYG Architecture Suite', () =>
     expect(cleanPrintHtml).not.toContain('Ngày chốt độc lập');
     expect(cleanPrintHtml).not.toContain('Trang 1 / 1');
     expect(cleanPrintHtml).toContain('Kế hoạch vốn đầu tư công sau NQ điều chỉnh, bổ sung của HĐND');
+  });
+
+  it('9. Automatic recognition of flat-table GPMB data (.csv) and correct locality grouping', () => {
+    // Exact sample from user prompt
+    const csvContent = `STT,Dự án,Nhóm,Phường xã,Đánh giá tiến độ,Hạn hoàn thành,Số QĐ,Nguồn vốn,Đấu giá đất,Tổng DT thu hồi,Tổng DT GPMB,Đất NN,Đất ở,Đất phi NN,Đất địa phương,Tổ chức bị thu hồi,Hộ dân bị thu hồi,Tiền phân bổ (đồng),DT đã thu hồi,Tỷ lệ GPMB,Đã chi GPMB,DT tổ chức đã GPMB,DT hộ dân đã GPMB,Số tổ chức,Số hộ dân,Trạng thái xác nhận,Kịch bản tăng trưởng,DT bàn giao CĐT,Tỷ lệ bàn giao
+1,Dự án đường sắt đoạn qua đặc khu,DA đường sắt,Đặc khu Cát Hải,Đang trong tiến độ,31/12/2026,2890/QĐ-UBND,trong_ngan_sach,Không,422118,600066,5183,0,416935,0,2,13,11736212000,244103,57.83,4807251000,238920,5183,1,13,Đang thực hiện,Không,,
+2,Dự án KCN cảng cửa ngõ,Dự án hạ tầng KCN,Đặc khu Cát Hải,Đang trong tiến độ,31/12/2026,7620078327,ngoai_ngan_sach,Không,305896,1280100,0,18454,287442,0,3,70,207259210000,304755,99.63,203752036000,286931,17824,2,66,Đang thực hiện,Không,,
+3,Dự án Vinfast,Các dự án khác,Đặc khu Cát Hải,Đang trong tiến độ,31/12/2026,1555/QĐ-BQL,ngoai_ngan_sach,Không,103442,103442,0,53437,50005,0,4,201,364193847000,97613,94.36,333723526000,47094,50519,1,192,Đang thực hiện,Không,,
+6,Dự án vườn hoa đường vòng Cầu Niệm,Các dự án khác,Phường An Biên,Vượt tiến độ,31/12/2026,1532/QĐ-UBND,trong_ngan_sach,Không,20165,20165,0,0,20124,0,1,0,61698000000,20165,100,24089678712,20165,0,1,0,Hoàn thành GPMB,Không,20165,100
+7,Dự án trạm biến áp Cầu Rào,,Phường An Biên,Hoàn thành tiến độ,12/6/2026,1532/QĐ-UBND,ngoai_ngan_sach,Không,8400,8400,8067,333,0,0,0,27,10807508565,8400,100,10807508565,0,8400,0,27,Hoàn thành GPMB,Không,,
+8,Dự án nhà ở xã hội Cầu Rào 2,DA khu đô thị,Phường An Biên,Hoàn thành tiến độ,30/6/2026,1660/QĐ-UBND,ngoai_ngan_sach,Không,73064,73064,14410,0,58654,0,0,32,12162468805,73064,100,12162468805,0,12766,0,32,Đang thực hiện,Không,,`;
+
+    const bytes = new TextEncoder().encode(csvContent);
+    const parsedWb = parseWorkbookBytes(bytes, 'gpmb_du_lieu_phang.csv');
+    expect(parsedWb.sheets.length).toBe(1);
+    expect(detectSheetFingerprint(parsedWb.sheets[0])).toBe('GPMB_FLAT');
+
+    const { dataset: flatGpmb } = importGpmbWorkbook(bytes, 'gpmb_du_lieu_phang.csv');
+    expect(flatGpmb.sourceType).toBe('GPMB');
+    expect(flatGpmb.schemaFingerprint).toBe('GPMB_FLAT');
+    expect(flatGpmb.projectRowCount).toBe(6);
+    expect(flatGpmb.unitCount).toBe(2); // Đặc khu Cát Hải & Phường An Biên
+
+    // Verify projects are grouped by locality correctly
+    const catHaiRecords = flatGpmb.records.filter((r) => r.localityName === 'Đặc khu Cát Hải');
+    expect(catHaiRecords.length).toBe(3);
+    const anBienRecords = flatGpmb.records.filter((r) => r.localityName === 'Phường An Biên');
+    expect(anBienRecords.length).toBe(3);
+
+    // Verify evaluation of GPMB_AREA_RATE with SUM(I)/SUM(D) for Cat Hai
+    const ws = createEmptyWorkspace();
+    registerDatasetInWorkspace(ws, flatGpmb);
+    registerDatasetInWorkspace(ws, disbDataset, baselineLocalities);
+    registerDatasetInWorkspace(ws, revDataset);
+
+    const session = createReportSession(ws, {
+      name: 'Flat GPMB Session',
+      dataBindings: { GPMB: flatGpmb.id, DISB: disbDataset.id, REV: revDataset.id },
+    });
+
+    const catHaiLoc = baselineLocalities.find((l) => l.displayName.includes('Cát Hải'));
+    expect(catHaiLoc).toBeDefined();
+    if (catHaiLoc) {
+      setSessionLocalities(ws, session.id, [catHaiLoc.id]);
+      const evaluated = evaluateSessionReport({
+        session,
+        baselineLocalities,
+        datasets: { DISB: disbDataset, REV: revDataset, GPMB: flatGpmb },
+      });
+      const areaRateRow = evaluated.rows.find((r) => r.indicator.id === 'GPMB_AREA_RATE');
+      expect(areaRateRow).toBeDefined();
+      const catHaiCell = areaRateRow?.cellsByLocalityId[catHaiLoc.id];
+      expect(catHaiCell).toBeDefined();
+      // SUM(I) = 244103 + 304755 + 97613 = 646471
+      // SUM(D) = 600066 + 1280100 + 103442 = 1983608
+      // Rate = 646471 / 1983608 * 100 = 32.59%
+      expect(catHaiCell?.displayedText).toBe('32,59%');
+    }
+  });
+
+  it('10. As-of date adjustments in source management dynamically update report table indicator labels', () => {
+    const ws = createEmptyWorkspace();
+    registerDatasetInWorkspace(ws, disbDataset, baselineLocalities);
+    registerDatasetInWorkspace(ws, revDataset);
+    registerDatasetInWorkspace(ws, gpmbDataset);
+
+    const session = createReportSession(ws, { name: 'Date Adjustment Test' });
+    expect(ws.sessions.length).toBe(1);
+
+    // Initially standard dates
+    const rowDisb = session.templateRows.find((r) => r.indicatorId === 'DISB_BENCHMARK_RATE')!;
+    const rowRev = session.templateRows.find((r) => r.indicatorId === 'REV_RATE_Y')!;
+    const rowGpmb = session.templateRows.find((r) => r.indicatorId === 'GPMB_BENCHMARK_AREA_RATE')!;
+
+    expect(rowDisb.customLabel).toContain('15/10/2026');
+    expect(rowRev.customLabel).toContain('19/10/2026');
+    expect(rowGpmb.customLabel).toContain('26/10/2026');
+
+    // Simulate user adjusting as-of dates in Source Data Management
+    disbDataset.asOfDate = '2026-10-25';
+    revDataset.asOfDate = '2026-10-31';
+    gpmbDataset.asOfDate = '2026-11-05';
+
+    // Synchronize labels
+    syncReportLabelsWithDatasetDates(ws);
+
+    expect(rowDisb.customLabel).toBe('Tỷ lệ giải ngân chung của các địa phương (đến ngày 25/10/2026)');
+    expect(rowRev.customLabel).toBe('Tỷ lệ thu NSNN so với dự toán (đến ngày 31/10/2026)');
+    expect(rowGpmb.customLabel).toBe('Tỷ lệ GPMB trung bình của các địa phương (đến ngày 05/11/2026)');
+
+    // Verify rendered HTML on Document Studio bolds the new date
+    setSessionLocalities(ws, session.id, [baselineLocalities[0].id]);
+    const evalReport = evaluateSessionReport({
+      session,
+      baselineLocalities,
+      datasets: { DISB: disbDataset, REV: revDataset, GPMB: gpmbDataset },
+    });
+    const studioHtml = renderA4DocumentStudioHtml({
+      evaluated: evalReport,
+      baselineLocalities,
+      datasets: { DISB: disbDataset, REV: revDataset, GPMB: gpmbDataset },
+    });
+
+    expect(studioHtml).toContain('<strong>(đến ngày 25/10/2026)</strong>');
+    expect(studioHtml).toContain('<strong>(đến ngày 31/10/2026)</strong>');
+    expect(studioHtml).toContain('<strong>(đến ngày 05/11/2026)</strong>');
   });
 });

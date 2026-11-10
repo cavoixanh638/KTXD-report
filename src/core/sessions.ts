@@ -49,6 +49,7 @@ export function registerDatasetInWorkspace(
     workspace.localities = localitiesFromDisb.map((l) => ({ ...l, aliases: [...l.aliases] }));
   }
 
+  syncReportLabelsWithDatasetDates(workspace);
   workspace.updatedAt = new Date().toISOString();
   workspace.unsavedChanges = true;
   workspace.auditLog.push({
@@ -93,6 +94,7 @@ export function confirmDatasetAsOfDate(
     }
   }
 
+  syncReportLabelsWithDatasetDates(workspace);
   workspace.updatedAt = new Date().toISOString();
   workspace.unsavedChanges = true;
   workspace.auditLog.push({
@@ -104,6 +106,74 @@ export function confirmDatasetAsOfDate(
   });
 
   return ds;
+}
+
+export function formatVnDate(dateStr: string | undefined): string {
+  if (!dateStr) return '';
+  const clean = dateStr.trim();
+  if (/^\d{1,2}\/\d{1,2}\/\d{4}$/.test(clean)) return clean;
+  const m = clean.match(/^(\d{4})-(\d{1,2})-(\d{1,2})/);
+  if (m) {
+    const d = m[3].padStart(2, '0');
+    const mon = m[2].padStart(2, '0');
+    const y = m[1];
+    return `${d}/${mon}/${y}`;
+  }
+  return clean;
+}
+
+export function formatIsoDate(dateStr: string | undefined): string {
+  if (!dateStr) return '';
+  const clean = dateStr.trim();
+  if (/^\d{4}-\d{2}-\d{2}$/.test(clean)) return clean;
+  const m = clean.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})/);
+  if (m) {
+    const d = m[1].padStart(2, '0');
+    const mon = m[2].padStart(2, '0');
+    const y = m[3];
+    return `${y}-${mon}-${d}`;
+  }
+  return clean;
+}
+
+export function syncReportLabelsWithDatasetDates(workspace: Workspace): void {
+  for (const session of workspace.sessions) {
+    const datasets = resolveSessionDatasets(workspace, session);
+    const disbDateVn = formatVnDate(datasets.DISB?.asOfDate);
+    const revDateVn = formatVnDate(datasets.REV?.asOfDate);
+    const gpmbDateVn = formatVnDate(datasets.GPMB?.asOfDate);
+
+    for (const r of session.templateRows) {
+      if (r.indicatorId === 'DISB_BENCHMARK_RATE' && disbDateVn) {
+        if (/\(đến ngày[^\)]*\)/i.test(r.customLabel)) {
+          r.customLabel = r.customLabel.replace(
+            /\(đến ngày[^\)]*\)/i,
+            `(đến ngày ${disbDateVn})`
+          );
+        } else {
+          r.customLabel = `${r.customLabel} (đến ngày ${disbDateVn})`;
+        }
+      } else if (r.indicatorId === 'REV_RATE_Y' && revDateVn) {
+        if (/\(đến ngày[^\)]*\)/i.test(r.customLabel)) {
+          r.customLabel = r.customLabel.replace(
+            /\(đến ngày[^\)]*\)/i,
+            `(đến ngày ${revDateVn})`
+          );
+        } else {
+          r.customLabel = `${r.customLabel} (đến ngày ${revDateVn})`;
+        }
+      } else if (r.indicatorId === 'GPMB_BENCHMARK_AREA_RATE' && gpmbDateVn) {
+        if (/\(đến ngày[^\)]*\)/i.test(r.customLabel)) {
+          r.customLabel = r.customLabel.replace(
+            /\(đến ngày[^\)]*\)/i,
+            `(đến ngày ${gpmbDateVn})`
+          );
+        } else {
+          r.customLabel = `${r.customLabel} (đến ngày ${gpmbDateVn})`;
+        }
+      }
+    }
+  }
 }
 
 export function migrateLegacySessionLabels(workspace: Workspace): void {
@@ -138,6 +208,7 @@ export function migrateLegacySessionLabels(workspace: Workspace): void {
       }
     }
   }
+  syncReportLabelsWithDatasetDates(workspace);
 }
 
 export function createReportSession(
@@ -260,6 +331,7 @@ export function createReportSession(
 
   workspace.sessions.push(session);
   workspace.activeSessionId = session.id;
+  syncReportLabelsWithDatasetDates(workspace);
   workspace.updatedAt = new Date().toISOString();
   workspace.unsavedChanges = true;
   workspace.auditLog.push({
@@ -292,6 +364,7 @@ export function cloneReportSession(
 
   workspace.sessions.push(cloned);
   workspace.activeSessionId = cloned.id;
+  syncReportLabelsWithDatasetDates(workspace);
   workspace.updatedAt = new Date().toISOString();
   workspace.unsavedChanges = true;
   workspace.auditLog.push({
@@ -322,6 +395,7 @@ export function deleteReportSession(
   if (workspace.activeSessionId === sessionId) {
     workspace.activeSessionId = workspace.sessions[0]?.id;
   }
+  syncReportLabelsWithDatasetDates(workspace);
   workspace.updatedAt = new Date().toISOString();
   workspace.unsavedChanges = true;
   workspace.auditLog.push({
@@ -356,6 +430,7 @@ export function setSessionLocalities(
   session.selectedLocalityIds = uniqueIds;
   session.sessionRevision += 1;
   session.updatedAt = new Date().toISOString();
+  syncReportLabelsWithDatasetDates(workspace);
   workspace.updatedAt = new Date().toISOString();
   workspace.unsavedChanges = true;
 
@@ -388,6 +463,7 @@ export function rebindSessionDataset(
   session.dataBindings[sourceType] = newDatasetId;
   session.sessionRevision += 1;
   session.updatedAt = new Date().toISOString();
+  syncReportLabelsWithDatasetDates(workspace);
   workspace.updatedAt = new Date().toISOString();
   workspace.unsavedChanges = true;
 

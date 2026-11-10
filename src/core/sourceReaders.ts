@@ -282,6 +282,167 @@ export function parseXlsxBytes(
   };
 }
 
+export function colIndexToLetter(colIdx1Based: number): string {
+  let n = colIdx1Based;
+  let s = '';
+  while (n > 0) {
+    const m = (n - 1) % 26;
+    s = String.fromCharCode(65 + m) + s;
+    n = Math.floor((n - 1) / 26);
+  }
+  return s;
+}
+
+export function parseCsvBytes(
+  bytes: Uint8Array,
+  filename: string
+): ParsedWorkbook {
+  const sha256 = sha256Hex(bytes);
+  const decoder = new TextDecoder('utf-8');
+  let text = decoder.decode(bytes);
+  if (text.charCodeAt(0) === 0xfeff) {
+    text = text.slice(1);
+  }
+
+  // Auto-detect delimiter
+  let delimiter = ',';
+  const firstLineEnd = text.indexOf('\n');
+  const firstLine = firstLineEnd === -1 ? text : text.slice(0, firstLineEnd);
+  const semiCount = (firstLine.match(/;/g) || []).length;
+  const commaCount = (firstLine.match(/,/g) || []).length;
+  const tabCount = (firstLine.match(/\t/g) || []).length;
+  if (tabCount > commaCount && tabCount > semiCount) {
+    delimiter = '\t';
+  } else if (semiCount > commaCount) {
+    delimiter = ';';
+  }
+
+  const records: string[][] = [];
+  let row: string[] = [];
+  let currentVal = '';
+  let inQuotes = false;
+
+  for (let i = 0; i < text.length; i++) {
+    const ch = text[i];
+    if (inQuotes) {
+      if (ch === '"') {
+        if (i + 1 < text.length && text[i + 1] === '"') {
+          currentVal += '"';
+          i++;
+        } else {
+          inQuotes = false;
+        }
+      } else {
+        currentVal += ch;
+      }
+    } else {
+      if (ch === '"') {
+        inQuotes = true;
+      } else if (ch === delimiter) {
+        row.push(currentVal);
+        currentVal = '';
+      } else if (ch === '\r') {
+        if (i + 1 < text.length && text[i + 1] === '\n') {
+          i++;
+        }
+        row.push(currentVal);
+        records.push(row);
+        row = [];
+        currentVal = '';
+      } else if (ch === '\n') {
+        row.push(currentVal);
+        records.push(row);
+        row = [];
+        currentVal = '';
+      } else {
+        currentVal += ch;
+      }
+    }
+  }
+  if (currentVal || row.length > 0) {
+    row.push(currentVal);
+    records.push(row);
+  }
+
+  const cells = new Map<string, RawSheetCell>();
+  let maxRow = 0;
+
+  for (let r = 0; r < records.length; r++) {
+    const rowVals = records[r];
+    if (rowVals.length === 1 && !rowVals[0].trim()) continue;
+    maxRow = r + 1;
+    for (let c = 0; c < rowVals.length; c++) {
+      const valStr = rowVals[c].trim();
+      const colLetter = colIndexToLetter(c + 1);
+      const address = `${colLetter}${r + 1}`;
+      if (!valStr) {
+        cells.set(address, {
+          address,
+          row: r + 1,
+          col: colLetter,
+          cellType: 'empty',
+          value: null,
+          rawText: '',
+        });
+      } else {
+        const isNum = /^[-+]?(\d+(\.\d+)?|\.\d+)$/.test(valStr);
+        if (isNum) {
+          const numVal = Number(valStr);
+          cells.set(address, {
+            address,
+            row: r + 1,
+            col: colLetter,
+            cellType: 'n',
+            value: numVal,
+            rawText: valStr,
+          });
+        } else {
+          cells.set(address, {
+            address,
+            row: r + 1,
+            col: colLetter,
+            cellType: 's',
+            value: valStr,
+            rawText: valStr,
+          });
+        }
+      }
+    }
+  }
+
+  const sheet: ParsedWorkbookSheet = {
+    index: 0,
+    name: 'Sheet1',
+    state: 'visible',
+    maxRow,
+    cells,
+  };
+
+  return {
+    filename,
+    sha256,
+    sheets: [sheet],
+  };
+}
+
+export function parseWorkbookBytes(
+  bytes: Uint8Array,
+  filename: string
+): ParsedWorkbook {
+  const isZip = bytes.length >= 4 && bytes[0] === 0x50 && bytes[1] === 0x4b;
+  if (!isZip || filename.toLowerCase().endsWith('.csv')) {
+    try {
+      return parseCsvBytes(bytes, filename);
+    } catch (csvErr) {
+      if (isZip) {
+        return parseXlsxBytes(bytes, filename);
+      }
+      throw csvErr;
+    }
+  }
+  return parseXlsxBytes(bytes, filename);
+}
+
 export function getCellText(sheet: ParsedWorkbookSheet, addr: string): string {
   const c = sheet.cells.get(addr);
   if (!c || c.value === null || c.value === undefined) return '';
@@ -299,7 +460,7 @@ export function getCellNumber(
 
 export function detectSheetFingerprint(
   sheet: ParsedWorkbookSheet
-): 'DISB_V1' | 'REV_V1' | 'GPMB_V1' | 'RESULT_TEMPLATE_V1' | 'SCHEMA_MODIFIED_NEEDS_MAPPING' | 'UNKNOWN' {
+): 'DISB_V1' | 'REV_V1' | 'GPMB_V1' | 'GPMB_FLAT' | 'RESULT_TEMPLATE_V1' | 'SCHEMA_MODIFIED_NEEDS_MAPPING' | 'UNKNOWN' {
   const a1 = getCellText(sheet, 'A1');
   const a3 = getCellText(sheet, 'A3');
   const b7 = getCellText(sheet, 'B7');
@@ -314,6 +475,28 @@ export function detectSheetFingerprint(
     sheet.maxRow <= 25
   ) {
     return 'RESULT_TEMPLATE_V1';
+  }
+
+  // Check GPMB_FLAT (flat table in CSV or XLSX)
+  for (let r = 1; r <= Math.min(5, sheet.maxRow); r++) {
+    const rowTexts: string[] = [];
+    for (let c = 1; c <= 40; c++) {
+      const col = colIndexToLetter(c);
+      const txt = getCellText(sheet, `${col}${r}`).toLowerCase().trim();
+      if (txt) rowTexts.push(txt);
+    }
+    const hasLocality = rowTexts.some((t) =>
+      /phường\s*xã|xã\s*phường|địa\s*bàn|địa\s*phương|phường\/xã/.test(t)
+    );
+    const hasDeclaredArea = rowTexts.some((t) =>
+      /tổng\s*dt\s*gpmb|tổng\s*diện\s*tích\s*phải\s*gpmb|dt\s*gpmb|diện\s*tích\s*phải\s*gpmb/.test(t)
+    );
+    const hasRecordedArea = rowTexts.some((t) =>
+      /dt\s*đã\s*thu\s*hồi|diện\s*tích\s*đã\s*gpmb|dt\s*đã\s*gpmb|đã\s*thu\s*hồi/.test(t)
+    );
+    if (hasLocality && hasDeclaredArea && hasRecordedArea) {
+      return 'GPMB_FLAT';
+    }
   }
 
   // Check DISB_V1
@@ -506,7 +689,7 @@ export function importDisbursementWorkbook(
   filename: string,
   options: ImportOptions = {}
 ): { dataset: Dataset; localities: Locality[] } {
-  const wb = parseXlsxBytes(bytes, filename);
+  const wb = parseWorkbookBytes(bytes, filename);
   const allSheetsMeta = wb.sheets.map((s) => ({
     index: s.index,
     name: s.name,
@@ -905,7 +1088,7 @@ export function importRevenueWorkbook(
   filename: string,
   options: ImportOptions = {}
 ): { dataset: Dataset } {
-  const wb = parseXlsxBytes(bytes, filename);
+  const wb = parseWorkbookBytes(bytes, filename);
   const allSheetsMeta = wb.sheets.map((s) => ({
     index: s.index,
     name: s.name,
@@ -1080,7 +1263,7 @@ export function importGpmbWorkbook(
   filename: string,
   options: ImportOptions = {}
 ): { dataset: Dataset } {
-  const wb = parseXlsxBytes(bytes, filename);
+  const wb = parseWorkbookBytes(bytes, filename);
   const allSheetsMeta = wb.sheets.map((s) => ({
     index: s.index,
     name: s.name,
@@ -1095,14 +1278,16 @@ export function importGpmbWorkbook(
     targetSheet = wb.sheets.find((s) => s.name === options.manualSheetName);
     importSelectionMode = 'MANUAL_CONFIRMED';
   } else {
-    const visibleCandidates = wb.sheets.filter(
-      (s) => s.state === 'visible' && detectSheetFingerprint(s) === 'GPMB_V1'
-    );
+    const visibleCandidates = wb.sheets.filter((s) => {
+      if (s.state !== 'visible') return false;
+      const fp = detectSheetFingerprint(s);
+      return fp === 'GPMB_V1' || fp === 'GPMB_FLAT';
+    });
     if (visibleCandidates.length === 1) {
       targetSheet = visibleCandidates[0];
     } else {
       throw new Error(
-        'BLOCKER_SHEET_SELECTION: Không tìm thấy sheet visible duy nhất khớp fingerprint GPMB_V1.'
+        'BLOCKER_SHEET_SELECTION: Không tìm thấy sheet visible duy nhất khớp fingerprint GPMB (GPMB_V1 hoặc GPMB_FLAT).'
       );
     }
   }
@@ -1111,26 +1296,24 @@ export function importGpmbWorkbook(
     throw new Error('Sheet not found in GPMB workbook.');
   }
 
+  const sheetFp = detectSheetFingerprint(targetSheet);
+  const isFlatTable = sheetFp === 'GPMB_FLAT';
+
   const a1Text = getCellText(targetSheet, 'A1');
+  let detectedDate = '2026-10-26';
   const dateMatch = a1Text.match(/(\d{1,2})\/(\d{1,2})\/(\d{4})/);
-  const detectedDate = dateMatch
-    ? `${dateMatch[3]}-${dateMatch[2].padStart(2, '0')}-${dateMatch[1].padStart(2, '0')}`
-    : '2026-10-26';
+  if (dateMatch) {
+    detectedDate = `${dateMatch[3]}-${dateMatch[2].padStart(2, '0')}-${dateMatch[1].padStart(2, '0')}`;
+  } else {
+    const fnMatch = filename.match(/(\d{1,2})[\.\-](\d{1,2})[\.\-](\d{2,4})/);
+    if (fnMatch) {
+      const year = fnMatch[3].length === 2 ? `20${fnMatch[3]}` : fnMatch[3];
+      detectedDate = `${year}-${fnMatch[2].padStart(2, '0')}-${fnMatch[1].padStart(2, '0')}`;
+    }
+  }
   const asOfDate = options.confirmedAsOfDate || detectedDate;
   const datasetId = `GPMB_${wb.sha256.slice(0, 12)}`;
-  const mappingVersion = 'GPMB_ADAPTER_V2.2';
-
-  const colMap: Record<string, { fieldId: string; unit: string }> = {
-    D: { fieldId: 'gpmb_declared_area', unit: 'm2' },
-    E: { fieldId: 'gpmb_declared_orgs', unit: 'org_count' },
-    F: { fieldId: 'gpmb_declared_households', unit: 'household_count' },
-    G: { fieldId: 'gpmb_allocated_budget', unit: 'vnd' },
-    I: { fieldId: 'gpmb_recorded_area', unit: 'm2' },
-    J: { fieldId: 'gpmb_paid_amount', unit: 'vnd' },
-    K: { fieldId: 'gpmb_done_orgs', unit: 'org_count' },
-    L: { fieldId: 'gpmb_done_households', unit: 'household_count' },
-    M: { fieldId: 'gpmb_source_reported_rate', unit: 'percent_100' },
-  };
+  const mappingVersion = isFlatTable ? 'GPMB_FLAT_ADAPTER_V2.2' : 'GPMB_ADAPTER_V2.2';
 
   const records: SourceRecord[] = [];
   const issues: QualityIssue[] = [];
@@ -1139,13 +1322,240 @@ export function importGpmbWorkbook(
     { row: number; rawM: string | number | null; formulaM?: string }
   > = {};
 
-  let currentLocalityName = '';
-  let currentLocalityId = '';
+  if (isFlatTable) {
+    let headerRow = 1;
+    let colMapFlat: {
+      sttCol?: string;
+      projectCol?: string;
+      localityCol?: string;
+      capitalTypeCol?: string;
+      declaredAreaCol?: string;
+      recordedAreaCol?: string;
+      allocatedBudgetCol?: string;
+      paidAmountCol?: string;
+      declaredOrgsCol?: string;
+      declaredHouseholdsCol?: string;
+      doneOrgsCol?: string;
+      doneHouseholdsCol?: string;
+      rateCol?: string;
+    } = {};
 
-  for (let row = 3; row <= targetSheet.maxRow; row++) {
-    const cellA = targetSheet.cells.get(`A${row}`);
-    const textB = getCellText(targetSheet, `B${row}`);
-    const normB = canonicalizeLocalityName(textB);
+    for (let r = 1; r <= Math.min(5, targetSheet.maxRow); r++) {
+      const found: typeof colMapFlat = {};
+      for (let c = 1; c <= 40; c++) {
+        const col = colIndexToLetter(c);
+        const txt = getCellText(targetSheet, `${col}${r}`).toLowerCase().trim();
+        if (!txt) continue;
+        if (/^stt$|^số\s*thứ\s*tự$/i.test(txt)) found.sttCol = col;
+        else if (/^dự\s*án$|^tên\s*dự\s*án$/i.test(txt)) found.projectCol = col;
+        else if (/^phường\s*xã$|^xã\s*phường$|^địa\s*bàn$|^địa\s*phương$/i.test(txt)) found.localityCol = col;
+        else if (/^nguồn\s*vốn$|^nguồn\s*ngân\s*sách$/i.test(txt)) found.capitalTypeCol = col;
+        else if (/tổng\s*dt\s*gpmb|tổng\s*diện\s*tích\s*phải\s*gpmb|dt\s*gpmb/i.test(txt)) found.declaredAreaCol = col;
+        else if (/dt\s*đã\s*thu\s*hồi|diện\s*tích\s*đã\s*gpmb|dt\s*đã\s*gpmb|đã\s*thu\s*hồi/i.test(txt)) found.recordedAreaCol = col;
+        else if (/tiền\s*phân\s*bổ|kinh\s*phí\s*phân\s*bổ/i.test(txt)) found.allocatedBudgetCol = col;
+        else if (/đã\s*chi\s*gpmb|tiền\s*đã\s*chi/i.test(txt)) found.paidAmountCol = col;
+        else if (/tổ\s*chức\s*bị\s*thu\s*hồi/i.test(txt)) found.declaredOrgsCol = col;
+        else if (/hộ\s*dân\s*bị\s*thu\s*hồi/i.test(txt)) found.declaredHouseholdsCol = col;
+        else if (/^số\s*tổ\s*chức$/i.test(txt)) found.doneOrgsCol = col;
+        else if (/^số\s*hộ\s*dân$/i.test(txt)) found.doneHouseholdsCol = col;
+        else if (/tỷ\s*lệ\s*gpmb/i.test(txt)) found.rateCol = col;
+      }
+      if (found.localityCol && (found.declaredAreaCol || found.recordedAreaCol)) {
+        headerRow = r;
+        colMapFlat = found;
+        break;
+      }
+    }
+
+    for (let row = headerRow + 1; row <= targetSheet.maxRow; row++) {
+      const locText = colMapFlat.localityCol ? getCellText(targetSheet, `${colMapFlat.localityCol}${row}`).trim() : '';
+      const projText = colMapFlat.projectCol ? getCellText(targetSheet, `${colMapFlat.projectCol}${row}`).trim() : '';
+      if (!locText && !projText) continue;
+
+      const normLoc = canonicalizeLocalityName(locText);
+      const locId = makeLocalityId(normLoc);
+      const sttRaw = colMapFlat.sttCol ? getCellNumber(targetSheet, `${colMapFlat.sttCol}${row}`) : null;
+      const stt = sttRaw ?? (row - headerRow);
+      const capType = colMapFlat.capitalTypeCol ? getCellText(targetSheet, `${colMapFlat.capitalTypeCol}${row}`).trim() : '';
+
+      const metrics: Record<string, MetricCellValue> = {};
+      const fieldsDef = [
+        { fieldId: 'gpmb_declared_area', col: colMapFlat.declaredAreaCol, unit: 'm2' },
+        { fieldId: 'gpmb_recorded_area', col: colMapFlat.recordedAreaCol, unit: 'm2' },
+        { fieldId: 'gpmb_allocated_budget', col: colMapFlat.allocatedBudgetCol, unit: 'vnd' },
+        { fieldId: 'gpmb_paid_amount', col: colMapFlat.paidAmountCol, unit: 'vnd' },
+        { fieldId: 'gpmb_source_reported_rate', col: colMapFlat.rateCol, unit: 'percent_100' },
+        { fieldId: 'gpmb_declared_orgs', col: colMapFlat.declaredOrgsCol, unit: 'org_count' },
+        { fieldId: 'gpmb_declared_households', col: colMapFlat.declaredHouseholdsCol, unit: 'household_count' },
+        { fieldId: 'gpmb_done_orgs', col: colMapFlat.doneOrgsCol, unit: 'org_count' },
+        { fieldId: 'gpmb_done_households', col: colMapFlat.doneHouseholdsCol, unit: 'household_count' },
+      ];
+
+      for (const def of fieldsDef) {
+        if (def.col) {
+          metrics[def.fieldId] = buildMetricCell(
+            targetSheet,
+            def.col,
+            row,
+            def.unit,
+            wb,
+            asOfDate,
+            mappingVersion
+          );
+        } else {
+          metrics[def.fieldId] = {
+            raw: null,
+            normalizedValue: null,
+            normalizedDecimal: null,
+            unit: def.unit,
+            state: 'NOT_APPLICABLE',
+            cellType: 'empty',
+            sourceRow: row,
+            sourceColumn: '',
+            extractionConfidence: 1.0,
+            provenance: {
+              filename,
+              fileSha256: wb.sha256,
+              sheet: targetSheet.name,
+              sheetIndex: targetSheet.index,
+              sheetVisibility: targetSheet.state,
+              cell: `EMPTY_${def.fieldId}_R${row}`,
+              asOfDate,
+              mappingVersion,
+            },
+          };
+        }
+      }
+
+      const projectRecordId = `${datasetId}_${targetSheet.name}_R${row}`;
+      records.push({
+        id: projectRecordId,
+        datasetId,
+        localityId: locId,
+        localityName: normLoc,
+        sourceRow: row,
+        projectRowId: projectRecordId,
+        projectStt: stt,
+        projectName: projText,
+        capitalType: capType,
+        metrics,
+      });
+
+      // Quality checks per §4.3
+      const dVal = colMapFlat.declaredAreaCol ? getCellNumber(targetSheet, `${colMapFlat.declaredAreaCol}${row}`) : null;
+      const iVal = colMapFlat.recordedAreaCol ? getCellNumber(targetSheet, `${colMapFlat.recordedAreaCol}${row}`) : null;
+      const mVal = colMapFlat.rateCol ? getCellNumber(targetSheet, `${colMapFlat.rateCol}${row}`) : null;
+      const gVal = colMapFlat.allocatedBudgetCol ? getCellNumber(targetSheet, `${colMapFlat.allocatedBudgetCol}${row}`) : null;
+      const jVal = colMapFlat.paidAmountCol ? getCellNumber(targetSheet, `${colMapFlat.paidAmountCol}${row}`) : null;
+
+      if (iVal !== null && dVal !== null && dVal > 0 && mVal !== null) {
+        const computedRatio = (100 * iVal) / dVal;
+        const diff = Math.abs(mVal - computedRatio);
+        if (diff > 0.1) {
+          issues.push({
+            id: `ISSUE_GPMB_M_DIFF_${row}`,
+            datasetId,
+            ruleId: 'GPMB_M_DIFF_RATIO',
+            severity: 'WARNING',
+            status: 'OPEN',
+            sourceType: 'GPMB',
+            rowId: projectRecordId,
+            sourceRow: row,
+            sourceCell: `${colMapFlat.rateCol}${row}`,
+            fieldId: 'gpmb_source_reported_rate',
+            observed: mVal,
+            expected: computedRatio,
+            delta: diff,
+            localityId: locId,
+            localityName: normLoc,
+            explanation: `Cột M báo cáo ${mVal}%, khác tỷ lệ diện tích 100*I/D = ${computedRatio.toFixed(2)}% (lệch ${diff.toFixed(2)} điểm %). Giữ M gốc ở cấp dự án và tính benchmark theo diện tích.`,
+          });
+        }
+      }
+
+      if ((iVal === null || iVal === 0) && dVal !== null && dVal > 0) {
+        const rawI = colMapFlat.recordedAreaCol ? targetSheet.cells.get(`${colMapFlat.recordedAreaCol}${row}`) : null;
+        if (!rawI || rawI.value === null || rawI.value === '') {
+          issues.push({
+            id: `ISSUE_GPMB_MISSING_I_${row}`,
+            datasetId,
+            ruleId: 'GPMB_MISSING_I',
+            severity: 'WARNING',
+            status: 'OPEN',
+            sourceType: 'GPMB',
+            rowId: projectRecordId,
+            sourceRow: row,
+            sourceCell: `${colMapFlat.recordedAreaCol}${row}`,
+            fieldId: 'gpmb_recorded_area',
+            observed: null,
+            expected: dVal,
+            localityId: locId,
+            localityName: normLoc,
+            explanation: `Dự án có diện tích phải GPMB (${dVal} m2) nhưng ô diện tích đã GPMB trống.`,
+          });
+        }
+      }
+
+      if (iVal !== null && dVal !== null && iVal > dVal) {
+        issues.push({
+          id: `ISSUE_GPMB_I_GT_D_${row}`,
+          datasetId,
+          ruleId: 'GPMB_I_GT_D',
+          severity: 'WARNING',
+          status: 'OPEN',
+          sourceType: 'GPMB',
+          rowId: projectRecordId,
+          sourceRow: row,
+          sourceCell: `${colMapFlat.recordedAreaCol}${row}`,
+          fieldId: 'gpmb_recorded_area',
+          observed: iVal,
+          expected: dVal,
+          localityId: locId,
+          localityName: normLoc,
+          explanation: `Diện tích đã GPMB (${iVal} m2) lớn hơn diện tích phải GPMB (${dVal} m2).`,
+        });
+      }
+
+      if (jVal !== null && gVal !== null && jVal > gVal) {
+        issues.push({
+          id: `ISSUE_GPMB_J_GT_G_${row}`,
+          datasetId,
+          ruleId: 'GPMB_J_GT_G',
+          severity: 'WARNING',
+          status: 'OPEN',
+          sourceType: 'GPMB',
+          rowId: projectRecordId,
+          sourceRow: row,
+          sourceCell: `${colMapFlat.paidAmountCol}${row}`,
+          fieldId: 'gpmb_paid_amount',
+          observed: jVal,
+          expected: gVal,
+          localityId: locId,
+          localityName: normLoc,
+          explanation: `Kinh phí đã chi GPMB (${jVal} đ) lớn hơn kinh phí phân bổ (${gVal} đ).`,
+        });
+      }
+    }
+  } else {
+    const colMap: Record<string, { fieldId: string; unit: string }> = {
+      D: { fieldId: 'gpmb_declared_area', unit: 'm2' },
+      E: { fieldId: 'gpmb_declared_orgs', unit: 'org_count' },
+      F: { fieldId: 'gpmb_declared_households', unit: 'household_count' },
+      G: { fieldId: 'gpmb_allocated_budget', unit: 'vnd' },
+      I: { fieldId: 'gpmb_recorded_area', unit: 'm2' },
+      J: { fieldId: 'gpmb_paid_amount', unit: 'vnd' },
+      K: { fieldId: 'gpmb_done_orgs', unit: 'org_count' },
+      L: { fieldId: 'gpmb_done_households', unit: 'household_count' },
+      M: { fieldId: 'gpmb_source_reported_rate', unit: 'percent_100' },
+    };
+
+    let currentLocalityName = '';
+    let currentLocalityId = '';
+
+    for (let row = 3; row <= targetSheet.maxRow; row++) {
+      const cellA = targetSheet.cells.get(`A${row}`);
+      const textB = getCellText(targetSheet, `B${row}`);
+      const normB = canonicalizeLocalityName(textB);
 
     const isGroupHeader =
       (!cellA || cellA.value === null || cellA.value === '') &&
@@ -1344,6 +1754,9 @@ export function importGpmbWorkbook(
       }
     }
   }
+}
+
+  const uniqueLocCount = new Set(records.map((r) => r.localityId).filter(Boolean)).size;
 
   const dataset: Dataset = {
     id: datasetId,
@@ -1354,12 +1767,12 @@ export function importGpmbWorkbook(
     sourceSheet: targetSheet.name,
     sheetIndex: targetSheet.index,
     sheetVisibility: targetSheet.state,
-    schemaFingerprint: 'GPMB_V1',
+    schemaFingerprint: isFlatTable ? 'GPMB_FLAT' : 'GPMB_V1',
     importSelectionMode,
     manualSelectionReason: options.manualSelectionReason,
-    mappingVersion,
+    mappingVersion: isFlatTable ? 'GPMB_FLAT_ADAPTER_V2.2' : mappingVersion,
     calculationPolicyVersion: 'V2.2_R06',
-    unitCount: Object.keys(localityGroupSummaries).length,
+    unitCount: isFlatTable ? uniqueLocCount : Object.keys(localityGroupSummaries).length,
     projectRowCount: records.length,
     asOfDate,
     reportPeriodLabel: `Đến ngày ${asOfDate.split('-').reverse().join('/')}`,
@@ -1367,11 +1780,13 @@ export function importGpmbWorkbook(
     periodStart: '2026-01-01',
     periodEnd: asOfDate,
     asOfStatus: 'DETECTED_CONFIRMED',
-    asOfDateEvidence: `Sheet ${targetSheet.name}!A1 ("${a1Text.trim()}"). Lưu ý tên tệp có chuỗi 26.12.26 nhưng tiêu đề sheet ghi rõ 26/10/2026.`,
+    asOfDateEvidence: isFlatTable
+      ? `Bảng phẳng CSDL (${records.length} dự án, ${uniqueLocCount} địa bàn, tệp ${filename})`
+      : `Sheet ${targetSheet.name}!A1 ("${a1Text.trim()}"). Lưu ý tên tệp có chuỗi 26.12.26 nhưng tiêu đề sheet ghi rõ 26/10/2026.`,
     asOfDateConfirmation: {
       confirmedByUser: true,
       confirmedAt: new Date().toISOString(),
-      reason: options.asOfConfirmationReason || 'Xác nhận ngày chốt 26/10/2026 từ tiêu đề A1',
+      reason: options.asOfConfirmationReason || `Xác nhận ngày chốt ${asOfDate}`,
     },
     importedAt: new Date().toISOString(),
     records,

@@ -8,6 +8,9 @@ import {
   setSessionLocalities,
   resolveSessionDatasets,
   migrateLegacySessionLabels,
+  syncReportLabelsWithDatasetDates,
+  formatVnDate,
+  formatIsoDate,
 } from '../core/sessions';
 import {
   importDisbursementWorkbook,
@@ -15,6 +18,7 @@ import {
   importGpmbWorkbook,
   detectSheetFingerprint,
   parseXlsxBytes,
+  parseWorkbookBytes,
 } from '../core/sourceReaders';
 import {
   evaluateSessionReport,
@@ -259,38 +263,53 @@ export class KtxhOfflineApp {
 
   public handleWorkbookBytesUpload(bytes: Uint8Array, filename: string): void {
     try {
-      const wb = parseXlsxBytes(bytes, filename);
+      const wb = parseWorkbookBytes(bytes, filename);
       const visibleSheets = wb.sheets.filter((s) => s.state === 'visible');
       for (const s of visibleSheets) {
         const fp = detectSheetFingerprint(s);
         if (fp === 'DISB_V1') {
           const { dataset, localities } = importDisbursementWorkbook(bytes, filename);
           registerDatasetInWorkspace(this.workspace, dataset, localities);
+          for (const sess of this.workspace.sessions) {
+            sess.dataBindings.DISB = dataset.id;
+          }
+          syncReportLabelsWithDatasetDates(this.workspace);
           this.triggerAutosave();
           this.setStatus(
-            `Đã nhận diện & nhập nguồn Giải ngân "${filename}" (${dataset.unitCount} địa phương, ngày chốt ${dataset.asOfDate}).`,
+            `Đã nhận diện & nhập nguồn Giải ngân "${filename}" (${dataset.unitCount} địa phương, ngày chốt ${formatVnDate(dataset.asOfDate)}).`,
             'success'
           );
+          this.render();
           return;
         }
         if (fp === 'REV_V1') {
           const { dataset } = importRevenueWorkbook(bytes, filename);
           registerDatasetInWorkspace(this.workspace, dataset);
+          for (const sess of this.workspace.sessions) {
+            sess.dataBindings.REV = dataset.id;
+          }
+          syncReportLabelsWithDatasetDates(this.workspace);
           this.triggerAutosave();
           this.setStatus(
-            `Đã nhận diện & nhập nguồn Thu NSNN "${filename}" (${dataset.unitCount} địa phương). Vui lòng xác nhận ngày chốt thực tế!`,
-            'warning'
-          );
-          return;
-        }
-        if (fp === 'GPMB_V1') {
-          const { dataset } = importGpmbWorkbook(bytes, filename);
-          registerDatasetInWorkspace(this.workspace, dataset);
-          this.triggerAutosave();
-          this.setStatus(
-            `Đã nhận diện & nhập nguồn GPMB "${filename}" (${dataset.unitCount} địa bàn, ${dataset.projectRowCount} dòng dự án, ngày chốt ${dataset.asOfDate}).`,
+            `Đã nhận diện & nhập nguồn Thu NSNN "${filename}" (${dataset.unitCount} địa phương, ngày chốt ${formatVnDate(dataset.asOfDate)}).`,
             'success'
           );
+          this.render();
+          return;
+        }
+        if (fp === 'GPMB_V1' || fp === 'GPMB_FLAT') {
+          const { dataset } = importGpmbWorkbook(bytes, filename);
+          registerDatasetInWorkspace(this.workspace, dataset);
+          for (const sess of this.workspace.sessions) {
+            sess.dataBindings.GPMB = dataset.id;
+          }
+          syncReportLabelsWithDatasetDates(this.workspace);
+          this.triggerAutosave();
+          this.setStatus(
+            `Đã nhận diện & nhập nguồn GPMB (${fp === 'GPMB_FLAT' ? 'bảng phẳng CSDL' : 'bảng phân nhóm'}) "${filename}" (${dataset.unitCount} địa bàn, ${dataset.projectRowCount} dòng dự án, ngày chốt ${formatVnDate(dataset.asOfDate)}).`,
+            'success'
+          );
+          this.render();
           return;
         }
         if (fp === 'RESULT_TEMPLATE_V1') {
@@ -1095,17 +1114,17 @@ export class KtxhOfflineApp {
       <div class="kpi-box">
         <div class="kpi-box-title">1. Giải ngân Đầu tư công (DISB)</div>
         <div class="kpi-box-value">${datasets.DISB ? `${datasets.DISB.unitCount}/114 địa phương` : 'Chưa nạp'}</div>
-        <div class="kpi-box-sub">Ngày chốt: <strong>${escapeHtmlUi(datasets.DISB?.asOfDate || '15/10/2026')}</strong> | Mốc chuẩn: <strong>67,10%</strong></div>
+        <div class="kpi-box-sub">Ngày chốt: <strong>${escapeHtmlUi(formatVnDate(datasets.DISB?.asOfDate) || '15/10/2026')}</strong> | Mốc chuẩn: <strong>67,10%</strong></div>
       </div>
       <div class="kpi-box">
         <div class="kpi-box-title">2. Thu Ngân sách Nhà nước (REV)</div>
         <div class="kpi-box-value">${datasets.REV ? `${datasets.REV.unitCount}/114 địa phương` : 'Chưa nạp'}</div>
-        <div class="kpi-box-sub">Ngày chốt: <strong>${escapeHtmlUi(datasets.REV?.asOfDate || '19/10/2026')}</strong> | Thiếu: <strong>Đặc khu Bạch Long Vĩ</strong></div>
+        <div class="kpi-box-sub">Ngày chốt: <strong>${escapeHtmlUi(formatVnDate(datasets.REV?.asOfDate) || '19/10/2026')}</strong> | Thiếu: <strong>Đặc khu Bạch Long Vĩ</strong></div>
       </div>
       <div class="kpi-box">
         <div class="kpi-box-title">3. Giải phóng mặt bằng (GPMB)</div>
         <div class="kpi-box-value">${datasets.GPMB ? `${datasets.GPMB.unitCount}/114 địa bàn (${datasets.GPMB.projectRowCount} DA)` : 'Chưa nạp'}</div>
-        <div class="kpi-box-sub">Ngày chốt: <strong>${escapeHtmlUi(datasets.GPMB?.asOfDate || '26/10/2026')}</strong> | Tỷ lệ diện tích: <strong>72,13%</strong></div>
+        <div class="kpi-box-sub">Ngày chốt: <strong>${escapeHtmlUi(formatVnDate(datasets.GPMB?.asOfDate) || '26/10/2026')}</strong> | Tỷ lệ diện tích: <strong>72,13%</strong></div>
       </div>
     </div>`;
 
@@ -1233,9 +1252,25 @@ export class KtxhOfflineApp {
               <span class="meta-lbl">Phạm vi:</span>
               <span class="meta-val"><strong>${ds.unitCount}</strong> địa phương ${ds.projectRowCount ? `(${ds.projectRowCount} DA)` : ''}</span>
             </div>
-            <div class="source-meta-row">
+            <div class="source-meta-row date-edit-meta-row">
               <span class="meta-lbl">Ngày chốt:</span>
-              <span class="meta-val"><strong>${escapeHtmlUi(ds.asOfDate || 'Chưa rõ')}</strong></span>
+              <div class="source-date-editor">
+                <input
+                  type="date"
+                  class="input-dataset-asof-date"
+                  id="input-asof-date-${escapeHtmlUi(ds.id)}"
+                  data-dataset-id="${escapeHtmlUi(ds.id)}"
+                  data-source-type="${escapeHtmlUi(ds.sourceType)}"
+                  value="${formatIsoDate(ds.asOfDate)}"
+                  title="Nhấp để thay đổi ngày chốt số liệu"
+                />
+                <button
+                  type="button"
+                  class="btn btn-xs btn-primary btn-save-asof-date"
+                  data-dataset-id="${escapeHtmlUi(ds.id)}"
+                  title="Lưu ngày chốt và tự động cập nhật vào bảng báo cáo"
+                >Lưu</button>
+              </div>
             </div>
             <div class="source-meta-row">
               <span class="meta-lbl">Mã SHA:</span>
@@ -1263,21 +1298,21 @@ export class KtxhOfflineApp {
       <div class="card import-top-card">
         <div class="import-header-compact">
           <div class="import-title-group">
-            <h3>Dữ liệu nguồn Excel &amp; Tự động nhận diện (PH1-01)</h3>
-            <p class="muted">Hệ thống tự động nhận diện 3 tệp DISB, REV, GPMB từ cấu trúc sheet và tiêu đề.</p>
+            <h3>Dữ liệu nguồn Excel / CSV &amp; Tự động nhận diện (PH1-01 &amp; GPMB Bảng phẳng)</h3>
+            <p class="muted">Hệ thống tự động nhận diện các tệp DISB, REV, GPMB (cả bảng phân nhóm và bảng phẳng CSDL) từ cấu trúc sheet và tiêu đề.</p>
           </div>
           <div class="import-actions-group">
             <label class="btn btn-sm btn-primary">
               Chọn tệp từ máy tính...
-              <input type="file" id="input-xlsx-files-btn" multiple accept=".xlsx" style="display:none" />
+              <input type="file" id="input-xlsx-files-btn" multiple accept=".xlsx,.csv" style="display:none" />
             </label>
             <button type="button" class="btn btn-sm btn-secondary" id="btn-load-embedded-confirmed">Nạp lại 3 file tham chiếu &amp; Chốt REV</button>
           </div>
         </div>
         <div class="dropzone-box-compact" id="dropzone-excel-files">
           <span class="dropzone-icon">📥</span>
-          <span class="dropzone-text">Kéo thả các file Excel vào đây hoặc bấm để chọn tệp (.xlsx)</span>
-          <input type="file" id="input-xlsx-files" multiple accept=".xlsx" style="display:none" />
+          <span class="dropzone-text">Kéo thả các file Excel / CSV vào đây hoặc bấm để chọn tệp (.xlsx, .csv)</span>
+          <input type="file" id="input-xlsx-files" multiple accept=".xlsx,.csv" style="display:none" />
         </div>
       </div>
 
@@ -1969,6 +2004,47 @@ export class KtxhOfflineApp {
           this.handleWorkbookBytesUpload(new Uint8Array(buf), f.name);
         }
       }
+    });
+
+    // Save asOfDate for any dataset (DISB, REV, GPMB)
+    document.querySelectorAll('.btn-save-asof-date').forEach((btnEl) => {
+      btnEl.addEventListener('click', () => {
+        const dsId = btnEl.getAttribute('data-dataset-id');
+        if (!dsId) return;
+        const ds = this.workspace.datasets.find((d) => d.id === dsId);
+        if (!ds) return;
+        const inputEl = document.getElementById(
+          `input-asof-date-${dsId}`
+        ) as HTMLInputElement | null;
+        if (!inputEl || !inputEl.value) return;
+
+        const newDateIso = inputEl.value; // e.g. "2026-10-25"
+        ds.asOfDate = newDateIso;
+        ds.asOfStatus = 'MANUAL_CONFIRMED';
+        ds.asOfDateConfirmation = {
+          confirmedByUser: true,
+          confirmedAt: new Date().toISOString(),
+          reason: 'Người dùng điều chỉnh trực tiếp trong mục Quản lý dữ liệu nguồn',
+        };
+
+        // Update provenance in dataset records
+        for (const rec of ds.records) {
+          for (const m of Object.values(rec.metrics)) {
+            m.provenance.asOfDate = ds.asOfDate;
+          }
+        }
+
+        // Auto-update dates in all session report labels
+        syncReportLabelsWithDatasetDates(this.workspace);
+        this.triggerAutosave();
+
+        const dateVn = formatVnDate(newDateIso);
+        this.setStatus(
+          `Đã cập nhật ngày chốt nguồn ${ds.sourceType} thành ${dateVn}. Tiêu đề chỉ tiêu trong bảng báo cáo đã tự động đồng bộ!`,
+          'success'
+        );
+        this.render();
+      });
     });
 
     // Confirm REV date
