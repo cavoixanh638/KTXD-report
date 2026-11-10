@@ -1010,9 +1010,9 @@ export class KtxhOfflineApp {
 
         let warnTag = '';
         if (isMissingRev && isMissingGpmb) {
-          warnTag = `<span class="missing-source-tag" title="Chưa có bản ghi Thu NSNN và GPMB trong nguồn hiện tại (NO_LOCALITY_RECORD)">⚠️ Thiếu Thu &amp; GPMB</span>`;
+          warnTag = `<span class="missing-source-tag" title="Chưa có bản ghi Thu NSNN; GPMB ghi nhận mặc định không có nhiệm vụ">Thiếu Thu • Không có GPMB</span>`;
         } else if (isMissingGpmb) {
-          warnTag = `<span class="missing-source-tag" title="Chưa có bản ghi GPMB trong nguồn hiện tại (NO_LOCALITY_RECORD)">⚠️ Thiếu GPMB</span>`;
+          warnTag = `<span class="missing-source-tag note-gpmb-no-task" title="Ghi nhận mặc định: Không có nhiệm vụ GPMB">Không có GPMB</span>`;
         }
 
         let moveButtons = '';
@@ -1330,7 +1330,7 @@ export class KtxhOfflineApp {
             <strong>Thu NSNN (113/114):</strong> Thiếu 1 đơn vị: <em>Đặc khu Bạch Long Vĩ</em> (Chưa có bản ghi - NO_LOCALITY_RECORD)
           </div>
           <div class="cov-pill cov-pill-gpmb">
-            <strong>GPMB (108/114):</strong> Thiếu 6 đơn vị: <em>Phường Lưu Kiếm, Phường Ái Quốc, Xã Hùng Thắng, Xã Thái Tân, Xã Tân Minh, Đặc khu Bạch Long Vĩ</em> (422 dự án, 3 DA thiếu diện tích ghi nhận I)
+            <strong>GPMB (108/114):</strong> Ghi nhận mặc định 6 đơn vị không có nhiệm vụ GPMB: <em>Phường Lưu Kiếm, Phường Ái Quốc, Xã Hùng Thắng, Xã Thái Tân, Xã Tân Minh, Đặc khu Bạch Long Vĩ</em> (422 dự án, 3 DA thiếu diện tích ghi nhận I)
           </div>
           <div class="cov-pill cov-pill-disb">
             <strong>Giải ngân ĐTC (114/114):</strong> Đủ 114/114 địa phương

@@ -955,8 +955,8 @@ export function evaluateLocalityIndicator(params: {
       unitLabel: '%',
       state: bm.trace.result.state,
       qualityStatus: 'PARTIAL_AGGREGATE',
-      hasWarning: true,
-      warningCount: 1,
+      hasWarning: false,
+      warningCount: 0,
       trace: bm.trace,
     };
   }
@@ -1969,10 +1969,10 @@ export function evaluateLocalityIndicator(params: {
         sourceType: 'GPMB',
         fieldId: indicator.id,
         status: 'NO_LOCALITY_RECORD',
-        reason: `Địa bàn "${locality.canonicalNameNFC}" không có bản ghi trong phụ lục GPMB (${gpmb.sourceSheet}). Tuyệt đối không suy diễn là không có dự án hay gán 0% / 100%.`,
+        reason: `Địa bàn "${locality.canonicalNameNFC}" ghi nhận mặc định không có số liệu (Không có nhiệm vụ GPMB).`,
         sourceSheet: gpmb.sourceSheet,
         asOfDate: gpmb.asOfDate,
-        impactOnComputation: 'Hiển thị trạng thái thiếu bản ghi nguồn (NO_LOCALITY_RECORD).',
+        impactOnComputation: 'Hiển thị "Không có nhiệm vụ GPMB" trong Bảng tổng hợp.',
       };
       const traceId = `TRACE_${indicator.id}_${locality.id}_NO_RECORD`;
       const trace: CalculationTrace = {
@@ -1983,7 +1983,7 @@ export function evaluateLocalityIndicator(params: {
         resultKind: 'CALCULATED',
         result: {
           exactDecimal: null,
-          displayedText: 'Chưa có bản ghi nguồn (NO_LOCALITY_RECORD)',
+          displayedText: 'Không có nhiệm vụ GPMB',
           canonicalUnit: indicator.displayUnit,
           displayUnit: indicator.displayUnit,
           state: 'OUT_OF_SCOPE',
@@ -2038,12 +2038,12 @@ export function evaluateLocalityIndicator(params: {
         exactDecimal: null,
         numericValueForExcel: null,
         excelFormatType: 'TEXT',
-        displayedText: 'Chưa có bản ghi nguồn',
+        displayedText: 'Không có nhiệm vụ GPMB',
         unitLabel: '',
         state: 'OUT_OF_SCOPE',
         qualityStatus: 'INSUFFICIENT_COMPONENTS',
-        hasWarning: true,
-        warningCount: 1,
+        hasWarning: false,
+        warningCount: 0,
         trace,
       };
     }
@@ -2299,6 +2299,8 @@ export function evaluateLocalityIndicator(params: {
         : 'COMPLETE';
       const displayedText = pct
         ? formatVnPercent(pct, decPct)
+        : sumDen.isZero()
+        ? 'Không có nhiệm vụ GPMB'
         : 'Không có cơ sở tính tỷ lệ';
 
       const groupSummaryProvenance = gpmb.localityGroupSummaries?.[locality.id];
@@ -2452,9 +2454,14 @@ export function evaluateLocalityIndicator(params: {
 
       if (
         locAreaRate.state === 'MISSING' ||
+        locAreaRate.state === 'OUT_OF_SCOPE' ||
         locAreaRate.exactDecimal === null ||
         locAreaRate.exactDecimal === undefined
       ) {
+        const isNoTask =
+          !hasLocalityInGpmb ||
+          locAreaRate.displayedText === 'Không có nhiệm vụ GPMB';
+        const displayedText = isNoTask ? 'Không có nhiệm vụ GPMB' : 'Chưa có số liệu';
         return {
           traceId: `TRACE_GPMB_COMPARISON_${locality.id}_${gpmb.id}`,
           indicatorId: indicator.id,
@@ -2463,9 +2470,9 @@ export function evaluateLocalityIndicator(params: {
           exactDecimal: null,
           numericValueForExcel: null,
           excelFormatType: 'TEXT',
-          displayedText: 'Chưa có số liệu',
+          displayedText,
           unitLabel: '',
-          state: 'MISSING',
+          state: isNoTask ? 'OUT_OF_SCOPE' : 'MISSING',
           qualityStatus: 'INSUFFICIENT_COMPONENTS',
           hasWarning: false,
           warningCount: 0,

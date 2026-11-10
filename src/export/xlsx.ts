@@ -3,6 +3,8 @@ import { EvaluatedSessionReport } from '../core/calculationTrace';
 import { analyzeSourceCoverage, filterCoverageForSession } from '../core/coverage';
 import { DEFAULT_INDICATORS } from '../core/indicators';
 import { Dataset, Locality } from '../core/types';
+import { formatReportCellValue } from '../ui/reportStudio';
+import { formatVnDate } from '../core/sessions';
 
 function escapeXml(str: string): string {
   return String(str ?? '')
@@ -209,26 +211,17 @@ export function exportSessionReportToXlsxBytes(params: {
   ];
   sheet1Rows.push(headerRow);
 
-  // Data rows (14 template rows)
-  for (const r of rows) {
-    const unitSuffix =
-      r.indicator.displayUnit === 'billion_vnd'
-        ? session.settings.moneyUnit === 'billion'
-          ? ' (tỷ đồng)'
-          : ' (triệu đồng)'
-        : r.indicator.displayUnit === 'm2'
-        ? session.settings.areaUnit === 'ha'
-          ? ' (ha)'
-          : ' (m²)'
-        : r.indicator.displayUnit === 'percent'
-        ? ' (%)'
-        : '';
+  // Data rows (14 template rows, excluding hidden or removed average comment rows)
+  const displayRows = rows.filter(
+    (r) => r.indicator.id !== 'DISB_PLAN_VS_AVG_COMMENT' && r.rowConfig.visible !== false
+  );
 
+  for (const r of displayRows) {
     const rowCells: Array<XlsxCellInput | null> = [
       { type: 's', value: r.rowConfig.sttLabel || '', styleIndex: 3 },
       {
         type: 's',
-        value: `${r.rowConfig.customLabel}${unitSuffix}`,
+        value: r.rowConfig.customLabel,
         styleIndex: 3,
       },
     ];
@@ -240,7 +233,18 @@ export function exportSessionReportToXlsxBytes(params: {
         continue;
       }
 
-      if (
+      if (cellEval.adjustmentNote) {
+        const formattedVal = formatReportCellValue(
+          cellEval,
+          r.indicator.displayUnit,
+          session.settings.moneyUnit
+        );
+        rowCells.push({
+          type: 's',
+          value: formattedVal,
+          styleIndex: 3,
+        });
+      } else if (
         cellEval.numericValueForExcel !== null &&
         Number.isFinite(cellEval.numericValueForExcel)
       ) {
@@ -257,9 +261,14 @@ export function exportSessionReportToXlsxBytes(params: {
           styleIndex: styleIdx,
         });
       } else {
+        const formattedVal = formatReportCellValue(
+          cellEval,
+          r.indicator.displayUnit,
+          session.settings.moneyUnit
+        );
         rowCells.push({
           type: 's',
-          value: cellEval.displayedText,
+          value: formattedVal || cellEval.displayedText,
           styleIndex: 3,
         });
       }
@@ -270,14 +279,16 @@ export function exportSessionReportToXlsxBytes(params: {
 
   // Footnote rows on Sheet 1
   sheet1Rows.push([]);
-  const revDate = datasets.REV?.asOfDate || 'Chưa xác nhận';
-  const disbDate = datasets.DISB?.asOfDate || '15/10/2026';
-  const gpmbDate = datasets.GPMB?.asOfDate || '26/10/2026';
+  const revDate = datasets.REV?.asOfDate ? formatVnDate(datasets.REV.asOfDate) : '19/10/2026';
+  const disbDate = datasets.DISB?.asOfDate ? formatVnDate(datasets.DISB.asOfDate) : '15/10/2026';
+  const gpmbDate = datasets.GPMB?.asOfDate ? formatVnDate(datasets.GPMB.asOfDate) : '26/10/2026';
+  const gpmbUnits = datasets.GPMB?.unitCount || 108;
+  const gpmbProjects = datasets.GPMB?.projectRowCount || 422;
   sheet1Rows.push([
     { type: 's', value: 'Ghi chú nguồn & ngày chốt:', styleIndex: 2 },
     {
       type: 's',
-      value: `Thu NSNN: kỳ 10T/2026 (ngày chốt: ${revDate}, phạm vi 113/114 địa phương, thiếu Đặc khu Bạch Long Vĩ); Giải ngân: ${disbDate} (114/114 địa phương); GPMB: ${gpmbDate} (108/114 địa bàn, 422 dự án, chỉ tính theo diện tích SUM(I)/SUM(D)).`,
+      value: `Thu NSNN: kỳ 10T/2026 (ngày chốt: ${revDate}, phạm vi 113/114 địa phương, thiếu Đặc khu Bạch Long Vĩ); Giải ngân: ${disbDate} (114/114 địa phương); GPMB: ${gpmbDate} (${gpmbUnits}/114 địa bàn, ${gpmbProjects} dự án, chỉ tính theo diện tích SUM(I)/SUM(D)).`,
       styleIndex: 3,
     },
   ]);

@@ -22,6 +22,7 @@ import {
 import { evaluateSessionReport } from '../src/core/calculationTrace';
 import { searchLocalities } from '../src/core/localities';
 import { generatePrintableReportHtml } from '../src/export/print';
+import { exportSessionReportToXlsxBytes } from '../src/export/xlsx';
 import {
   computeAutoLayoutMode,
   renderA4DocumentStudioHtml,
@@ -586,5 +587,60 @@ describe('KTXH Offline – A4 Report Studio & WYSIWYG Architecture Suite', () =>
     expect(studioHtml).toContain('<strong>(đến ngày 25/10/2026)</strong>');
     expect(studioHtml).toContain('<strong>(đến ngày 31/10/2026)</strong>');
     expect(studioHtml).toContain('<strong>(đến ngày 05/11/2026)</strong>');
+  });
+
+  it('11. The 6 localities without GPMB records default to "Không có nhiệm vụ GPMB" on report cells', () => {
+    const ws = createEmptyWorkspace();
+    registerDatasetInWorkspace(ws, disbDataset, baselineLocalities);
+    registerDatasetInWorkspace(ws, revDataset);
+    registerDatasetInWorkspace(ws, gpmbDataset);
+
+    const session = createReportSession(ws, { name: 'GPMB No Task Check' });
+    const luuKiem = baselineLocalities.find((l) => l.displayName === 'Phường Lưu Kiếm')!;
+    const bachLongVi = baselineLocalities.find((l) => l.displayName === 'Đặc khu Bạch Long Vĩ')!;
+    const hungThang = baselineLocalities.find((l) => l.displayName === 'Xã Hùng Thắng')!;
+
+    expect(luuKiem).toBeDefined();
+    expect(bachLongVi).toBeDefined();
+    expect(hungThang).toBeDefined();
+
+    setSessionLocalities(ws, session.id, [luuKiem.id, bachLongVi.id, hungThang.id]);
+
+    const evalReport = evaluateSessionReport({
+      session,
+      baselineLocalities,
+      datasets: { DISB: disbDataset, REV: revDataset, GPMB: gpmbDataset },
+    });
+
+    const budgetRow = evalReport.rows.find((r) => r.indicator.id === 'GPMB_BUDGET')!;
+    const areaPlanRow = evalReport.rows.find((r) => r.indicator.id === 'GPMB_AREA_PLAN')!;
+    const areaRateRow = evalReport.rows.find((r) => r.indicator.id === 'GPMB_AREA_RATE')!;
+    const compRow = evalReport.rows.find((r) => r.indicator.id === 'GPMB_COMPARISON_LABEL')!;
+
+    for (const loc of [luuKiem, bachLongVi, hungThang]) {
+      expect(budgetRow.cellsByLocalityId[loc.id]?.displayedText).toBe('Không có nhiệm vụ GPMB');
+      expect(areaPlanRow.cellsByLocalityId[loc.id]?.displayedText).toBe('Không có nhiệm vụ GPMB');
+      expect(areaRateRow.cellsByLocalityId[loc.id]?.displayedText).toBe('Không có nhiệm vụ GPMB');
+      expect(compRow.cellsByLocalityId[loc.id]?.displayedText).toBe('Không có nhiệm vụ GPMB');
+      expect(budgetRow.cellsByLocalityId[loc.id]?.hasWarning).toBe(false);
+      expect(areaRateRow.cellsByLocalityId[loc.id]?.hasWarning).toBe(false);
+    }
+
+    // Verify Print/PDF HTML contains 'Không có nhiệm vụ GPMB'
+    const printHtml = generatePrintableReportHtml({
+      evaluated: evalReport,
+      baselineLocalities,
+      datasets: { DISB: disbDataset, REV: revDataset, GPMB: gpmbDataset },
+      includeAppendix: false,
+    });
+    expect(printHtml).toContain('Không có nhiệm vụ GPMB');
+
+    // Verify XLSX Export produces valid bytes and includes Sheet 1
+    const xlsxBytes = exportSessionReportToXlsxBytes({
+      evaluated: evalReport,
+      baselineLocalities,
+      datasets: { DISB: disbDataset, REV: revDataset, GPMB: gpmbDataset },
+    });
+    expect(xlsxBytes.length).toBeGreaterThan(1000);
   });
 });

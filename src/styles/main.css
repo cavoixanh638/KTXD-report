@@ -2269,6 +2269,12 @@ code {
   gap: 4px;
 }
 
+.missing-source-tag.note-gpmb-no-task {
+  background-color: #f1f5f9;
+  color: #475569;
+  border-color: #cbd5e1;
+}
+
 /* Compact Import & Source Cards */
 .import-top-card {
   padding: 14px 18px;
