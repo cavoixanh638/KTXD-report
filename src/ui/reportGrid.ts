@@ -2,7 +2,11 @@ import { EvaluatedSessionReport } from '../core/calculationTrace';
 import { analyzeSourceCoverage } from '../core/coverage';
 import { Dataset, Locality } from '../core/types';
 import { escapeHtmlUi } from './cellInspector';
-import { formatReportCellValue, renderIndicatorLabelHtml } from './reportStudio';
+import {
+  formatReportCellValue,
+  renderIndicatorLabelHtml,
+  renderReportCellValueHtml,
+} from './reportStudio';
 
 export function renderReportGridHtml(params: {
   evaluated: EvaluatedSessionReport;
@@ -78,7 +82,7 @@ export function renderReportGridHtml(params: {
           )}" data-locality-id="${escapeHtmlUi(
             loc.id
           )}" data-indicator-id="${escapeHtmlUi(r.indicator.id)}">
-            <div class="cell-main-val">${escapeHtmlUi(formattedVal)} ${warnBadge}${noteBadge}</div>
+            <div class="cell-main-val">${renderReportCellValueHtml(formattedVal)} ${warnBadge}${noteBadge}</div>
           </td>`;
         })
         .join('');

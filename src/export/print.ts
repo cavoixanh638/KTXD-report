@@ -1,7 +1,11 @@
 import { EvaluatedSessionReport } from '../core/calculationTrace';
 import { analyzeSourceCoverage, filterCoverageForSession } from '../core/coverage';
 import { Dataset, Locality } from '../core/types';
-import { formatReportCellValue, renderIndicatorLabelHtml } from '../ui/reportStudio';
+import {
+  formatReportCellValue,
+  renderIndicatorLabelHtml,
+  renderReportCellValueHtml,
+} from '../ui/reportStudio';
 
 function escapeHtml(str: string): string {
   return String(str ?? '')
@@ -63,7 +67,7 @@ export function generatePrintableReportHtml(params: {
                 r.indicator.displayUnit,
                 session.settings.moneyUnit
               );
-              return `<td class="print-cell">${escapeHtml(formattedVal)}</td>`;
+              return `<td class="print-cell">${renderReportCellValueHtml(formattedVal)}</td>`;
             })
             .join('');
           return `<tr class="${hasStt ? 'doc-row-primary' : 'doc-row-sub'}">

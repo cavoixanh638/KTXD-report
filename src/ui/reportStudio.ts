@@ -33,6 +33,18 @@ export function formatReportCellValue(
   return result;
 }
 
+export function renderReportCellValueHtml(formattedVal: string): string {
+  if (!formattedVal) return '';
+  const escaped = escapeHtmlUi(formattedVal);
+  const match = escaped.match(/^([\s\S]+?)\s*(\([^)]+\))$/);
+  if (match) {
+    const mainVal = match[1].trim();
+    const subNote = match[2].trim();
+    return `<span class="cell-main-val">${mainVal}</span> <span class="cell-sub-note">${subNote}</span>`;
+  }
+  return `<span class="cell-main-val">${escaped}</span>`;
+}
+
 export function renderIndicatorLabelHtml(label: string): string {
   const escaped = escapeHtmlUi(label);
   return escaped.replace(/(\(?đến ngày[^\)]*\)?)/gi, '<strong>$1</strong>');
@@ -295,7 +307,7 @@ function renderHorizontalPages(params: {
                 r.indicator.id
               )}" title="Nhấn để xem cách tính chi tiết và nguồn số liệu">
                 <div class="cell-content">
-                  <span class="cell-val">${escapeHtmlUi(formattedVal)}</span>
+                  <span class="cell-val">${renderReportCellValueHtml(formattedVal)}</span>
                   ${warnIcon}${noteIcon}
                 </div>
               </td>`;
@@ -439,7 +451,7 @@ function renderVerticalPages(params: {
                 r.rowConfig.customLabel
               )}: ${escapeHtmlUi(formattedVal)}">
                 <div class="cell-content">
-                  <span class="cell-val">${escapeHtmlUi(formattedVal)}</span>
+                  <span class="cell-val">${renderReportCellValueHtml(formattedVal)}</span>
                   ${warnIcon}${noteIcon}
                 </div>
               </td>`;

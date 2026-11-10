@@ -1693,10 +1693,28 @@ code {
   align-items: center;
   justify-content: flex-end;
   gap: 4px;
+  width: 100%;
 }
 
 .cell-val {
   font-variant-numeric: tabular-nums;
+  text-align: right;
+  line-height: 1.3;
+  display: block;
+  max-width: 100%;
+}
+
+.cell-main-val {
+  display: inline-block;
+  white-space: nowrap;
+}
+
+.cell-sub-note {
+  display: inline-block;
+  white-space: nowrap;
+  font-size: 0.9em;
+  color: #475569;
+  margin-left: 3px;
 }
 
 .cell-warn-pill {
@@ -2728,6 +2746,20 @@ code {
 
   .print-table td.print-cell {
     text-align: right;
+    line-height: 1.25;
+  }
+
+  .print-table .cell-main-val {
+    display: inline-block;
+    white-space: nowrap;
+  }
+
+  .print-table .cell-sub-note {
+    display: inline-block;
+    white-space: nowrap;
+    font-size: 8pt;
+    color: #334155;
+    margin-left: 2pt;
   }
 
   .print-table tr.doc-row-sub td,
