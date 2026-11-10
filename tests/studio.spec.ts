@@ -795,25 +795,25 @@ describe('KTXH Offline – A4 Report Studio & WYSIWYG Architecture Suite', () =>
     const anPhu = sampleLocs.find((l) => l.displayName === 'Xã An Phú')!;
 
     // Counts:
-    // Nam Sách has 4 uncompleted projects
+    // Nam Sách has 4 uncompleted projects out of 4 total
     expect(uncompletedRes.projectsByLocalityId[namSach.id]).toHaveLength(4);
-    expect(uncompletedRes.summaryTextByLocalityId[namSach.id]).toBe('4 dự án');
+    expect(uncompletedRes.summaryTextByLocalityId[namSach.id]).toBe('4/4 dự án');
 
     // Thái Tân is in GPMB_NO_RECORD_COMMUNES -> "Không có nhiệm vụ GPMB"
     expect(uncompletedRes.projectsByLocalityId[thaiTan.id]).toHaveLength(0);
     expect(uncompletedRes.summaryTextByLocalityId[thaiTan.id]).toBe('Không có nhiệm vụ GPMB');
 
-    // Trần Phú has 2 uncompleted projects
+    // Trần Phú has 2 uncompleted projects out of 4 total -> "2/4 dự án"
     expect(uncompletedRes.projectsByLocalityId[tranPhu.id]).toHaveLength(2);
-    expect(uncompletedRes.summaryTextByLocalityId[tranPhu.id]).toBe('2 dự án');
+    expect(uncompletedRes.summaryTextByLocalityId[tranPhu.id]).toBe('2/4 dự án');
 
-    // Hợp Tiến has 1 uncompleted project
+    // Hợp Tiến has 1 uncompleted project out of 3 total -> "1/3 dự án"
     expect(uncompletedRes.projectsByLocalityId[hopTien.id]).toHaveLength(1);
-    expect(uncompletedRes.summaryTextByLocalityId[hopTien.id]).toBe('1 dự án');
+    expect(uncompletedRes.summaryTextByLocalityId[hopTien.id]).toBe('1/3 dự án');
 
-    // An Phú has 1 project that is 100% completed -> 0 uncompleted -> "Đã hoàn thành"
+    // An Phú has 1 project that is 100% completed -> 0 uncompleted -> "Hoàn thành 1/1"
     expect(uncompletedRes.projectsByLocalityId[anPhu.id]).toHaveLength(0);
-    expect(uncompletedRes.summaryTextByLocalityId[anPhu.id]).toBe('Đã hoàn thành');
+    expect(uncompletedRes.summaryTextByLocalityId[anPhu.id]).toBe('Hoàn thành 1/1');
 
     // Total uncompleted projects: 4 + 2 + 1 = 7 projects
     expect(uncompletedRes.projects).toHaveLength(7);

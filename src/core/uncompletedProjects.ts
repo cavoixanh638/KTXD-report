@@ -22,6 +22,7 @@ export interface ProjectOverride {
 export interface UncompletedProjectsResult {
   projects: UncompletedProject[];
   projectsByLocalityId: Record<string, UncompletedProject[]>;
+  totalProjectsByLocalityId: Record<string, number>;
   summaryTextByLocalityId: Record<string, string>;
   projectListTextByLocalityId: Record<string, string>;
   projectListHtmlByLocalityId: Record<string, string>;
@@ -53,15 +54,27 @@ export function getUncompletedProjectsForSession(params: {
 
   const projects: UncompletedProject[] = [];
   const projectsByLocalityId: Record<string, UncompletedProject[]> = {};
+  const totalProjectsByLocalityId: Record<string, number> = {};
 
   for (const loc of selectedLocalities) {
     projectsByLocalityId[loc.id] = [];
+    totalProjectsByLocalityId[loc.id] = 0;
   }
 
   if (gpmbDataset && gpmbDataset.records) {
     for (const rec of gpmbDataset.records) {
       if (!selectedLocalityIds.has(rec.localityId)) continue;
       if (!rec.projectName || !rec.projectName.trim()) continue;
+
+      const projectId =
+        rec.id || `${rec.localityId}_${rec.projectStt || rec.sourceRow}`;
+      const ov = overrides[projectId];
+
+      if (ov?.isHidden) continue;
+
+      // Count this non-hidden project towards total projects for this locality
+      totalProjectsByLocalityId[rec.localityId] =
+        (totalProjectsByLocalityId[rec.localityId] || 0) + 1;
 
       const declaredRaw = rec.metrics['gpmb_declared_area']?.normalizedValue;
       const recordedRaw = rec.metrics['gpmb_recorded_area']?.normalizedValue;
@@ -104,12 +117,6 @@ export function getUncompletedProjectsForSession(params: {
       let deadlineText =
         deadlineRaw && deadlineRaw.trim() ? deadlineRaw.trim() : 'Trong năm 2026';
 
-      const projectId =
-        rec.id || `${rec.localityId}_${rec.projectStt || rec.sourceRow}`;
-      const ov = overrides[projectId];
-
-      if (ov?.isHidden) continue;
-
       const proj: UncompletedProject = {
         id: projectId,
         localityId: rec.localityId,
@@ -135,6 +142,11 @@ export function getUncompletedProjectsForSession(params: {
     if (!selectedLocalityIds.has(cp.localityId)) continue;
     if (cp.isHidden) continue;
     const ov = overrides[cp.id];
+    if (ov?.isHidden) continue;
+
+    totalProjectsByLocalityId[cp.localityId] =
+      (totalProjectsByLocalityId[cp.localityId] || 0) + 1;
+
     const proj: UncompletedProject = {
       id: cp.id,
       localityId: cp.localityId,
@@ -191,13 +203,26 @@ export function getUncompletedProjectsForSession(params: {
       continue;
     }
 
+    const total = totalProjectsByLocalityId[loc.id] || 0;
     const locProjects = projectsByLocalityId[loc.id] || [];
-    if (locProjects.length === 0) {
-      summaryTextByLocalityId[loc.id] = 'Đã hoàn thành';
+    const uncompleted = locProjects.length;
+
+    if (total === 0) {
+      summaryTextByLocalityId[loc.id] = 'Không có nhiệm vụ GPMB';
+      projectListTextByLocalityId[loc.id] = 'Không có nhiệm vụ GPMB';
+      projectListHtmlByLocalityId[loc.id] =
+        '<span class="text-muted" style="font-style:italic;">Không có nhiệm vụ GPMB</span>';
+      continue;
+    }
+
+    if (uncompleted === 0) {
+      // All projects completed: e.g. "Hoàn thành 4/4" or "Hoàn thành 1/1"
+      summaryTextByLocalityId[loc.id] = `Hoàn thành ${total}/${total}`;
       projectListTextByLocalityId[loc.id] = '-';
       projectListHtmlByLocalityId[loc.id] = '<span class="text-muted">-</span>';
     } else {
-      summaryTextByLocalityId[loc.id] = `${locProjects.length} dự án`;
+      // e.g. "2/4 dự án"
+      summaryTextByLocalityId[loc.id] = `${uncompleted}/${total} dự án`;
 
       // Text format for Excel / plain views:
       // Tên dự án - Tỷ lệ hoàn thành - Hạn hoàn thành
@@ -231,6 +256,7 @@ export function getUncompletedProjectsForSession(params: {
   return {
     projects,
     projectsByLocalityId,
+    totalProjectsByLocalityId,
     summaryTextByLocalityId,
     projectListTextByLocalityId,
     projectListHtmlByLocalityId,
