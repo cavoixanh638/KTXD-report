@@ -36,7 +36,7 @@ export function generatePrintableReportHtml(params: {
   } = params;
   const { session, selectedLocalities, rows, tracesById } = evaluated;
 
-  const maxColsPerPage = session.settings.paperSize === 'A3' ? 12 : 8;
+  const maxColsPerPage = session.settings.paperSize === 'A3' ? 12 : 7;
   const chunks: Locality[][] = [];
   if (selectedLocalities.length === 0) {
     chunks.push([]);

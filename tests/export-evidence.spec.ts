@@ -49,21 +49,22 @@ describe('Evidence Export Refresher', () => {
     registerDatasetInWorkspace(ws, gpmbDataset);
 
     const session = createReportSession(ws, {
-      name: 'Báo cáo KTXH phiên mới (6 địa phương)',
+      name: 'Báo cáo KTXH phiên mới (5 địa phương)',
       dataBindings: {
         DISB: disbDataset.id,
         REV: revDataset.id,
         GPMB: gpmbDataset.id,
       },
     });
+    session.settings.showSubtitle = true;
+    session.settings.subtitle = '(Số liệu tổng hợp phục vụ công tác chỉ đạo, điều hành)';
 
     const chosenNames = [
-      'Xã Kiến Hưng',
-      'Xã Kiến Thụy',
-      'Xã Kiến Hải',
-      'Xã Kiến Minh',
-      'Phường Kiến An',
-      'Xã Yết Kiêu',
+      'Xã Nam Sách',
+      'Xã Thái Tân',
+      'Xã Trần Phú',
+      'Xã Hợp Tiến',
+      'Xã An Phú',
     ];
     const chosenLocs = baselineLocalities.filter((l) =>
       chosenNames.includes(l.displayName)

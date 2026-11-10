@@ -262,7 +262,7 @@ function renderHorizontalPages(params: {
     .map((chunk, pageIdx) => {
       const headerColsHtml = chunk
         .map(
-          (loc) => `<th class="doc-th doc-th-locality" style="min-width:${session.settings.columnWidthPx || 120}px">
+          (loc) => `<th class="doc-th doc-th-locality"${session.settings.columnWidthPx ? ` style="width:${session.settings.columnWidthPx}px"` : ''}>
             <div class="doc-loc-name">${escapeHtmlUi(loc.displayName)}</div>
           </th>`
         )
@@ -271,19 +271,6 @@ function renderHorizontalPages(params: {
       const displayRows = rows.filter((r) => r.indicator.id !== 'DISB_PLAN_VS_AVG_COMMENT');
       const bodyRowsHtml = displayRows
         .map((r) => {
-          const unitBadge =
-            r.indicator.displayUnit === 'billion_vnd'
-              ? session.settings.moneyUnit === 'billion'
-                ? 'tỷ đồng'
-                : 'triệu đồng'
-              : r.indicator.displayUnit === 'm2'
-              ? session.settings.areaUnit === 'ha'
-                ? 'ha'
-                : 'm²'
-              : r.indicator.displayUnit === 'percent'
-              ? '%'
-              : 'nhận xét';
-
           const cellsHtml = chunk
             .map((loc) => {
               const cell = r.cellsByLocalityId[loc.id];
@@ -291,13 +278,6 @@ function renderHorizontalPages(params: {
                 return `<td class="doc-td doc-cell-missing">Chưa có số liệu</td>`;
               }
               const isSelected = activeTraceId === cell.traceId;
-              const warnIcon = cell.hasWarning
-                ? `<span class="cell-warn-pill" title="Có cảnh báo chất lượng hoặc đối chiếu M">⚠</span>`
-                : '';
-              const noteIcon = cell.officialNote
-                ? `<span class="cell-note-pill" title="Có ghi chú nguyên văn cột Q">📝</span>`
-                : '';
-
               const formattedVal = formatReportCellValue(
                 cell,
                 r.indicator.displayUnit,
@@ -307,7 +287,7 @@ function renderHorizontalPages(params: {
 
               return `<td class="doc-td doc-cell state-${escapeHtmlUi(
                 cell.state
-              )} quality-${escapeHtmlUi(cell.qualityStatus)} ${
+              )} quality-${escapeHtmlUi(cell.qualityStatus)} ${cell.hasWarning ? 'has-warning' : ''} ${cell.officialNote ? 'has-note' : ''} ${
                 isSelected ? 'doc-cell-active' : ''
               }" tabindex="0" role="button" data-trace-id="${escapeHtmlUi(
                 cell.traceId
@@ -318,7 +298,6 @@ function renderHorizontalPages(params: {
               )}" title="Nhấn để xem cách tính chi tiết và nguồn số liệu">
                 <div class="cell-content">
                   <span class="cell-val">${renderReportCellValueHtml(formattedVal)}</span>
-                  ${warnIcon}${noteIcon}
                 </div>
               </td>`;
             })
@@ -441,8 +420,6 @@ function renderVerticalPages(params: {
                 return `<td class="doc-td doc-cell-missing">-</td>`;
               }
               const isSelected = activeTraceId === cell.traceId;
-              const warnIcon = cell.hasWarning ? `<span class="cell-warn-pill">⚠</span>` : '';
-              const noteIcon = cell.officialNote ? `<span class="cell-note-pill">📝</span>` : '';
               const formattedVal = formatReportCellValue(
                 cell,
                 r.indicator.displayUnit,
@@ -452,7 +429,7 @@ function renderVerticalPages(params: {
 
               return `<td class="doc-td doc-cell state-${escapeHtmlUi(
                 cell.state
-              )} ${isSelected ? 'doc-cell-active' : ''}" tabindex="0" role="button" data-trace-id="${escapeHtmlUi(
+              )} quality-${escapeHtmlUi(cell.qualityStatus)} ${cell.hasWarning ? 'has-warning' : ''} ${cell.officialNote ? 'has-note' : ''} ${isSelected ? 'doc-cell-active' : ''}" tabindex="0" role="button" data-trace-id="${escapeHtmlUi(
                 cell.traceId
               )}" data-locality-id="${escapeHtmlUi(
                 loc.id
@@ -463,7 +440,6 @@ function renderVerticalPages(params: {
               )}: ${escapeHtmlUi(formattedVal)}">
                 <div class="cell-content">
                   <span class="cell-val">${renderReportCellValueHtml(formattedVal)}</span>
-                  ${warnIcon}${noteIcon}
                 </div>
               </td>`;
             })

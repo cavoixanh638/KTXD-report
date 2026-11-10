@@ -1564,19 +1564,26 @@ code {
 .btn-inline-pencil {
   font-size: 12px;
   border: none;
-  background: #eff6ff;
+  background: transparent;
   color: var(--primary);
   border-radius: 4px;
   padding: 2px 6px;
   cursor: pointer;
-  opacity: 0.8;
+  opacity: 0;
+  transition: opacity 0.2s ease;
   vertical-align: middle;
+}
+
+.doc-title:hover .btn-inline-pencil,
+.doc-title-block:hover .btn-inline-pencil,
+.doc-subtitle-block:hover .btn-inline-pencil {
+  opacity: 0.7;
 }
 
 .doc-subtitle-block {
   text-align: center;
-  margin-top: 4px;
-  margin-bottom: 8px;
+  margin-top: 2pt;
+  margin-bottom: 6pt;
   cursor: pointer;
   transition: opacity 0.2s;
 }
@@ -1585,16 +1592,12 @@ code {
   opacity: 0.85;
 }
 
-.doc-subtitle-block:hover .btn-inline-pencil {
-  opacity: 1;
-}
-
 .doc-subtitle-text {
   font-family: 'Times New Roman', Times, serif;
-  font-size: 10.5pt;
+  font-size: 9.5pt;
   font-style: italic;
   font-weight: normal;
-  color: #334155;
+  color: #000000;
   display: inline-block;
 }
 
@@ -1620,19 +1623,19 @@ code {
 }
 
 .btn-inline-pencil:hover {
-  opacity: 1;
+  opacity: 1 !important;
   background: #dbeafe;
 }
 
 .doc-subtitle {
-  font-size: 11pt;
+  font-size: 9.5pt;
   font-style: italic;
   margin-top: 2px;
   color: #222;
 }
 
 .doc-period-badge {
-  font-size: 10pt;
+  font-size: 9.5pt;
   color: #444;
   margin-top: 2px;
 }
@@ -1642,15 +1645,16 @@ code {
   width: 100%;
   border-collapse: collapse;
   font-family: 'Times New Roman', Times, serif;
-  font-size: 10.5pt;
-  color: #000;
-  table-layout: fixed;
+  font-size: 9pt;
+  color: #000000;
+  table-layout: auto;
+  margin: 0 auto;
 }
 
 .doc-table th,
 .doc-table td {
-  border: 1px solid #000000;
-  padding: 4px 6px;
+  border: 0.5pt solid #000000;
+  padding: 3pt 5pt;
   vertical-align: middle;
   line-height: 1.25;
 }
@@ -1662,21 +1666,30 @@ code {
 }
 
 .doc-th-stt {
-  width: 36px;
+  width: 28px;
   text-align: center;
+  font-weight: bold;
 }
 
 .doc-th-indicator {
-  width: 250px;
+  width: 270px;
   text-align: left;
+  font-weight: 600;
+}
+
+.doc-th-locality {
+  text-align: center;
+  font-weight: bold;
 }
 
 .doc-td-stt {
+  width: 28px;
   text-align: center;
   font-weight: bold;
 }
 
 .doc-td-indicator {
+  width: 270px;
   text-align: left;
 }
 
@@ -1713,13 +1726,18 @@ code {
 }
 
 .indicator-unit-sub {
-  font-size: 9pt;
+  font-size: 8.5pt;
   color: #555;
   margin-top: 1px;
 }
 
 .doc-cell {
   text-align: center;
+  line-height: 1.25;
+  white-space: normal;
+  word-wrap: break-word;
+  overflow-wrap: break-word;
+  position: relative;
   cursor: pointer;
   transition: background-color 0.1s ease;
 }
@@ -1734,6 +1752,31 @@ code {
   outline-offset: -2px;
 }
 
+/* Subtle corner dots for inspect hints - 0 impact on layout */
+.doc-cell.has-warning::after {
+  content: '';
+  position: absolute;
+  top: 2px;
+  right: 2px;
+  width: 4px;
+  height: 4px;
+  border-radius: 50%;
+  background-color: #d97706;
+  pointer-events: none;
+}
+
+.doc-cell.has-note::before {
+  content: '';
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: 4px;
+  height: 4px;
+  border-radius: 50%;
+  background-color: #3b82f6;
+  pointer-events: none;
+}
+
 .cell-content {
   display: block;
   text-align: center;
@@ -1743,33 +1786,40 @@ code {
 .cell-val {
   font-variant-numeric: tabular-nums;
   text-align: center;
-  line-height: 1.35;
+  line-height: 1.25;
   display: block;
   width: 100%;
   white-space: normal;
   word-wrap: break-word;
+  overflow-wrap: break-word;
 }
 
-.val-primary {
-  display: inline;
-  white-space: nowrap;
+.val-primary,
+.val-text {
+  display: inline-block;
+  max-width: 100%;
+  white-space: normal;
+  word-wrap: break-word;
+  overflow-wrap: break-word;
+  line-height: 1.25;
+  text-align: center;
 }
 
 .val-note {
   display: inline-block;
   white-space: nowrap;
-  font-size: 0.9em;
-  color: #475569;
-  margin-left: 4px;
+  max-width: 100%;
+  font-size: 8pt;
+  color: #334155;
+  margin-left: 3pt;
 }
 
 .cell-warn-pill {
-  color: #b45309;
-  font-size: 10px;
+  display: none !important;
 }
 
 .cell-note-pill {
-  font-size: 10px;
+  display: none !important;
 }
 
 /* Vertical Table Special */
@@ -2806,16 +2856,24 @@ code {
     line-height: 1.25;
     white-space: normal;
     word-wrap: break-word;
+    overflow-wrap: break-word;
   }
 
-  .print-table .val-primary {
-    display: inline;
-    white-space: nowrap;
+  .print-table .val-primary,
+  .print-table .val-text {
+    display: inline-block;
+    max-width: 100%;
+    white-space: normal;
+    word-wrap: break-word;
+    overflow-wrap: break-word;
+    line-height: 1.25;
+    text-align: center;
   }
 
   .print-table .val-note {
     display: inline-block;
     white-space: nowrap;
+    max-width: 100%;
     font-size: 8pt;
     color: #334155;
     margin-left: 3pt;
@@ -2828,7 +2886,10 @@ code {
     text-align: left;
   }
 
-  .print-table tr.doc-row-sub td.print-cell {
+  .print-table tr.doc-row-sub td.print-cell,
+  .print-table tr.doc-row-sub .val-primary,
+  .print-table tr.doc-row-sub .val-text,
+  .print-table tr.doc-row-sub .val-note {
     font-weight: normal !important;
     font-style: italic !important;
     text-align: center;

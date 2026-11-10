@@ -25,7 +25,7 @@
 ## KẾT QUẢ KIỂM THỬ RUNTIME (`T01`–`T66` & STUDIO SUITE)
 
 - **Lệnh kiểm thử:** `npm run typecheck; npm test; npm run build; python tools/verify_reference_files.py`
-- **Bộ kiểm thử runtime:** 2 test suites, **28/28 tests PASS** (`tests/ph1.spec.ts` 18 tests, `tests/studio.spec.ts` 10 tests bao gồm kiểm thử nhận diện GPMB bảng phẳng CSV/XLSX, điều chỉnh ngày chốt tự động đồng bộ báo cáo, sắp xếp địa phương, in 1 trang không phụ lục và các kiểm thử định dạng).
+- **Bộ kiểm thử runtime:** 3 test suites, **32/32 tests PASS** (`tests/ph1.spec.ts` 18 tests, `tests/studio.spec.ts` 13 tests, `tests/export-evidence.spec.ts` 1 test).
 - **Tinh chỉnh giao diện, tìm kiếm và công thức tính đã hoàn thiện:**
   1. Loại bỏ hoàn toàn khối cơ quan chủ quản (Sở KH&ĐT), quốc hiệu tiêu ngữ và dòng ngày chốt số liệu meta ở đầu trang báo cáo.
   2. Loại bỏ phụ đề và huy hiệu phiên ở đầu báo cáo; căn giữa tiêu đề chính `TÌNH HÌNH THỰC HIỆN MỘT SỐ CHỈ TIÊU KINH TẾ - XÃ HỘI CỦA CÁC ĐỊA PHƯƠNG`.
@@ -48,6 +48,14 @@
   19. So sánh tỷ lệ GPMB trực tiếp với mốc trung bình 108 địa bàn: loại bỏ giới hạn "Chưa đủ cơ sở đánh giá", tính trực tiếp độ lệch điểm phần trăm.
   20. Chuẩn hóa kết quả so sánh giải ngân và GPMB: đổi dấu +/- thành dấu >/<, hiển thị rõ mức độ `cao hơn (>X,XX%)`, `thấp hơn (<X,XX%)` hoặc `tương đương (0,00%)` (ví dụ: `thấp hơn (<47,05%)`, `cao hơn (>25,99%)`).
   21. Các dòng chỉ tiêu không có số thứ tự (dòng phụ con) được định dạng chữ nghiêng (`font-style: italic;`) và không in đậm (`font-weight: normal;`).
+  22. Riêng GPMB ghi nhận mặc định 6 địa bàn (`Phường Lưu Kiếm, Phường Ái Quốc, Xã Hùng Thắng, Xã Thái Tân, Xã Tân Minh, Đặc khu Bạch Long Vĩ`) không có số liệu nguồn, và hiển thị rõ ràng trên ô báo cáo là **"Không có nhiệm vụ GPMB"** thay vì "Chưa có số liệu" hay để trống.
+  23. Tự động bổ sung đơn vị diện tích (`m2` hoặc `ha` theo cài đặt phiên) vào giá trị diện tích GPMB (ví dụ: `550.046 m2`).
+  24. Thêm dòng chữ nhỏ in nghiêng ngay dưới tiêu đề báo cáo chính (tùy chỉnh nội dung, bật/tắt hiển thị linh hoạt trong form cài đặt tiêu đề).
+  25. **Đồng bộ tuyệt đối giữa giao diện WebApp trực tiếp và bản in/PDF (WYSIWYG)**:
+      - Loại bỏ nút bút chì `✎` lộ diện trên tiêu đề ở trạng thái bình thường (chỉ hiện mờ khi hover để bấm sửa, ẩn hoàn toàn khi in).
+      - Loại bỏ các biểu tượng cảnh báo `⚠` và ghi chú `📝` chen ngang giữa nội dung ô tính trong bảng Document Studio. Chuyển sang chấm chỉ báo tinh tế ở góc ô và mở chi tiết khi nhấp chuột (Cell Inspector), giữ cho bảng xem trước trên web luôn phẳng, sạch, đúng chuẩn văn bản hành chính như bản in ra giấy.
+      - Đồng bộ hoàn toàn kiểu dáng font chữ Times New Roman 9pt, padding 3pt 5pt, viền đen sắc nét 0.5pt, và cơ chế chia đều độ rộng cột A4 ngang giữa Web và In.
+      - **Sửa triệt để lỗi chữ tràn ô (Wrap text)**: thiết lập `white-space: normal; word-wrap: break-word; overflow-wrap: break-word;` cho các cụm chữ dài như `"Không có nhiệm vụ GPMB"`, giúp chữ tự động ngắt dòng êm ái, căn giữa ô cân đối và tuyệt đối không bao giờ chèn đè lên cột bên cạnh.
   22. **In ấn & Xuất PDF chuẩn văn bản hành chính:** Loại bỏ hoàn toàn ký hiệu cảnh báo ⚠, biểu tượng ghi chú 📝, thông tin số trang ("Trang 1 / 1") và các bảng phụ lục (Coverage Audit, Trace, M-mismatch) khi in; bản in và xuất PDF chỉ in đúng 1 trang Báo cáo tổng hợp sạch sẽ, chuẩn xác.
   23. **Sắp xếp thứ tự địa phương linh hoạt:** Mặc định đưa các địa phương được chọn lên đầu danh sách (`SELECTED_FIRST`); bổ sung thanh công cụ sắp xếp thứ tự cột báo cáo (nút di chuyển ▲/▼, sắp xếp A→Z, Z→A, đảo ngược và gỡ bỏ ✕ trực tiếp).
   24. **Giao diện Nhập nguồn thu gọn (Compact One-Screen):** Thiết kế lại thanh kéo thả compact và hiển thị 3 nguồn dữ liệu (DISB, REV, GPMB) theo dạng lưới 3 cột ngang (`.card-grid-3`), gom gọn kiểm toán nguồn thiếu dạng pills giúp toàn bộ trang hiển thị trọn vẹn trên 1 màn hình không cần cuộn; khắc phục lỗi thanh cuộn cho khu vực làm việc trung tâm.
