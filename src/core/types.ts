@@ -393,6 +393,7 @@ export interface ReportSession {
     subAgencyName?: string;
     periodText?: string;
     subtitle?: string;
+    showSubtitle?: boolean;
     titleAlign?: 'center' | 'left';
     titleFontSizePx?: number;
     titleUppercase?: boolean;

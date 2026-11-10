@@ -544,6 +544,14 @@ function renderPaperSheetHtml(params: {
         ${escapeHtmlUi(session.settings.reportTitle)}
         <button type="button" class="btn-inline-pencil" title="Sửa tiêu đề báo cáo">✎</button>
       </h1>
+      ${
+        session.settings.showSubtitle && session.settings.subtitle
+          ? `<div class="doc-subtitle-block text-center" data-action="open-title-editor" title="Nhấp chuột để sửa hoặc ẩn dòng chữ nhỏ">
+              <em class="doc-subtitle-text">${escapeHtmlUi(session.settings.subtitle)}</em>
+              <button type="button" class="btn-inline-pencil" title="Sửa dòng chữ nhỏ">✎</button>
+            </div>`
+          : `<div class="doc-subtitle-add-hint no-print" data-action="open-title-editor" title="Nhấp để thêm dòng chữ nhỏ in nghiêng dưới tiêu đề">+ Thêm dòng chữ nhỏ in nghiêng dưới tiêu đề</div>`
+      }
     </div>
 
     <!-- BẢNG DỮ LIỆU TÍNH TOÁN -->

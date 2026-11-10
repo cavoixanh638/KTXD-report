@@ -84,6 +84,11 @@ export function generatePrintableReportHtml(params: {
           <h2>${escapeHtml(session.settings.reportTitle)} ${
             chunks.length > 1 ? `(Phần ${pageIdx + 1}/${chunks.length})` : ''
           }</h2>
+          ${
+            session.settings.showSubtitle && session.settings.subtitle
+              ? `<div class="print-subtitle-block"><em>${escapeHtml(session.settings.subtitle)}</em></div>`
+              : ''
+          }
         </div>
         <table class="print-table">
           <thead>

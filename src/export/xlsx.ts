@@ -193,11 +193,16 @@ export function exportSessionReportToXlsxBytes(params: {
   const lastColLetter = colIndexToLetter(totalCols);
   const sheet1Rows: Array<Array<XlsxCellInput | null>> = [];
 
-  // Row 1: Title
+  // Row 1: Title & optional subtitle
+  const titleText =
+    session.settings.showSubtitle && session.settings.subtitle
+      ? `${session.settings.reportTitle}\n${session.settings.subtitle}`
+      : session.settings.reportTitle;
+
   const titleRow: Array<XlsxCellInput | null> = new Array(totalCols).fill(null);
   titleRow[0] = {
     type: 's',
-    value: session.settings.reportTitle,
+    value: titleText,
     styleIndex: 1,
   };
   sheet1Rows.push(titleRow);

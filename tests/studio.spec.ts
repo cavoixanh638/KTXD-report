@@ -684,4 +684,60 @@ describe('KTXH Offline – A4 Report Studio & WYSIWYG Architecture Suite', () =>
     const areaFormatted = formatReportCellValue(mockAreaCell, 'm2', 'billion', 'm2');
     expect(areaFormatted).toBe('550.000 m2');
   });
+
+  it('13. Customizable small italic subtitle under main report title with show/hide toggle', () => {
+    const ws = createEmptyWorkspace();
+    registerDatasetInWorkspace(ws, disbDataset, baselineLocalities);
+    registerDatasetInWorkspace(ws, revDataset);
+    registerDatasetInWorkspace(ws, gpmbDataset);
+
+    const session = createReportSession(ws, { name: 'Subtitle Test Session' });
+    setSessionLocalities(ws, session.id, [baselineLocalities[0].id]);
+
+    // 1. By default, showSubtitle is true and subtitle is set
+    session.settings.showSubtitle = true;
+    session.settings.subtitle = '(Số liệu ước tính đến tháng 10 năm 2026)';
+
+    const evalReport = evaluateSessionReport({
+      session,
+      baselineLocalities,
+      datasets: { DISB: disbDataset, REV: revDataset, GPMB: gpmbDataset },
+    });
+
+    const studioHtml = renderA4DocumentStudioHtml({
+      evaluated: evalReport,
+      baselineLocalities,
+      datasets: { DISB: disbDataset, REV: revDataset, GPMB: gpmbDataset },
+    });
+    expect(studioHtml).toContain('doc-subtitle-text');
+    expect(studioHtml).toContain('(Số liệu ước tính đến tháng 10 năm 2026)');
+
+    const printHtml = generatePrintableReportHtml({
+      evaluated: evalReport,
+      baselineLocalities,
+      datasets: { DISB: disbDataset, REV: revDataset, GPMB: gpmbDataset },
+      includeAppendix: false,
+    });
+    expect(printHtml).toContain('print-subtitle-block');
+    expect(printHtml).toContain('(Số liệu ước tính đến tháng 10 năm 2026)');
+
+    // 2. When showSubtitle is turned off (showSubtitle = false)
+    session.settings.showSubtitle = false;
+    const printHtmlHidden = generatePrintableReportHtml({
+      evaluated: evalReport,
+      baselineLocalities,
+      datasets: { DISB: disbDataset, REV: revDataset, GPMB: gpmbDataset },
+      includeAppendix: false,
+    });
+    expect(printHtmlHidden).not.toContain('print-subtitle-block');
+    expect(printHtmlHidden).not.toContain('(Số liệu ước tính đến tháng 10 năm 2026)');
+
+    const studioHtmlHidden = renderA4DocumentStudioHtml({
+      evaluated: evalReport,
+      baselineLocalities,
+      datasets: { DISB: disbDataset, REV: revDataset, GPMB: gpmbDataset },
+    });
+    expect(studioHtmlHidden).not.toContain('doc-subtitle-text');
+    expect(studioHtmlHidden).toContain('doc-subtitle-add-hint');
+  });
 });

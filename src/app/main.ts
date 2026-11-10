@@ -751,10 +751,19 @@ export class KtxhOfflineApp {
       </div>
 
       <div class="form-group">
-        <label>Dòng phụ đề:</label>
-        <input type="text" id="setting-subtitle" class="form-input" value="${escapeHtmlUi(
+        <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:6px;">
+          <label style="margin:0; font-weight:600;">Dòng chữ nhỏ in nghiêng dưới tiêu đề:</label>
+          <label style="display:inline-flex; align-items:center; gap:6px; font-size:12px; font-weight:normal; cursor:pointer;">
+            <input type="checkbox" id="setting-show-subtitle" ${s.showSubtitle ? 'checked' : ''} />
+            <span>Hiện dòng này</span>
+          </label>
+        </div>
+        <input type="text" id="setting-subtitle" class="form-input" placeholder="Ví dụ: (Số liệu tổng hợp phục vụ công tác chỉ đạo, điều hành)" value="${escapeHtmlUi(
           s.subtitle || ''
         )}"/>
+        <small class="text-muted" style="font-size:11px; display:block; margin-top:3px;">
+          Hiển thị dòng chữ nhỏ, in nghiêng căn giữa ngay dưới tiêu đề chính (trên Studio, bản in PDF và file Excel).
+        </small>
       </div>
 
       <div class="form-group">
@@ -1735,6 +1744,7 @@ export class KtxhOfflineApp {
 
       const titleEl = document.getElementById('setting-report-title') as HTMLTextAreaElement | null;
       const subtitleEl = document.getElementById('setting-subtitle') as HTMLInputElement | null;
+      const showSubtitleEl = document.getElementById('setting-show-subtitle') as HTMLInputElement | null;
       const agencyEl = document.getElementById('setting-agency-name') as HTMLInputElement | null;
       const subAgencyEl = document.getElementById('setting-sub-agency-name') as HTMLInputElement | null;
       const alignEl = document.getElementById('setting-title-align') as HTMLSelectElement | null;
@@ -1744,6 +1754,7 @@ export class KtxhOfflineApp {
 
       activeSession.settings.reportTitle = titleEl?.value.trim() || activeSession.settings.reportTitle;
       activeSession.settings.subtitle = subtitleEl?.value.trim() || '';
+      activeSession.settings.showSubtitle = showSubtitleEl?.checked ?? false;
       activeSession.settings.agencyName = agencyEl?.value.trim() || '';
       activeSession.settings.subAgencyName = subAgencyEl?.value.trim() || '';
       activeSession.settings.titleAlign = (alignEl?.value as 'center' | 'left') || 'center';

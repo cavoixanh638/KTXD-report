@@ -207,6 +207,15 @@ export function migrateLegacySessionLabels(workspace: Workspace): void {
         r.customLabel = 'Kế hoạch vốn đầu tư công sau NQ điều chỉnh, bổ sung của HĐND';
       }
     }
+    if (
+      s.settings.subtitle === '(Số liệu tính toán tự động từ nguồn DISB, REV và GPMB theo MASTER V2.2)' ||
+      !s.settings.subtitle
+    ) {
+      s.settings.subtitle = '(Số liệu tổng hợp phục vụ công tác chỉ đạo, điều hành)';
+    }
+    if (s.settings.showSubtitle === undefined) {
+      s.settings.showSubtitle = true;
+    }
   }
   syncReportLabelsWithDatasetDates(workspace);
 }
@@ -312,7 +321,8 @@ export function createReportSession(
       agencyName: 'ỦY BAN NHÂN DÂN THÀNH PHỐ',
       subAgencyName: 'SỞ KẾ HOẠCH VÀ ĐẦU TƯ',
       periodText: 'Kỳ báo cáo: Tháng 10 năm 2026',
-      subtitle: '(Số liệu tính toán tự động từ nguồn DISB, REV và GPMB theo MASTER V2.2)',
+      subtitle: '(Số liệu tổng hợp phục vụ công tác chỉ đạo, điều hành)',
+      showSubtitle: true,
       titleAlign: 'center',
       titleFontSizePx: 16,
       titleUppercase: true,
