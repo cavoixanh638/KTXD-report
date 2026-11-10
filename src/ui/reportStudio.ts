@@ -209,12 +209,19 @@ export function computeAutoLayoutMode(params: {
   // AUTO Mode: Decision logic optimized for A4 Landscape
   // If <= 7 localities, Horizontal layout fits on 1 single page without horizontal splitting
   if (selectedCount <= 7) {
+    const isSplit = Boolean(
+      session.settings.splitRow8ToNewPage &&
+        session.settings.showUncompletedSummaryRow !== false
+    );
+    const pages = isSplit ? 2 : 1;
     return {
       mode: 'HORIZONTAL',
       userPreference: 'AUTO',
-      reason: `Đã tự động chọn bố cục Địa phương theo chiều ngang (${selectedCount} địa phương vừa vặn 1 trang A4 ngang)`,
+      reason: isSplit
+        ? `Đã chọn bố cục Địa phương theo chiều ngang (tách ${pages} trang: trang 1 chỉ tiêu 1–7, trang 2 dự án GPMB)`
+        : `Đã tự động chọn bố cục Địa phương theo chiều ngang (${selectedCount} địa phương vừa vặn 1 trang A4 ngang)`,
       isAuto: true,
-      pageCount: 1,
+      pageCount: pages,
     };
   }
 
@@ -473,12 +480,14 @@ function renderHorizontalPages(params: {
         </tr>`;
 
         // 2. Dòng con ngay dưới dòng 8 (không STT): Tên dự án chưa hoàn thành GPMB
+        const projFontPt = session.settings.uncompletedProjectsFontSizePt;
+        const fontStyle = projFontPt ? ` style="font-size: ${projFontPt}pt;"` : '';
         const subRowCellsHtml = chunk
           .map((loc) => {
             const projListHtml =
               uncompletedRes.projectListHtmlByLocalityId[loc.id] ||
               '<span class="text-muted" style="font-style:italic;">-</span>';
-            return `<td class="doc-td doc-cell doc-cell-proj-list state-VALUE quality-DIRECT_SOURCE" style="text-align: left; vertical-align: top; padding: 2pt 3.5pt;">
+            return `<td class="doc-td doc-cell doc-cell-proj-list state-VALUE quality-DIRECT_SOURCE"${fontStyle} style="text-align: left; vertical-align: top; padding: 2pt 3.5pt; ${projFontPt ? `font-size:${projFontPt}pt;` : ''}">
               ${projListHtml}
             </td>`;
           })
@@ -491,7 +500,12 @@ function renderHorizontalPages(params: {
               <span class="indicator-name-text" style="font-style: italic; font-weight: normal;">${escapeHtmlUi(
                 session.settings.uncompletedProjectsListCustomLabel || 'Tên dự án chưa hoàn thành GPMB'
               )}</span>
-              <button type="button" class="btn-inline-edit-ind" id="btn-edit-uncompleted-list-label" title="Đổi tên dòng danh sách dự án">✎</button>
+              <button type="button" class="btn-inline-edit-ind no-print" id="btn-edit-uncompleted-list-label" title="Đổi tên dòng danh sách dự án">✎</button>
+              <span class="proj-font-ctrls no-print" style="margin-left: 6px; display: inline-flex; align-items: center; gap: 2px;">
+                <button type="button" class="btn-inline-font-ctrl" id="btn-quick-dec-proj-font" title="Giảm cỡ chữ danh sách dự án (hiện tại: ${projFontPt || 8}pt)">-A</button>
+                <span style="font-size: 10px; color: #64748b; padding: 0 2px;">${projFontPt || 8}pt</span>
+                <button type="button" class="btn-inline-font-ctrl" id="btn-quick-inc-proj-font" title="Tăng cỡ chữ danh sách dự án (hiện tại: ${projFontPt || 8}pt)">+A</button>
+              </span>
             </div>
           </td>
           ${subRowCellsHtml}
@@ -511,6 +525,74 @@ function renderHorizontalPages(params: {
               isPrintMode: false,
             })
           : '';
+
+      const isSplit = Boolean(
+        session.settings.splitRow8ToNewPage &&
+          session.settings.showUncompletedSummaryRow !== false &&
+          uncompletedSummaryRowHtml
+      );
+
+      if (isSplit) {
+        const totalPages = chunks.length * 2;
+        const page1 = renderPaperSheetHtml({
+          session,
+          contentHtml: `
+            <div class="table-responsive">
+              <table class="doc-table doc-table-horizontal">
+                <thead>
+                  <tr>
+                    <th class="doc-th doc-th-stt">STT</th>
+                    <th class="doc-th doc-th-indicator" style="width: ${indWidth}px; max-width: ${indWidth}px;">Chỉ tiêu / Kết quả thực hiện</th>
+                    ${headerColsHtml}
+                  </tr>
+                </thead>
+                <tbody>
+                  ${bodyRowsHtml}
+                </tbody>
+              </table>
+            </div>
+          `,
+          pageIdx: pageIdx * 2 + 1,
+          totalPages,
+          disbDate,
+          revDate,
+          gpmbDate,
+          revMissingNames,
+          gpmbMissingNames,
+          isContinuationPage: false,
+        });
+
+        const page2 = renderPaperSheetHtml({
+          session,
+          contentHtml: `
+            <div class="table-responsive">
+              <table class="doc-table doc-table-horizontal">
+                <thead>
+                  <tr>
+                    <th class="doc-th doc-th-stt">STT</th>
+                    <th class="doc-th doc-th-indicator" style="width: ${indWidth}px; max-width: ${indWidth}px;">Chỉ tiêu / Kết quả thực hiện</th>
+                    ${headerColsHtml}
+                  </tr>
+                </thead>
+                <tbody>
+                  ${uncompletedSummaryRowHtml}
+                </tbody>
+              </table>
+            </div>
+            ${appendixProjectsHtml}
+          `,
+          pageIdx: pageIdx * 2 + 2,
+          totalPages,
+          disbDate,
+          revDate,
+          gpmbDate,
+          revMissingNames,
+          gpmbMissingNames,
+          isContinuationPage: true,
+        });
+
+        return `${page1}\n${page2}`;
+      }
 
       return renderPaperSheetHtml({
         session,
@@ -539,6 +621,7 @@ function renderHorizontalPages(params: {
         gpmbDate,
         revMissingNames,
         gpmbMissingNames,
+        isContinuationPage: false,
       });
     })
     .join('');
@@ -746,6 +829,7 @@ function renderPaperSheetHtml(params: {
   gpmbDate: string;
   revMissingNames: string;
   gpmbMissingNames: string;
+  isContinuationPage?: boolean;
 }): string {
   const {
     session,
@@ -757,6 +841,7 @@ function renderPaperSheetHtml(params: {
     gpmbDate,
     revMissingNames,
     gpmbMissingNames,
+    isContinuationPage = false,
   } = params;
 
   const titleAlign = session.settings.titleAlign || 'center';
@@ -765,14 +850,23 @@ function renderPaperSheetHtml(params: {
   const isLastPage = pageIdx === totalPages;
 
   return `<div class="a4-paper-sheet a4-landscape" data-page-number="${pageIdx}">
+    ${
+      totalPages > 1
+        ? `<div class="doc-page-badge no-print" style="position: absolute; top: 10px; right: 14px; font-size: 11px; color: #64748b; background: #f1f5f9; padding: 2px 8px; border-radius: 4px; border: 1px solid #e2e8f0; font-family: sans-serif;">Trang ${pageIdx}/${totalPages}</div>`
+        : ''
+    }
     <!-- TIÊU ĐỀ BÁO CÁO (CĂN GIỮA) -->
     <div class="doc-title-block text-center">
       <h1 class="doc-title ${titleClass}" style="font-size:${titleFontSize}px" data-action="open-title-editor" title="Nhấp chuột vào tiêu đề để đổi tên báo cáo">
-        ${escapeHtmlUi(session.settings.reportTitle)}
+        ${escapeHtmlUi(session.settings.reportTitle)}${
+          isContinuationPage
+            ? ' <span class="title-continuation" style="font-size: 0.85em; font-weight: normal; font-style: italic; text-transform: none;">(tiếp theo)</span>'
+            : ''
+        }
         <button type="button" class="btn-inline-pencil" title="Sửa tiêu đề báo cáo">✎</button>
       </h1>
       ${
-        session.settings.showSubtitle && session.settings.subtitle
+        !isContinuationPage && session.settings.showSubtitle && session.settings.subtitle
           ? `<div class="doc-subtitle-block text-center" data-action="open-title-editor" title="Nhấp chuột để sửa hoặc ẩn dòng chữ nhỏ">
               <em class="doc-subtitle-text">${escapeHtmlUi(session.settings.subtitle)}</em>
               <button type="button" class="btn-inline-pencil" title="Sửa dòng chữ nhỏ">✎</button>

@@ -3113,6 +3113,25 @@ code {
   opacity: 1;
 }
 
+.btn-inline-font-ctrl {
+  padding: 0 4px;
+  font-size: 10px;
+  height: 18px;
+  line-height: 16px;
+  border: 1px solid #cbd5e1;
+  background: #ffffff;
+  color: #334155;
+  border-radius: 3px;
+  cursor: pointer;
+  transition: all 0.1s ease;
+}
+
+.btn-inline-font-ctrl:hover {
+  background: #f1f5f9;
+  border-color: #94a3b8;
+  color: #0f172a;
+}
+
 .doc-appendix-projects-hidden {
   margin-top: 14pt;
   text-align: center;

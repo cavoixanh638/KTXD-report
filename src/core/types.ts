@@ -410,6 +410,8 @@ export interface ReportSession {
     showUncompletedProjectsTable?: boolean;
     uncompletedRowCustomLabel?: string;
     uncompletedProjectsListCustomLabel?: string;
+    uncompletedProjectsFontSizePt?: number;
+    splitRow8ToNewPage?: boolean;
     projectOverrides?: Record<
       string,
       {

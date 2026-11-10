@@ -925,5 +925,55 @@ describe('KTXH Offline – A4 Report Studio & WYSIWYG Architecture Suite', () =>
     });
     expect(studioHtmlHiddenTable).toContain('Hiện bảng chi tiết danh mục dự án GPMB');
     expect(studioHtmlHiddenTable).not.toContain('DANH MỤC CÁC DỰ ÁN GPMB CHƯA HOÀN THÀNH');
+
+    // 7. Test font size customization for project detail sub-row
+    session.settings.uncompletedProjectsFontSizePt = 9.5;
+    const evalWithFont = evaluateSessionReport({
+      session,
+      baselineLocalities,
+      datasets: { DISB: disbDataset, REV: revDataset, GPMB: gpmbDataset },
+    });
+    const studioHtmlFont = renderA4DocumentStudioHtml({
+      evaluated: evalWithFont,
+      baselineLocalities,
+      datasets: { DISB: disbDataset, REV: revDataset, GPMB: gpmbDataset },
+    });
+    expect(studioHtmlFont).toContain('9.5pt');
+
+    const printHtmlFont = generatePrintableReportHtml({
+      evaluated: evalWithFont,
+      baselineLocalities,
+      datasets: { DISB: disbDataset, REV: revDataset, GPMB: gpmbDataset },
+      includeAppendix: false,
+    });
+    expect(printHtmlFont).toContain('font-size: 9.5pt');
+
+    // 8. Test split row 8 to new page toggle
+    session.settings.splitRow8ToNewPage = true;
+    const evalWithSplit = evaluateSessionReport({
+      session,
+      baselineLocalities,
+      datasets: { DISB: disbDataset, REV: revDataset, GPMB: gpmbDataset },
+    });
+    const studioHtmlSplit = renderA4DocumentStudioHtml({
+      evaluated: evalWithSplit,
+      baselineLocalities,
+      datasets: { DISB: disbDataset, REV: revDataset, GPMB: gpmbDataset },
+    });
+    // WebApp renders 2 A4 paper sheets
+    expect((studioHtmlSplit.match(/class="a4-paper-sheet/g) || []).length).toBe(2);
+    expect(studioHtmlSplit).toContain('(tiếp theo)');
+    expect(studioHtmlSplit).toContain('Trang 1/2');
+    expect(studioHtmlSplit).toContain('Trang 2/2');
+
+    const printHtmlSplit = generatePrintableReportHtml({
+      evaluated: evalWithSplit,
+      baselineLocalities,
+      datasets: { DISB: disbDataset, REV: revDataset, GPMB: gpmbDataset },
+      includeAppendix: false,
+    });
+    // Print renders 2 page sections
+    expect((printHtmlSplit.match(/class="print-page-chunk"/g) || []).length).toBe(2);
+    expect(printHtmlSplit).toContain('(tiếp theo)');
   });
 });

@@ -851,6 +851,30 @@ export class KtxhOfflineApp {
           } />
           Hiện Bảng phụ lục chi tiết danh mục dự án ở cuối báo cáo
         </label>
+
+        <!-- ĐIỀU CHỈNH CỠ CHỮ RIÊNG DÒNG CHI TIẾT DỰ ÁN -->
+        <div style="margin-top: 10px; display: flex; align-items: center; justify-content: space-between; gap: 8px;">
+          <label for="setting-proj-font-size" style="font-size: 13px; margin: 0; font-weight: 500;">Cỡ chữ phần chi tiết dự án:</label>
+          <div style="display: flex; align-items: center; gap: 4px;">
+            <button type="button" class="btn btn-sm btn-outline-secondary" id="btn-dec-proj-font" title="Giảm cỡ chữ (0.5pt)" style="width: 28px; height: 26px; padding: 0;">-</button>
+            <input type="number" id="setting-proj-font-size" class="form-input-sm" value="${
+              s.uncompletedProjectsFontSizePt || 8
+            }" min="6" max="14" step="0.5" style="width: 55px; text-align: center; height: 26px;" />
+            <span style="font-size: 12px; color: var(--text-muted);">pt</span>
+            <button type="button" class="btn btn-sm btn-outline-secondary" id="btn-inc-proj-font" title="Tăng cỡ chữ (0.5pt)" style="width: 28px; height: 26px; padding: 0;">+</button>
+          </div>
+        </div>
+
+        <!-- TÙY CHỌN TÁCH RIÊNG TỪ DÒNG 8 SANG TRANG KHÁC -->
+        <label class="checkbox-label" style="margin-top: 10px; font-weight: 500;">
+          <input type="checkbox" id="setting-split-row8-to-new-page" ${
+            s.splitRow8ToNewPage ? 'checked' : ''
+          } />
+          Tách riêng từ dòng 8 (Dự án GPMB) sang trang khác
+        </label>
+        <small class="text-muted" style="font-size: 11px; display: block; margin-top: 2px;">
+          Trang 1: Bảng chỉ tiêu 1–7; Trang 2: Dòng 8 và danh sách dự án chi tiết (rất phù hợp khi chỉnh cỡ chữ to).
+        </small>
       </div>
 
       <button type="submit" class="btn btn-primary" style="width:100%; margin-top:10px">Lưu thay đổi định dạng & tiêu đề</button>
@@ -1918,6 +1942,8 @@ export class KtxhOfflineApp {
       const indWidthEl = document.getElementById('setting-indicator-col-width') as HTMLInputElement | null;
       const showUncompletedSummaryEl = document.getElementById('setting-show-uncompleted-summary') as HTMLInputElement | null;
       const showUncompletedTableEl = document.getElementById('setting-show-uncompleted-table') as HTMLInputElement | null;
+      const splitRow8El = document.getElementById('setting-split-row8-to-new-page') as HTMLInputElement | null;
+      const projFontEl = document.getElementById('setting-proj-font-size') as HTMLInputElement | null;
 
       activeSession.settings.reportTitle = titleEl?.value.trim() || activeSession.settings.reportTitle;
       activeSession.settings.subtitle = subtitleEl?.value.trim() || '';
@@ -1933,6 +1959,15 @@ export class KtxhOfflineApp {
       }
       if (showUncompletedTableEl) {
         activeSession.settings.showUncompletedProjectsTable = showUncompletedTableEl.checked;
+      }
+      if (splitRow8El) {
+        activeSession.settings.splitRow8ToNewPage = splitRow8El.checked;
+      }
+      if (projFontEl) {
+        const val = parseFloat(projFontEl.value);
+        if (!isNaN(val) && val >= 6 && val <= 16) {
+          activeSession.settings.uncompletedProjectsFontSizePt = val;
+        }
       }
 
       if (indWidthEl) {
@@ -1954,6 +1989,51 @@ export class KtxhOfflineApp {
       activeSession.settings.indicatorColumnWidthPx = 240;
       this.triggerAutosave();
       this.setStatus('Đã khôi phục chiều rộng cột chỉ tiêu về mặc định 240px.', 'info');
+      this.render();
+    });
+
+    // Font size adjustments for project details sub-row
+    const adjustProjFont = (delta: number) => {
+      const activeSession = this.getActiveSession();
+      if (!activeSession) return;
+      const current = activeSession.settings.uncompletedProjectsFontSizePt || 8;
+      const next = Math.max(6, Math.min(16, Math.round((current + delta) * 2) / 2));
+      activeSession.settings.uncompletedProjectsFontSizePt = next;
+      this.triggerAutosave();
+      this.setStatus(`Đã điều chỉnh cỡ chữ phần chi tiết dự án: ${next}pt`, 'info');
+      this.render();
+    };
+
+    document.getElementById('btn-dec-proj-font')?.addEventListener('click', (e) => {
+      e.preventDefault();
+      adjustProjFont(-0.5);
+    });
+    document.getElementById('btn-inc-proj-font')?.addEventListener('click', (e) => {
+      e.preventDefault();
+      adjustProjFont(0.5);
+    });
+    document.getElementById('btn-quick-dec-proj-font')?.addEventListener('click', (e) => {
+      e.stopPropagation();
+      e.preventDefault();
+      adjustProjFont(-0.5);
+    });
+    document.getElementById('btn-quick-inc-proj-font')?.addEventListener('click', (e) => {
+      e.stopPropagation();
+      e.preventDefault();
+      adjustProjFont(0.5);
+    });
+
+    document.getElementById('setting-split-row8-to-new-page')?.addEventListener('change', (e) => {
+      const activeSession = this.getActiveSession();
+      if (!activeSession) return;
+      activeSession.settings.splitRow8ToNewPage = (e.target as HTMLInputElement).checked;
+      this.triggerAutosave();
+      this.setStatus(
+        activeSession.settings.splitRow8ToNewPage
+          ? 'Đã bật tùy chọn: Tách riêng từ dòng 8 sang trang mới khi xem/in.'
+          : 'Đã tắt tùy chọn tách trang (hiển thị chung trên 1 trang).',
+        'info'
+      );
       this.render();
     });
 

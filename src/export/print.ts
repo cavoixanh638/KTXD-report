@@ -113,12 +113,13 @@ export function generatePrintableReportHtml(params: {
         </tr>`;
 
         // Dòng con ngay dưới dòng 8 (không STT): Tên dự án chưa hoàn thành GPMB
+        const projFontPt = session.settings.uncompletedProjectsFontSizePt || 8;
         const subRowCells = chunk
           .map((loc) => {
             const listHtml =
               uncompletedRes.projectListHtmlByLocalityId[loc.id] ||
               '<span class="text-muted" style="font-style:italic;">-</span>';
-            return `<td class="print-cell" style="text-align: left; vertical-align: top; padding: 2pt 3.5pt; font-size: 7.5pt; line-height: 1.15;">${listHtml}</td>`;
+            return `<td class="print-cell" style="text-align: left; vertical-align: top; padding: 2pt 3.5pt; font-size: ${projFontPt}pt; line-height: 1.15;">${listHtml}</td>`;
           })
           .join('');
 
@@ -144,6 +145,54 @@ export function generatePrintableReportHtml(params: {
               isPrintMode: true,
             })
           : '';
+
+      if (session.settings.splitRow8ToNewPage && uncompletedSummaryRow) {
+        const page1 = `<section class="print-page-chunk">
+          <div class="print-title-center">
+            <h2>${escapeHtml(session.settings.reportTitle)} ${
+              chunks.length > 1 ? `(Phần ${pageIdx + 1}/${chunks.length})` : ''
+            }</h2>
+            ${
+              session.settings.showSubtitle && session.settings.subtitle
+                ? `<div class="print-subtitle-block"><em>${escapeHtml(session.settings.subtitle)}</em></div>`
+                : ''
+            }
+          </div>
+          <table class="print-table">
+            <thead>
+              <tr>
+                <th class="stt-col">STT</th>
+                <th class="label-col" style="width: ${indWidth}px; max-width: ${indWidth}px;">Chỉ tiêu / Kết quả thực hiện</th>
+                ${headerCols}
+              </tr>
+            </thead>
+            <tbody>
+              ${bodyRows}
+            </tbody>
+          </table>
+        </section>`;
+
+        const page2 = `<section class="print-page-chunk">
+          <div class="print-title-center">
+            <h2>${escapeHtml(session.settings.reportTitle)} <span style="font-size: 0.85em; font-weight: normal; font-style: italic;">(tiếp theo)</span></h2>
+          </div>
+          <table class="print-table">
+            <thead>
+              <tr>
+                <th class="stt-col">STT</th>
+                <th class="label-col" style="width: ${indWidth}px; max-width: ${indWidth}px;">Chỉ tiêu / Kết quả thực hiện</th>
+                ${headerCols}
+              </tr>
+            </thead>
+            <tbody>
+              ${uncompletedSummaryRow}
+            </tbody>
+          </table>
+          ${appendixProjectsHtml}
+        </section>`;
+
+        return `${page1}\n${page2}`;
+      }
 
       return `<section class="print-page-chunk">
         <div class="print-title-center">

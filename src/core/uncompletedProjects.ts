@@ -315,7 +315,9 @@ export function getUncompletedProjectsForSession(params: {
           )}" title="Sửa dự án này">✎</button>
         </div>`;
       });
-      projectListHtmlByLocalityId[loc.id] = `<div class="uncompleted-proj-cell-list">${htmlItems.join('')}</div>`;
+      const projFontPt = session.settings.uncompletedProjectsFontSizePt;
+      const fontStyle = projFontPt ? ` style="font-size: ${projFontPt}pt;"` : '';
+      projectListHtmlByLocalityId[loc.id] = `<div class="uncompleted-proj-cell-list"${fontStyle}>${htmlItems.join('')}</div>`;
     }
   }
 
