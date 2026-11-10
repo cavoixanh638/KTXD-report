@@ -21,6 +21,7 @@ import {
   formatIsoDate,
 } from '../src/core/sessions';
 import { evaluateSessionReport } from '../src/core/calculationTrace';
+import { saveWorkspacePersistent, loadWorkspacePersistent } from '../src/core/storage';
 import { searchLocalities } from '../src/core/localities';
 import { generatePrintableReportHtml } from '../src/export/print';
 import { exportSessionReportToXlsxBytes } from '../src/export/xlsx';
@@ -1249,5 +1250,57 @@ describe('KTXH Offline – A4 Report Studio & WYSIWYG Architecture Suite', () =>
     });
     const ktCell = evalV1NoAdj.rows.find((r) => r.indicator.id === 'DISB_PLAN')!.cellsByLocalityId[kienThuyLoc.id];
     expect(ktCell.adjustmentNote).toBeNull();
+  });
+
+  it('16. Storage fallback resolves promptly if indexedDB.open hangs on file:// and preserves compact sessions', async () => {
+    const origIndexedDb = (globalThis as Record<string, unknown>).indexedDB;
+    const origLocalStorage = (globalThis as Record<string, unknown>).localStorage;
+    const memStore = new Map<string, string>();
+    // Simulate a hanging indexedDB.open (never fires onsuccess/onerror/onblocked) + localStorage throwing Quota on huge full JSON
+    (globalThis as Record<string, unknown>).indexedDB = {
+      open: () => ({} as IDBOpenDBRequest),
+    };
+    (globalThis as Record<string, unknown>).localStorage = {
+      getItem: (k: string) => memStore.get(k) ?? null,
+      setItem: (k: string, v: string) => {
+        if (k === 'KTXH_OFFLINE_WORKSPACE_CACHE_V2_2' && v.length > 500) {
+          throw new Error('QuotaExceededError');
+        }
+        memStore.set(k, v);
+      },
+      removeItem: (k: string) => {
+        memStore.delete(k);
+      },
+    };
+
+    try {
+      const ws = createEmptyWorkspace('Test Fallback');
+      registerDatasetInWorkspace(ws, disbDataset, baselineLocalities);
+      const sess = createReportSession(ws, { name: 'Phiên lưu compact' });
+      const locId = baselineLocalities[0].id;
+      setSessionLocalities(ws, sess.id, [locId]);
+
+      const t0 = Date.now();
+      await saveWorkspacePersistent(ws);
+      const loaded = await loadWorkspacePersistent();
+      const elapsed = Date.now() - t0;
+
+      expect(elapsed).toBeLessThan(2500);
+      expect(loaded).not.toBeNull();
+      expect(loaded!.sessions).toHaveLength(1);
+      expect(loaded!.sessions[0].name).toBe('Phiên lưu compact');
+      expect(loaded!.sessions[0].selectedLocalityIds).toEqual([locId]);
+    } finally {
+      if (origIndexedDb === undefined) {
+        delete (globalThis as Record<string, unknown>).indexedDB;
+      } else {
+        (globalThis as Record<string, unknown>).indexedDB = origIndexedDb;
+      }
+      if (origLocalStorage === undefined) {
+        delete (globalThis as Record<string, unknown>).localStorage;
+      } else {
+        (globalThis as Record<string, unknown>).localStorage = origLocalStorage;
+      }
+    }
   });
 });

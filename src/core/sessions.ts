@@ -195,6 +195,7 @@ export function migrateLegacySessionLabels(workspace: Workspace): void {
   };
 
   for (const s of workspace.sessions) {
+    if (!s || !s.settings) continue;
     if (!Array.isArray(s.templateRows)) continue;
     for (const r of s.templateRows) {
       if (r.customLabel && legacyToNewMap[r.customLabel]) {

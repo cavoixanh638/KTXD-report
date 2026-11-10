@@ -128,12 +128,22 @@ export class KtxhOfflineApp {
   }
 
   private async initWorkspace(): Promise<void> {
-    const loaded = await loadWorkspacePersistent();
-    if (loaded && loaded.formatVersion === 2 && Array.isArray(loaded.sessions)) {
-      this.workspace = loaded;
+    try {
+      const loaded = await Promise.race([
+        loadWorkspacePersistent(),
+        new Promise<null>((resolve) => setTimeout(() => resolve(null), 1500)),
+      ]);
+      if (loaded && loaded.formatVersion === 2 && Array.isArray(loaded.sessions)) {
+        this.workspace = loaded;
+      }
+      migrateLegacySessionLabels(this.workspace);
+      this.ensureInitialDatasetsAndEmptySession();
+    } catch (err) {
+      this.workspace = createEmptyWorkspace('Hồ sơ Báo cáo KTXH Offline (MASTER V2.2)');
+      this.ensureInitialDatasetsAndEmptySession();
+      this.statusBannerMessage = `Khởi tạo lại phiên mới an toàn (dữ liệu cache cũ lỗi: ${(err as Error).message}).`;
+      this.statusBannerType = 'warning';
     }
-    migrateLegacySessionLabels(this.workspace);
-    this.ensureInitialDatasetsAndEmptySession();
     this.lastSavedTimestamp = new Date().toLocaleTimeString('vi-VN');
     this.render();
   }
@@ -171,15 +181,22 @@ export class KtxhOfflineApp {
       );
       registerDatasetInWorkspace(this.workspace, gpmbDs);
 
+      const validIds = new Set(this.workspace.datasets.map((d) => d.id));
       for (const s of this.workspace.sessions) {
-        if (!s.dataBindings.DISB) s.dataBindings.DISB = disbDs.id;
-        if (!s.dataBindings.REV) s.dataBindings.REV = revDs.id;
-        if (!s.dataBindings.GPMB) s.dataBindings.GPMB = gpmbDs.id;
+        if (!s.dataBindings) s.dataBindings = {};
+        if (!s.dataBindings.DISB || !validIds.has(s.dataBindings.DISB)) s.dataBindings.DISB = disbDs.id;
+        if (!s.dataBindings.REV || !validIds.has(s.dataBindings.REV)) s.dataBindings.REV = revDs.id;
+        if (!s.dataBindings.GPMB || !validIds.has(s.dataBindings.GPMB)) s.dataBindings.GPMB = gpmbDs.id;
       }
     }
 
     if (this.workspace.sessions.length === 0) {
       createReportSession(this.workspace, { name: 'Báo cáo KTXH phiên mới' });
+    } else if (
+      !this.workspace.activeSessionId ||
+      !this.workspace.sessions.some((s) => s.id === this.workspace.activeSessionId)
+    ) {
+      this.workspace.activeSessionId = this.workspace.sessions[0].id;
     }
   }
 
@@ -2983,6 +3000,5 @@ if (typeof window !== 'undefined') {
   window.addEventListener('DOMContentLoaded', () => {
     const app = new KtxhOfflineApp();
     window.__KTXH_APP__ = app;
-    app.render();
   });
 }
