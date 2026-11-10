@@ -284,8 +284,8 @@ export function getUncompletedProjectsForSession(params: {
     }
 
     if (uncompleted === 0) {
-      // All projects completed: e.g. "Hoàn thành 4/4" or "Hoàn thành 1/1"
-      summaryTextByLocalityId[loc.id] = `Hoàn thành ${total}/${total}`;
+      // All projects completed: e.g. "Hoàn thành 4/4 dự án" or "Hoàn thành 1/1 dự án"
+      summaryTextByLocalityId[loc.id] = `Hoàn thành ${total}/${total} dự án`;
       projectListTextByLocalityId[loc.id] = '-';
       projectListHtmlByLocalityId[loc.id] = '<div class="text-muted" style="text-align: center;">-</div>';
     } else {

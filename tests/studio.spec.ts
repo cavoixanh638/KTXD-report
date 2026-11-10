@@ -815,9 +815,9 @@ describe('KTXH Offline – A4 Report Studio & WYSIWYG Architecture Suite', () =>
     expect(uncompletedRes.projectsByLocalityId[hopTien.id]).toHaveLength(1);
     expect(uncompletedRes.summaryTextByLocalityId[hopTien.id]).toBe('1/3 dự án');
 
-    // An Phú has 1 project that is 100% completed -> 0 uncompleted -> "Hoàn thành 1/1"
+    // An Phú has 1 project that is 100% completed -> 0 uncompleted -> "Hoàn thành 1/1 dự án"
     expect(uncompletedRes.projectsByLocalityId[anPhu.id]).toHaveLength(0);
-    expect(uncompletedRes.summaryTextByLocalityId[anPhu.id]).toBe('Hoàn thành 1/1');
+    expect(uncompletedRes.summaryTextByLocalityId[anPhu.id]).toBe('Hoàn thành 1/1 dự án');
 
     // Total uncompleted projects: 4 + 2 + 1 = 7 projects
     expect(uncompletedRes.projects).toHaveLength(7);

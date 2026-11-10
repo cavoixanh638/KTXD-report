@@ -80,7 +80,7 @@
       - Cỡ chữ phần chi tiết dự án (bộ nút `[-A]` / `[+A]` và thanh trượt cỡ chữ trong form Cài đặt tiêu đề) áp dụng đồng bộ cho cả dòng 8 và dòng 9.
       - Khi bật tùy chọn tách trang (`Tách riêng từ dòng 8 sang trang khác`), cả dòng 8 (kèm dòng con) và dòng 9 cùng được chuyển sang Trang 2 gọn gàng, vừa khít khổ A4 ngang.
       - Đồng bộ hiển thị 100% trên Web Studio, bản in A4 (`window.print()`) và tệp xuất Excel (Sheet 1).
-  29. **Hiển thị tỷ lệ tổng số dự án dòng 8:** Bổ sung hiển thị `X/Y dự án` (ví dụ: `2/4 dự án`, `4/4 dự án`, hoặc `Hoàn thành 1/1` khi 100% dự án đã hoàn thành).
+  29. **Hiển thị tỷ lệ tổng số dự án dòng 8:** Bổ sung hiển thị `X/Y dự án` (ví dụ: `2/4 dự án`, `4/4 dự án`, hoặc `Hoàn thành 1/1 dự án` khi 100% dự án đã hoàn thành).
   30. **Hạn hoàn thành chi tiết đến tháng:** Chuẩn hóa toàn bộ thời hạn hoàn thành của các dự án GPMB và NQ 11 chi tiết đến tháng (ví dụ: `Hạn tháng 11/2026`, chuyển đổi từ "Trong năm 2026" hoặc ngày cụ thể).
   31. **Tùy chỉnh độ rộng cột Chỉ tiêu & Tự động chia đều cột xã:** Cho phép tùy chỉnh chiều rộng cột `Chỉ tiêu / Kết quả thực hiện` (mặc định 240px, có thể tăng/giảm từ 160px–600px). Chiều rộng cột STT giữ nguyên (30px), phần chiều rộng thừa hoặc thiếu sẽ tự động phân bổ đều về các cột của các xã/phường.
   32. **Căn giữa tiêu đề báo cáo:** Khi tùy chọn ẩn dòng chữ nhỏ in nghiêng dưới tiêu đề, hệ thống tự động ẩn hoàn toàn phần ghi chú và căn giữa tuyệt đối tiêu đề báo cáo chính.
