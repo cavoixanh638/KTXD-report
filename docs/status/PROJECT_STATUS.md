@@ -73,6 +73,17 @@
   25. **Loại bỏ hiển thị số trang:** Đã gỡ bỏ toàn bộ dòng chữ "Trang 1 / 1" ở cuối báo cáo trong cả giao diện Document Studio lẫn bản in theo yêu cầu.
   26. **Bộ đọc tự động GPMB Bảng phẳng CSDL (`GPMB_FLAT`):** Hỗ trợ nhận diện và nạp trực tiếp cả tệp `.xlsx` và `.csv` dạng bảng phẳng (flat table) có cột định danh `Phường xã`, tự động nhận dạng các cột diện tích (`Tổng DT GPMB`, `DT đã thu hồi`), tiền phân bổ và tỷ lệ để gom nhóm theo địa bàn và tính toán đúng công thức `SUM(I)/SUM(D)`.
   27. **Điều chỉnh ngày chốt số liệu & Tự động đồng bộ báo cáo:** Cho phép người dùng chỉnh sửa trực tiếp ngày chốt của cả 3 nguồn (DISB, REV, GPMB) trong thẻ dữ liệu nguồn; hệ thống tự động cập nhật ngày chốt vào các tiêu đề chỉ tiêu tương ứng trong bảng báo cáo A4, bản in và bản xuất Excel (`(đến ngày DD/MM/YYYY)`).
+  28. **Bổ sung Dòng 9 — Dự án theo NQ 11 có khó khăn, vướng mắc:**
+      - Thêm dòng chính STT 9: tiêu đề mặc định **"Dự án theo NQ 11 trên địa bàn xã có khó khăn, vướng mắc"** (có nút ✎ để người dùng chủ động đổi tên dòng và nút `+ Thêm` toàn cục).
+      - Mô hình nhập liệu và hiển thị theo mẫu dòng 8: ô tương ứng mỗi địa phương hiển thị danh sách dự án với 3 thông tin quan trọng `Tên dự án - Nội dung khó khăn, vướng mắc / Tiến độ - Hạn hoàn thành` (chi tiết đến tháng, ví dụ `Hạn tháng 11/2026`). Nếu địa phương chưa có dự án NQ 11, hiển thị dấu `-` cùng nút `+ Thêm` nhanh tiện lợi.
+      - Có hộp thoại popup thêm mới và chỉnh sửa/xóa dự án NQ 11 linh hoạt.
+      - Cỡ chữ phần chi tiết dự án (bộ nút `[-A]` / `[+A]` và thanh trượt cỡ chữ trong form Cài đặt tiêu đề) áp dụng đồng bộ cho cả dòng 8 và dòng 9.
+      - Khi bật tùy chọn tách trang (`Tách riêng từ dòng 8 sang trang khác`), cả dòng 8 (kèm dòng con) và dòng 9 cùng được chuyển sang Trang 2 gọn gàng, vừa khít khổ A4 ngang.
+      - Đồng bộ hiển thị 100% trên Web Studio, bản in A4 (`window.print()`) và tệp xuất Excel (Sheet 1).
+  29. **Hiển thị tỷ lệ tổng số dự án dòng 8:** Bổ sung hiển thị `X/Y dự án` (ví dụ: `2/4 dự án`, `4/4 dự án`, hoặc `Hoàn thành 1/1` khi 100% dự án đã hoàn thành).
+  30. **Hạn hoàn thành chi tiết đến tháng:** Chuẩn hóa toàn bộ thời hạn hoàn thành của các dự án GPMB và NQ 11 chi tiết đến tháng (ví dụ: `Hạn tháng 11/2026`, chuyển đổi từ "Trong năm 2026" hoặc ngày cụ thể).
+  31. **Tùy chỉnh độ rộng cột Chỉ tiêu & Tự động chia đều cột xã:** Cho phép tùy chỉnh chiều rộng cột `Chỉ tiêu / Kết quả thực hiện` (mặc định 240px, có thể tăng/giảm từ 160px–600px). Chiều rộng cột STT giữ nguyên (30px), phần chiều rộng thừa hoặc thiếu sẽ tự động phân bổ đều về các cột của các xã/phường.
+  32. **Căn giữa tiêu đề báo cáo:** Khi tùy chọn ẩn dòng chữ nhỏ in nghiêng dưới tiêu đề, hệ thống tự động ẩn hoàn toàn phần ghi chú và căn giữa tuyệt đối tiêu đề báo cáo chính.
 - **Bằng chứng JSON xuất tự động từ runtime:** [`docs/data_checks/PH1_ACCEPTANCE_EVIDENCE_20261109.json`](../data_checks/PH1_ACCEPTANCE_EVIDENCE_20261109.json) (chứa bảng đối chiếu 14 dòng cho Phiên A 5 xã và Phiên B 7 phường cùng trạng thái từng mã `T01`–`T66`).
 - **Minh chứng Microsoft Edge Headless Offline (`file://`):**
   - [`docs/evidence/EDGE_HEADLESS_DOM_DUMP.html`](../evidence/EDGE_HEADLESS_DOM_DUMP.html) (2.04 MB DOM dump xác nhận khởi chạy JS & Document Studio hoàn chỉnh).

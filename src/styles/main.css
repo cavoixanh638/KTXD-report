@@ -3141,4 +3141,35 @@ code {
   border-radius: 6px;
 }
 
+/* NQ 11 Row styling */
+.doc-row-nq11 td {
+  border-top: 1px solid #94a3b8 !important;
+}
+
+.nq11-empty-cell {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  min-height: 20px;
+}
+
+.btn-action-add-nq11-loc {
+  font-size: 10px;
+  padding: 1px 5px;
+  background: #f1f5f9;
+  border: 1px dashed #94a3b8;
+  color: #475569;
+  border-radius: 3px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.btn-action-add-nq11-loc:hover {
+  background: #e2e8f0;
+  border-color: #64748b;
+  color: #0f172a;
+}
+
+
 

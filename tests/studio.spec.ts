@@ -30,7 +30,10 @@ import {
   renderReportCellValueHtml,
   renderUncompletedProjectsTableHtml,
 } from '../src/ui/reportStudio';
-import { getUncompletedProjectsForSession } from '../src/core/uncompletedProjects';
+import {
+  getUncompletedProjectsForSession,
+  getNq11ProjectsForSession,
+} from '../src/core/uncompletedProjects';
 import {
   renderCellTracePopoverHtml,
   formatMax4Decimals,
@@ -975,5 +978,77 @@ describe('KTXH Offline – A4 Report Studio & WYSIWYG Architecture Suite', () =>
     // Print renders 2 page sections
     expect((printHtmlSplit.match(/class="print-page-chunk"/g) || []).length).toBe(2);
     expect(printHtmlSplit).toContain('(tiếp theo)');
+
+    // 9. Test Row 9: Dự án theo NQ 11 trên địa bàn xã có khó khăn, vướng mắc
+    // Default presence of Row 9
+    expect(studioHtmlSplit).toContain('doc-row-nq11');
+    expect(studioHtmlSplit).toContain('Dự án theo NQ 11 trên địa bàn xã có khó khăn, vướng mắc');
+    expect(studioHtmlSplit).toContain('btn-add-nq11-global');
+    expect(studioHtmlSplit).toContain('btn-action-add-nq11-loc');
+
+    // Add user-inputted NQ 11 project to Nam Sách
+    session.settings.nq11Projects = [
+      {
+        id: 'nq11-proj-1',
+        localityId: namSach.id,
+        localityName: namSach.displayName,
+        projectName: 'Đường gom dân sinh ven kênh NQ11',
+        issueContent: 'Vướng GPMB 5 hộ dân chưa nhận tiền đền bù',
+        deadline: 'Hạn tháng 12/2026',
+      },
+    ];
+
+    const evalWithNq11 = evaluateSessionReport({
+      session,
+      baselineLocalities,
+      datasets: { DISB: disbDataset, REV: revDataset, GPMB: gpmbDataset },
+    });
+    const studioHtmlNq11 = renderA4DocumentStudioHtml({
+      evaluated: evalWithNq11,
+      baselineLocalities,
+      datasets: { DISB: disbDataset, REV: revDataset, GPMB: gpmbDataset },
+    });
+
+    // Verify NQ 11 project rendering in HTML with font size (9.5pt) applied
+    expect(studioHtmlNq11).toContain('Đường gom dân sinh ven kênh NQ11');
+    expect(studioHtmlNq11).toContain('Vướng GPMB 5 hộ dân chưa nhận tiền đền bù');
+    expect(studioHtmlNq11).toContain('Hạn tháng 12/2026');
+    expect(studioHtmlNq11).toContain('font-size: 9.5pt');
+    expect(studioHtmlNq11).toContain('data-nq11-id="nq11-proj-1"');
+
+    // Verify NQ 11 presence in Print HTML
+    const printHtmlNq11 = generatePrintableReportHtml({
+      evaluated: evalWithNq11,
+      baselineLocalities,
+      datasets: { DISB: disbDataset, REV: revDataset, GPMB: gpmbDataset },
+      includeAppendix: false,
+    });
+    expect(printHtmlNq11).toContain('Dự án theo NQ 11 trên địa bàn xã có khó khăn, vướng mắc');
+    expect(printHtmlNq11).toContain('Đường gom dân sinh ven kênh NQ11');
+    expect(printHtmlNq11).toContain('Vướng GPMB 5 hộ dân chưa nhận tiền đền bù');
+
+    // Verify NQ 11 presence in XLSX export
+    const xlsxBytes = exportSessionReportToXlsxBytes({
+      session,
+      evaluated: evalWithNq11,
+      baselineLocalities,
+      datasets: { DISB: disbDataset, REV: revDataset, GPMB: gpmbDataset },
+    });
+    expect(xlsxBytes.length).toBeGreaterThan(1000);
+
+    // Verify hiding Row 9 when showNq11Row = false
+    session.settings.showNq11Row = false;
+    const evalWithoutNq11 = evaluateSessionReport({
+      session,
+      baselineLocalities,
+      datasets: { DISB: disbDataset, REV: revDataset, GPMB: gpmbDataset },
+    });
+    const studioHtmlNoNq11 = renderA4DocumentStudioHtml({
+      evaluated: evalWithoutNq11,
+      baselineLocalities,
+      datasets: { DISB: disbDataset, REV: revDataset, GPMB: gpmbDataset },
+    });
+    expect(studioHtmlNoNq11).not.toContain('doc-row-nq11');
+    expect(studioHtmlNoNq11).not.toContain('Dự án theo NQ 11 trên địa bàn xã có khó khăn, vướng mắc');
   });
 });

@@ -432,6 +432,18 @@ export interface ReportSession {
       isCustom?: boolean;
       isHidden?: boolean;
     }>;
+    showNq11Row?: boolean;
+    nq11RowCustomLabel?: string;
+    nq11Projects?: Array<{
+      id: string;
+      localityId: string;
+      localityName: string;
+      projectStt?: number | string;
+      projectName: string;
+      issueContent?: string;
+      deadline?: string;
+      isHidden?: boolean;
+    }>;
   };
   overrides: ManualOverride[];
   templateId?: string;

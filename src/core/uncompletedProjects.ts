@@ -38,6 +38,15 @@ export const GPMB_NO_RECORD_COMMUNES = [
   'Đặc khu Bạch Long Vĩ',
 ];
 
+function escapeXml(str: string): string {
+  return String(str ?? '')
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
+
 export function formatProjectDeadline(raw?: string | null): string {
   if (!raw || !raw.trim()) {
     return 'Hạn tháng 11/2026';
@@ -236,13 +245,6 @@ export function getUncompletedProjectsForSession(params: {
   const projectListTextByLocalityId: Record<string, string> = {};
   const projectListHtmlByLocalityId: Record<string, string> = {};
 
-  const escapeXml = (str: string) =>
-    String(str ?? '')
-      .replace(/&/g, '&amp;')
-      .replace(/</g, '&lt;')
-      .replace(/>/g, '&gt;')
-      .replace(/"/g, '&quot;')
-      .replace(/'/g, '&#39;');
 
   for (const loc of selectedLocalities) {
     // Check manual override for this locality
@@ -329,5 +331,88 @@ export function getUncompletedProjectsForSession(params: {
     projectListTextByLocalityId,
     projectListHtmlByLocalityId,
     totalUncompletedCount: projects.length,
+  };
+}
+
+export interface Nq11ProjectResult {
+  projectsByLocalityId: Record<string, Array<{
+    id: string;
+    localityId: string;
+    localityName: string;
+    projectName: string;
+    issueContent?: string;
+    deadline?: string;
+  }>>;
+  textByLocalityId: Record<string, string>;
+  htmlByLocalityId: Record<string, string>;
+}
+
+export function getNq11ProjectsForSession(params: {
+  session: ReportSession;
+  selectedLocalities: Locality[];
+}): Nq11ProjectResult {
+  const { session, selectedLocalities } = params;
+  const nq11List = session.settings.nq11Projects || [];
+  const projFontPt = session.settings.uncompletedProjectsFontSizePt;
+  const fontStyle = projFontPt ? ` style="font-size: ${projFontPt}pt;"` : '';
+
+  const projectsByLocalityId: Record<string, any[]> = {};
+  const textByLocalityId: Record<string, string> = {};
+  const htmlByLocalityId: Record<string, string> = {};
+
+  for (const loc of selectedLocalities) {
+    const locProjects = nq11List.filter((p) => p.localityId === loc.id && !p.isHidden);
+    projectsByLocalityId[loc.id] = locProjects;
+
+    if (locProjects.length === 0) {
+      textByLocalityId[loc.id] = '-';
+      htmlByLocalityId[loc.id] = `<div class="nq11-empty-cell" style="display:flex; align-items:center; justify-content:center; gap:6px;">
+        <span class="text-muted">-</span>
+        <button type="button" class="btn-action-add-nq11-loc inline-item-edit-btn no-print" data-locality-id="${escapeXml(
+          loc.id
+        )}" title="Thêm dự án NQ 11 có khó khăn vướng mắc cho ${escapeXml(loc.displayName)}">+ Thêm</button>
+      </div>`;
+    } else {
+      const textLines = locProjects.map((p, idx) => {
+        const prefix = locProjects.length > 1 ? `${idx + 1}. ` : '';
+        const issue = p.issueContent && p.issueContent.trim() ? p.issueContent.trim() : 'Đang có khó khăn, vướng mắc';
+        const dl = formatProjectDeadline(p.deadline);
+        return `${prefix}${p.projectName} - ${issue} - ${dl}`;
+      });
+      textByLocalityId[loc.id] = textLines.join('\n');
+
+      const htmlItems = locProjects.map((p, idx) => {
+        const prefix = locProjects.length > 1 ? `<span class="proj-idx" style="font-weight:600;">${idx + 1}.</span> ` : '';
+        const issue = p.issueContent && p.issueContent.trim() ? p.issueContent.trim() : 'Đang có khó khăn, vướng mắc';
+        const dl = formatProjectDeadline(p.deadline);
+        return `<div class="uncompleted-proj-inline-item">
+          <span class="proj-inline-text">${prefix}${escapeXml(
+          p.projectName
+        )} - <strong style="color:#0f172a;">${escapeXml(
+          issue
+        )}</strong> - ${escapeXml(dl)}</span>
+          <button type="button" class="btn-action-edit-nq11 inline-item-edit-btn no-print" data-nq11-id="${escapeXml(
+            p.id
+          )}" title="Sửa dự án này">✎</button>
+        </div>`;
+      });
+
+      htmlByLocalityId[loc.id] = `<div class="uncompleted-proj-cell-list"${fontStyle}>
+        ${htmlItems.join('')}
+        <div class="nq11-add-inline no-print" style="margin-top: 2pt; text-align: right;">
+          <button type="button" class="btn-action-add-nq11-loc inline-item-edit-btn" data-locality-id="${escapeXml(
+            loc.id
+          )}" style="font-size: 9px; padding: 1px 4px; opacity: 0.8;" title="Thêm dự án NQ 11 cho ${escapeXml(
+            loc.displayName
+          )}">+ Thêm</button>
+        </div>
+      </div>`;
+    }
+  }
+
+  return {
+    projectsByLocalityId,
+    textByLocalityId,
+    htmlByLocalityId,
   };
 }

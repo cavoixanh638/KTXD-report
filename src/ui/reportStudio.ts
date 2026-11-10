@@ -4,6 +4,7 @@ import { Dataset, Locality, ReportSession } from '../core/types';
 import { escapeHtmlUi } from './cellInspector';
 import {
   getUncompletedProjectsForSession,
+  getNq11ProjectsForSession,
   UncompletedProject,
 } from '../core/uncompletedProjects';
 
@@ -514,6 +515,42 @@ function renderHorizontalPages(params: {
         uncompletedSummaryRowHtml = `${row8Html}\n${subRowHtml}`;
       }
 
+      let nq11RowHtml = '';
+      if (session.settings.showNq11Row !== false) {
+        const nq11Res = getNq11ProjectsForSession({
+          session,
+          selectedLocalities: chunk,
+        });
+
+        const projFontPt = session.settings.uncompletedProjectsFontSizePt;
+        const fontStyle = projFontPt ? ` style="font-size: ${projFontPt}pt;"` : '';
+
+        const nq11CellsHtml = chunk
+          .map((loc) => {
+            const cellHtml = nq11Res.htmlByLocalityId[loc.id] || '<span class="text-muted">-</span>';
+            return `<td class="doc-td doc-cell doc-cell-nq11-list state-VALUE quality-DIRECT_SOURCE"${fontStyle} style="text-align: left; vertical-align: top; padding: 2pt 3.5pt; ${
+              projFontPt ? `font-size:${projFontPt}pt;` : ''
+            }">
+              ${cellHtml}
+            </td>`;
+          })
+          .join('');
+
+        nq11RowHtml = `<tr class="doc-row doc-row-primary doc-row-nq11" data-row-type="nq11">
+          <td class="doc-td doc-td-stt">9</td>
+          <td class="doc-td doc-td-indicator" style="width: ${indWidth}px; max-width: ${indWidth}px;">
+            <div class="indicator-name-group">
+              <span class="indicator-name-text" style="font-weight: 600;">${escapeHtmlUi(
+                session.settings.nq11RowCustomLabel || 'Dự án theo NQ 11 trên địa bàn xã có khó khăn, vướng mắc'
+              )}</span>
+              <button type="button" class="btn-inline-edit-ind no-print" id="btn-edit-nq11-label" title="Đổi tên dòng 9">✎</button>
+              <button type="button" class="btn btn-xs btn-outline-primary no-print btn-add-nq11-global" style="margin-left: 6px; padding: 1px 6px; font-size: 10px; height: 18px; line-height: 16px;" title="Thêm dự án NQ 11">+ Thêm</button>
+            </div>
+          </td>
+          ${nq11CellsHtml}
+        </tr>`;
+      }
+
       const appendixProjectsHtml =
         pageIdx === chunks.length - 1 &&
         datasets?.GPMB &&
@@ -528,8 +565,7 @@ function renderHorizontalPages(params: {
 
       const isSplit = Boolean(
         session.settings.splitRow8ToNewPage &&
-          session.settings.showUncompletedSummaryRow !== false &&
-          uncompletedSummaryRowHtml
+          (uncompletedSummaryRowHtml || nq11RowHtml)
       );
 
       if (isSplit) {
@@ -576,6 +612,7 @@ function renderHorizontalPages(params: {
                 </thead>
                 <tbody>
                   ${uncompletedSummaryRowHtml}
+                  ${nq11RowHtml}
                 </tbody>
               </table>
             </div>
@@ -609,6 +646,7 @@ function renderHorizontalPages(params: {
               <tbody>
                 ${bodyRowsHtml}
                 ${uncompletedSummaryRowHtml}
+                ${nq11RowHtml}
               </tbody>
             </table>
           </div>

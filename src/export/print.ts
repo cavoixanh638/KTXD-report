@@ -7,7 +7,10 @@ import {
   renderReportCellValueHtml,
   renderUncompletedProjectsTableHtml,
 } from '../ui/reportStudio';
-import { getUncompletedProjectsForSession } from '../core/uncompletedProjects';
+import {
+  getUncompletedProjectsForSession,
+  getNq11ProjectsForSession,
+} from '../core/uncompletedProjects';
 
 function escapeHtml(str: string): string {
   return String(str ?? '')
@@ -134,6 +137,31 @@ export function generatePrintableReportHtml(params: {
         uncompletedSummaryRow = `${row8}\n${subRow}`;
       }
 
+      let nq11PrintRow = '';
+      if (session.settings.showNq11Row !== false) {
+        const nq11Res = getNq11ProjectsForSession({
+          session,
+          selectedLocalities: chunk,
+        });
+        const projFontPt = session.settings.uncompletedProjectsFontSizePt || 8;
+        const nq11Cells = chunk
+          .map((loc) => {
+            const listHtml =
+              nq11Res.htmlByLocalityId[loc.id] ||
+              '<span class="text-muted" style="font-style:italic;">-</span>';
+            return `<td class="print-cell" style="text-align: left; vertical-align: top; padding: 2pt 3.5pt; font-size: ${projFontPt}pt; line-height: 1.15;">${listHtml}</td>`;
+          })
+          .join('');
+
+        nq11PrintRow = `<tr class="doc-row-primary doc-row-nq11">
+          <td class="stt-col">9</td>
+          <td class="label-col" style="width: ${indWidth}px; max-width: ${indWidth}px; font-weight: 600;">${escapeHtml(
+            session.settings.nq11RowCustomLabel || 'Dự án theo NQ 11 trên địa bàn xã có khó khăn, vướng mắc'
+          )}</td>
+          ${nq11Cells}
+        </tr>`;
+      }
+
       const appendixProjectsHtml =
         pageIdx === chunks.length - 1 &&
         datasets?.GPMB &&
@@ -146,7 +174,7 @@ export function generatePrintableReportHtml(params: {
             })
           : '';
 
-      if (session.settings.splitRow8ToNewPage && uncompletedSummaryRow) {
+      if (session.settings.splitRow8ToNewPage && (uncompletedSummaryRow || nq11PrintRow)) {
         const page1 = `<section class="print-page-chunk">
           <div class="print-title-center">
             <h2>${escapeHtml(session.settings.reportTitle)} ${
@@ -186,6 +214,7 @@ export function generatePrintableReportHtml(params: {
             </thead>
             <tbody>
               ${uncompletedSummaryRow}
+              ${nq11PrintRow}
             </tbody>
           </table>
           ${appendixProjectsHtml}
@@ -216,6 +245,7 @@ export function generatePrintableReportHtml(params: {
           <tbody>
             ${bodyRows}
             ${uncompletedSummaryRow}
+            ${nq11PrintRow}
           </tbody>
         </table>
         ${appendixProjectsHtml}

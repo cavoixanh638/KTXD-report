@@ -116,6 +116,11 @@ export class KtxhOfflineApp {
   public editingProjectId: string | null = null;
   public isAddingProject = false;
 
+  // NQ 11 Projects editor state
+  public editingNq11Id: string | null = null;
+  public isAddingNq11 = false;
+  public targetNq11LocalityId: string | null = null;
+
   constructor() {
     this.workspace = createEmptyWorkspace('Hồ sơ Báo cáo KTXH Offline (MASTER V2.2)');
     this.initWorkspace();
@@ -434,6 +439,7 @@ export class KtxhOfflineApp {
     }
 
     const projectModalHtml = this.renderProjectModal(activeSession, datasets);
+    const nq11ModalHtml = this.renderNq11Modal(activeSession);
 
     root.innerHTML = `
       <div class="studio-app-shell">
@@ -457,6 +463,7 @@ export class KtxhOfflineApp {
       </div>
       ${popoverHtml}
       ${projectModalHtml}
+      ${nq11ModalHtml}
       <div id="print-mount-area" class="print-only">
         ${
           evaluatedReport
@@ -874,6 +881,19 @@ export class KtxhOfflineApp {
         </label>
         <small class="text-muted" style="font-size: 11px; display: block; margin-top: 2px;">
           Trang 1: Bảng chỉ tiêu 1–7; Trang 2: Dòng 8 và danh sách dự án chi tiết (rất phù hợp khi chỉnh cỡ chữ to).
+        </small>
+      </div>
+
+      <div class="form-group" style="border-top: 1px dashed var(--border-color); padding-top: 12px; margin-top: 12px;">
+        <label style="font-weight: 600;">Dự án theo NQ 11 có khó khăn, vướng mắc:</label>
+        <label class="checkbox-label" style="margin-top:6px;">
+          <input type="checkbox" id="setting-show-nq11-row" ${
+            s.showNq11Row !== false ? 'checked' : ''
+          } />
+          Hiện dòng "Dự án theo NQ 11 trên địa bàn xã có khó khăn, vướng mắc" (STT 9)
+        </label>
+        <small class="text-muted" style="font-size: 11px; display: block; margin-top: 2px;">
+          Cỡ chữ dòng 9 tự động áp dụng theo cỡ chữ phần chi tiết dự án (${s.uncompletedProjectsFontSizePt || 8}pt) ở trên.
         </small>
       </div>
 
@@ -1762,6 +1782,110 @@ export class KtxhOfflineApp {
     </div>`;
   }
 
+  private renderNq11Modal(session: ReportSession | undefined): string {
+    if (!session || (!this.editingNq11Id && !this.isAddingNq11)) {
+      return '';
+    }
+
+    const baselineLocalities = this.workspace.localities;
+    const selectedLocalities = baselineLocalities.filter((l) =>
+      session.selectedLocalityIds.includes(l.id)
+    );
+
+    if (this.isAddingNq11) {
+      const locOptionsHtml = selectedLocalities
+        .map(
+          (loc) =>
+            `<option value="${escapeHtmlUi(loc.id)}"${
+              loc.id === this.targetNq11LocalityId ? ' selected' : ''
+            }>${escapeHtmlUi(loc.displayName)}</option>`
+        )
+        .join('');
+
+      return `<div class="proj-modal-backdrop" id="nq11-modal-backdrop">
+        <div class="proj-modal-dialog">
+          <div class="proj-modal-header">
+            <h3 class="proj-modal-title">Thêm dự án theo NQ 11 có khó khăn, vướng mắc</h3>
+            <button type="button" class="proj-modal-close" id="btn-close-nq11-modal">&times;</button>
+          </div>
+          <form id="form-add-nq11">
+            <div class="proj-modal-body">
+              <div class="form-group">
+                <label>Địa phương (xã / phường):</label>
+                <select id="new-nq11-locality" class="form-select" required>
+                  ${locOptionsHtml}
+                </select>
+              </div>
+              <div class="form-group">
+                <label>Tên dự án:</label>
+                <textarea id="new-nq11-name" class="form-input" rows="2" placeholder="Nhập tên dự án theo NQ 11..." required></textarea>
+              </div>
+              <div class="form-group">
+                <label>Nội dung khó khăn, vướng mắc / Tiến độ:</label>
+                <input type="text" id="new-nq11-issue" class="form-input" placeholder="Ví dụ: Vướng mắc giải phóng mặt bằng... / Tỷ lệ hoàn thành..." value="Đang có khó khăn, vướng mắc" required />
+              </div>
+              <div class="form-group">
+                <label>Hạn hoàn thành (chi tiết đến tháng):</label>
+                <input type="text" id="new-nq11-deadline" class="form-input" placeholder="Ví dụ: Hạn tháng 11/2026 hoặc 30/11/2026" value="Hạn tháng 11/2026" required />
+              </div>
+            </div>
+            <div class="proj-modal-footer">
+              <button type="button" class="btn btn-secondary" id="btn-cancel-nq11-modal">Hủy</button>
+              <button type="submit" class="btn btn-primary">Thêm dự án NQ 11</button>
+            </div>
+          </form>
+        </div>
+      </div>`;
+    }
+
+    // Editing existing NQ 11 project
+    const nq11List = session.settings.nq11Projects || [];
+    const proj = nq11List.find((p) => p.id === this.editingNq11Id);
+    if (!proj) {
+      return '';
+    }
+
+    return `<div class="proj-modal-backdrop" id="nq11-modal-backdrop">
+      <div class="proj-modal-dialog">
+        <div class="proj-modal-header">
+          <h3 class="proj-modal-title">Chỉnh sửa dự án theo NQ 11</h3>
+          <button type="button" class="proj-modal-close" id="btn-close-nq11-modal">&times;</button>
+        </div>
+        <form id="form-edit-nq11" data-nq11-id="${escapeHtmlUi(proj.id)}">
+          <div class="proj-modal-body">
+            <div class="form-group">
+              <label>Địa phương:</label>
+              <input type="text" class="form-input" value="${escapeHtmlUi(proj.localityName)}" disabled style="background:#f1f5f9; cursor:not-allowed;" />
+            </div>
+            <div class="form-group">
+              <label>Tên dự án:</label>
+              <textarea id="edit-nq11-name" class="form-input" rows="2" required>${escapeHtmlUi(proj.projectName)}</textarea>
+            </div>
+            <div class="form-group">
+              <label>Nội dung khó khăn, vướng mắc / Tiến độ:</label>
+              <input type="text" id="edit-nq11-issue" class="form-input" value="${escapeHtmlUi(proj.issueContent || '')}" required />
+            </div>
+            <div class="form-group">
+              <label>Hạn hoàn thành (chi tiết đến tháng):</label>
+              <input type="text" id="edit-nq11-deadline" class="form-input" value="${escapeHtmlUi(proj.deadline || 'Hạn tháng 11/2026')}" required />
+            </div>
+          </div>
+          <div class="proj-modal-footer">
+            <div>
+              <button type="button" class="btn btn-outline-danger btn-sm" id="btn-delete-nq11-project" data-nq11-id="${escapeHtmlUi(
+                proj.id
+              )}" title="Xóa dự án này khỏi danh sách">Xóa dự án này</button>
+            </div>
+            <div style="display:flex; gap:8px;">
+              <button type="button" class="btn btn-secondary" id="btn-cancel-nq11-modal">Hủy</button>
+              <button type="submit" class="btn btn-primary">Lưu thay đổi</button>
+            </div>
+          </div>
+        </form>
+      </div>
+    </div>`;
+  }
+
   private bindDomEvents(
     evaluatedReport: EvaluatedSessionReport | null,
     datasets: {
@@ -1942,6 +2066,7 @@ export class KtxhOfflineApp {
       const indWidthEl = document.getElementById('setting-indicator-col-width') as HTMLInputElement | null;
       const showUncompletedSummaryEl = document.getElementById('setting-show-uncompleted-summary') as HTMLInputElement | null;
       const showUncompletedTableEl = document.getElementById('setting-show-uncompleted-table') as HTMLInputElement | null;
+      const showNq11RowEl = document.getElementById('setting-show-nq11-row') as HTMLInputElement | null;
       const splitRow8El = document.getElementById('setting-split-row8-to-new-page') as HTMLInputElement | null;
       const projFontEl = document.getElementById('setting-proj-font-size') as HTMLInputElement | null;
 
@@ -1959,6 +2084,9 @@ export class KtxhOfflineApp {
       }
       if (showUncompletedTableEl) {
         activeSession.settings.showUncompletedProjectsTable = showUncompletedTableEl.checked;
+      }
+      if (showNq11RowEl) {
+        activeSession.settings.showNq11Row = showNq11RowEl.checked;
       }
       if (splitRow8El) {
         activeSession.settings.splitRow8ToNewPage = splitRow8El.checked;
@@ -2242,6 +2370,171 @@ export class KtxhOfflineApp {
       this.isAddingProject = false;
       this.triggerAutosave();
       this.setStatus(`Đã thêm dự án mới cho ${loc.displayName}.`, 'success');
+      this.render();
+    });
+
+    // NQ 11 Projects toolbar & modal events
+    document.querySelectorAll('.btn-action-add-nq11-loc').forEach((btn) => {
+      btn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        const locId = btn.getAttribute('data-locality-id');
+        this.isAddingNq11 = true;
+        this.targetNq11LocalityId = locId || null;
+        this.editingNq11Id = null;
+        this.render();
+      });
+    });
+
+    document.querySelectorAll('.btn-add-nq11-global').forEach((btn) => {
+      btn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        this.isAddingNq11 = true;
+        this.targetNq11LocalityId = null;
+        this.editingNq11Id = null;
+        this.render();
+      });
+    });
+
+    document.querySelectorAll('.btn-action-edit-nq11').forEach((btn) => {
+      btn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        const nId = btn.getAttribute('data-nq11-id');
+        if (nId) {
+          this.editingNq11Id = nId;
+          this.isAddingNq11 = false;
+          this.render();
+        }
+      });
+    });
+
+    document.getElementById('btn-edit-nq11-label')?.addEventListener('click', (e) => {
+      e.stopPropagation();
+      const activeSession = this.getActiveSession();
+      if (!activeSession) return;
+      const current =
+        activeSession.settings.nq11RowCustomLabel ||
+        'Dự án theo NQ 11 trên địa bàn xã có khó khăn, vướng mắc';
+      const next = window.prompt(
+        'Nhập tên hiển thị dòng 9:',
+        current
+      );
+      if (next !== null && next.trim()) {
+        activeSession.settings.nq11RowCustomLabel = next.trim();
+        this.triggerAutosave();
+        this.render();
+      }
+    });
+
+    const closeNq11Modal = () => {
+      this.editingNq11Id = null;
+      this.isAddingNq11 = false;
+      this.targetNq11LocalityId = null;
+      this.render();
+    };
+
+    document.getElementById('btn-close-nq11-modal')?.addEventListener('click', closeNq11Modal);
+    document.getElementById('btn-cancel-nq11-modal')?.addEventListener('click', closeNq11Modal);
+    document.getElementById('nq11-modal-backdrop')?.addEventListener('click', (e) => {
+      if (e.target === document.getElementById('nq11-modal-backdrop')) {
+        closeNq11Modal();
+      }
+    });
+
+    document.getElementById('btn-delete-nq11-project')?.addEventListener('click', (e) => {
+      e.preventDefault();
+      const activeSession = this.getActiveSession();
+      if (!activeSession) return;
+      const nId = (e.currentTarget as HTMLElement).getAttribute('data-nq11-id');
+      if (nId && activeSession.settings.nq11Projects) {
+        activeSession.settings.nq11Projects = activeSession.settings.nq11Projects.filter(
+          (p) => p.id !== nId
+        );
+        this.editingNq11Id = null;
+        this.triggerAutosave();
+        this.setStatus('Đã xóa dự án NQ 11 thành công.', 'info');
+        this.render();
+      }
+    });
+
+    document.getElementById('form-edit-nq11')?.addEventListener('submit', (e) => {
+      e.preventDefault();
+      const activeSession = this.getActiveSession();
+      if (!activeSession) return;
+
+      const nId = (e.target as HTMLElement).getAttribute('data-nq11-id');
+      if (!nId) return;
+
+      const nameVal = (
+        document.getElementById('edit-nq11-name') as HTMLTextAreaElement | null
+      )?.value.trim();
+      const issueVal = (
+        document.getElementById('edit-nq11-issue') as HTMLInputElement | null
+      )?.value.trim();
+      const deadlineVal = (
+        document.getElementById('edit-nq11-deadline') as HTMLInputElement | null
+      )?.value.trim();
+
+      if (!activeSession.settings.nq11Projects) {
+        activeSession.settings.nq11Projects = [];
+      }
+
+      const item = activeSession.settings.nq11Projects.find((p) => p.id === nId);
+      if (item) {
+        item.projectName = nameVal || 'Dự án NQ 11';
+        item.issueContent = issueVal || 'Đang có khó khăn, vướng mắc';
+        item.deadline = deadlineVal ? formatProjectDeadline(deadlineVal) : 'Hạn tháng 11/2026';
+      }
+
+      this.editingNq11Id = null;
+      this.triggerAutosave();
+      this.setStatus('Đã cập nhật dự án NQ 11 thành công.', 'success');
+      this.render();
+    });
+
+    document.getElementById('form-add-nq11')?.addEventListener('submit', (e) => {
+      e.preventDefault();
+      const activeSession = this.getActiveSession();
+      if (!activeSession) return;
+
+      const locSelect = document.getElementById(
+        'new-nq11-locality'
+      ) as HTMLSelectElement | null;
+      const nameInput = document.getElementById(
+        'new-nq11-name'
+      ) as HTMLTextAreaElement | null;
+      const issueInput = document.getElementById(
+        'new-nq11-issue'
+      ) as HTMLInputElement | null;
+      const deadlineInput = document.getElementById(
+        'new-nq11-deadline'
+      ) as HTMLInputElement | null;
+
+      const locId = locSelect?.value;
+      const loc = this.workspace.localities.find((l) => l.id === locId);
+      if (!locId || !loc) return;
+
+      if (!activeSession.settings.nq11Projects) {
+        activeSession.settings.nq11Projects = [];
+      }
+
+      const newId = `nq11_${Date.now()}_${Math.random()
+        .toString(36)
+        .substring(2, 7)}`;
+      activeSession.settings.nq11Projects.push({
+        id: newId,
+        localityId: loc.id,
+        localityName: loc.displayName,
+        projectName: nameInput?.value.trim() || 'Dự án theo NQ 11',
+        issueContent: issueInput?.value.trim() || 'Đang có khó khăn, vướng mắc',
+        deadline: deadlineInput?.value.trim()
+          ? formatProjectDeadline(deadlineInput.value.trim())
+          : 'Hạn tháng 11/2026',
+      });
+
+      this.isAddingNq11 = false;
+      this.targetNq11LocalityId = null;
+      this.triggerAutosave();
+      this.setStatus(`Đã thêm dự án NQ 11 cho ${loc.displayName}.`, 'success');
       this.render();
     });
 

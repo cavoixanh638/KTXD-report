@@ -5,7 +5,10 @@ import { DEFAULT_INDICATORS } from '../core/indicators';
 import { Dataset, Locality } from '../core/types';
 import { formatReportCellValue } from '../ui/reportStudio';
 import { formatVnDate } from '../core/sessions';
-import { getUncompletedProjectsForSession } from '../core/uncompletedProjects';
+import {
+  getUncompletedProjectsForSession,
+  getNq11ProjectsForSession,
+} from '../core/uncompletedProjects';
 
 function escapeXml(str: string): string {
   return String(str ?? '')
@@ -347,6 +350,32 @@ export function exportSessionReportToXlsxBytes(params: {
       });
     }
     sheet1Rows.push(subRowCells);
+  }
+
+  if (session.settings.showNq11Row !== false) {
+    const nq11Res = getNq11ProjectsForSession({
+      session,
+      selectedLocalities,
+    });
+    const row9Cells: Array<XlsxCellInput | null> = [
+      { type: 's', value: '9', styleIndex: 2 },
+      {
+        type: 's',
+        value:
+          session.settings.nq11RowCustomLabel ||
+          'Dự án theo NQ 11 trên địa bàn xã có khó khăn, vướng mắc',
+        styleIndex: 2,
+      },
+    ];
+    for (const loc of selectedLocalities) {
+      const listText = nq11Res.textByLocalityId[loc.id] || '-';
+      row9Cells.push({
+        type: 's',
+        value: listText,
+        styleIndex: 3,
+      });
+    }
+    sheet1Rows.push(row9Cells);
   }
 
   if (session.settings.showUncompletedProjectsTable !== false && datasets.GPMB) {
