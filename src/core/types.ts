@@ -409,6 +409,7 @@ export interface ReportSession {
     showUncompletedSummaryRow?: boolean;
     showUncompletedProjectsTable?: boolean;
     uncompletedRowCustomLabel?: string;
+    uncompletedProjectsListCustomLabel?: string;
     projectOverrides?: Record<
       string,
       {

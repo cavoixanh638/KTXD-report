@@ -70,9 +70,6 @@ export function renderUncompletedProjectsTableHtml(params: {
   isPrintMode?: boolean;
 }): string {
   const { session, gpmbDataset, baselineLocalities, isPrintMode = false } = params;
-  if (session.settings.showUncompletedProjectsTable === false) {
-    return '';
-  }
 
   const uncompletedRes = getUncompletedProjectsForSession({
     session,
@@ -83,6 +80,18 @@ export function renderUncompletedProjectsTableHtml(params: {
   const { projects } = uncompletedRes;
   if (projects.length === 0) {
     return '';
+  }
+
+  // If hidden by user:
+  if (session.settings.showUncompletedProjectsTable === false) {
+    if (isPrintMode) {
+      return '';
+    }
+    return `<div class="doc-appendix-projects-hidden no-print">
+      <button type="button" class="btn btn-sm btn-outline-primary" id="btn-toggle-projects-table" title="Nhấp để hiện lại bảng danh mục chi tiết các dự án GPMB">
+        <span>👁</span> Hiện bảng chi tiết danh mục dự án GPMB (${projects.length} dự án)
+      </button>
+    </div>`;
   }
 
   const rowsHtml = projects
@@ -127,8 +136,8 @@ export function renderUncompletedProjectsTableHtml(params: {
         <button type="button" class="btn btn-sm btn-outline-primary" id="btn-add-custom-project" title="Thêm dự án vào danh sách">
           <span>+</span> Thêm dự án
         </button>
-        <button type="button" class="btn btn-sm btn-outline-secondary" id="btn-toggle-projects-table" title="Ẩn/Hiện bảng danh mục dự án">
-          <span>👁</span> Ẩn bảng
+        <button type="button" class="btn btn-sm btn-outline-secondary" id="btn-toggle-projects-table" title="Ẩn bảng danh mục dự án">
+          <span>👁</span> Ẩn bảng chi tiết dự án
         </button>
       </div>`;
 
@@ -438,10 +447,11 @@ function renderHorizontalPages(params: {
 
       let uncompletedSummaryRowHtml = '';
       if (session.settings.showUncompletedSummaryRow !== false && uncompletedRes) {
-        const uncompletedCellsHtml = chunk
+        // 1. Dòng chính STT 8: Số dự án chưa hoàn thành GPMB
+        const row8CellsHtml = chunk
           .map((loc) => {
             const summaryText = uncompletedRes.summaryTextByLocalityId[loc.id] || 'Đã hoàn thành';
-            return `<td class="doc-td doc-cell state-VALUE quality-DIRECT_SOURCE" style="text-align: center; font-style: italic;">
+            return `<td class="doc-td doc-cell state-VALUE quality-DIRECT_SOURCE" style="text-align: center; font-weight: 600;">
               <div class="cell-content">
                 <span class="cell-val"><span class="val-primary">${escapeHtmlUi(summaryText)}</span></span>
               </div>
@@ -449,23 +459,49 @@ function renderHorizontalPages(params: {
           })
           .join('');
 
-        uncompletedSummaryRowHtml = `<tr class="doc-row doc-row-sub doc-row-uncompleted" data-row-type="uncompleted-summary">
+        const row8Html = `<tr class="doc-row doc-row-primary doc-row-uncompleted-count" data-row-type="uncompleted-count">
+          <td class="doc-td doc-td-stt">8</td>
+          <td class="doc-td doc-td-indicator" style="width: ${indWidth}px; max-width: ${indWidth}px;">
+            <div class="indicator-name-group">
+              <span class="indicator-name-text" style="font-weight: 600;">${escapeHtmlUi(
+                session.settings.uncompletedRowCustomLabel || 'Số dự án chưa hoàn thành GPMB'
+              )}</span>
+              <button type="button" class="btn-inline-edit-ind" id="btn-edit-uncompleted-label" title="Đổi tên dòng số dự án chưa hoàn thành">✎</button>
+            </div>
+          </td>
+          ${row8CellsHtml}
+        </tr>`;
+
+        // 2. Dòng con ngay dưới dòng 8 (không STT): Tên dự án chưa hoàn thành GPMB
+        const subRowCellsHtml = chunk
+          .map((loc) => {
+            const projListHtml =
+              uncompletedRes.projectListHtmlByLocalityId[loc.id] ||
+              '<span class="text-muted" style="font-style:italic;">-</span>';
+            return `<td class="doc-td doc-cell doc-cell-proj-list state-VALUE quality-DIRECT_SOURCE" style="text-align: left; vertical-align: top; padding: 3pt 4pt;">
+              ${projListHtml}
+            </td>`;
+          })
+          .join('');
+
+        const subRowHtml = `<tr class="doc-row doc-row-sub doc-row-uncompleted-names" data-row-type="uncompleted-names">
           <td class="doc-td doc-td-stt"></td>
           <td class="doc-td doc-td-indicator" style="width: ${indWidth}px; max-width: ${indWidth}px;">
             <div class="indicator-name-group">
-              <span class="indicator-name-text">${escapeHtmlUi(
-                session.settings.uncompletedRowCustomLabel || 'Trong đó: Số dự án GPMB chưa hoàn thành'
+              <span class="indicator-name-text" style="font-style: italic; font-weight: normal;">${escapeHtmlUi(
+                session.settings.uncompletedProjectsListCustomLabel || 'Tên dự án chưa hoàn thành GPMB'
               )}</span>
-              <button type="button" class="btn-inline-edit-ind" id="btn-edit-uncompleted-label" title="Đổi tên dòng tổng hợp dự án">✎</button>
+              <button type="button" class="btn-inline-edit-ind" id="btn-edit-uncompleted-list-label" title="Đổi tên dòng danh sách dự án">✎</button>
             </div>
           </td>
-          ${uncompletedCellsHtml}
+          ${subRowCellsHtml}
         </tr>`;
+
+        uncompletedSummaryRowHtml = `${row8Html}\n${subRowHtml}`;
       }
 
       const appendixProjectsHtml =
         pageIdx === chunks.length - 1 &&
-        session.settings.showUncompletedProjectsTable !== false &&
         datasets?.GPMB &&
         baselineLocalities
           ? renderUncompletedProjectsTableHtml({
@@ -580,10 +616,17 @@ function renderVerticalPages(params: {
     })
     .join('');
 
-  const uncompletedHeaderTh =
+  const uncompletedHeadersTh =
     session.settings.showUncompletedSummaryRow !== false && uncompletedRes
-      ? `<th class="doc-th doc-th-ind-vert doc-th-sub" title="Số dự án GPMB chưa hoàn thành">
-          <div class="ind-vert-name">${escapeHtmlUi(session.settings.uncompletedRowCustomLabel || 'Số DA GPMB chưa xong')}</div>
+      ? `<th class="doc-th doc-th-ind-vert doc-th-primary" title="Số dự án chưa hoàn thành GPMB">
+          <div class="ind-vert-name"><strong>8. ${escapeHtmlUi(
+            session.settings.uncompletedRowCustomLabel || 'Số DA chưa hoàn thành GPMB'
+          )}</strong></div>
+        </th>
+        <th class="doc-th doc-th-ind-vert doc-th-sub" title="Tên dự án chưa hoàn thành GPMB">
+          <div class="ind-vert-name">${escapeHtmlUi(
+            session.settings.uncompletedProjectsListCustomLabel || 'Tên DA chưa hoàn thành GPMB'
+          )}</div>
         </th>`
       : '';
 
@@ -624,14 +667,17 @@ function renderVerticalPages(params: {
             })
             .join('');
 
-          const uncompletedTd =
+          const uncompletedTds =
             session.settings.showUncompletedSummaryRow !== false && uncompletedRes
-              ? `<td class="doc-td doc-cell" style="text-align: center; font-style: italic;">
+              ? `<td class="doc-td doc-cell" style="text-align: center; font-weight: 600;">
                   <div class="cell-content">
                     <span class="cell-val"><span class="val-primary">${escapeHtmlUi(
                       uncompletedRes.summaryTextByLocalityId[loc.id] || 'Đã hoàn thành'
                     )}</span></span>
                   </div>
+                </td>
+                <td class="doc-td doc-cell" style="text-align: left; vertical-align: top; padding: 3pt 4pt;">
+                  ${uncompletedRes.projectListHtmlByLocalityId[loc.id] || '<span class="text-muted">-</span>'}
                 </td>`
               : '';
 
@@ -641,14 +687,13 @@ function renderVerticalPages(params: {
               <strong>${escapeHtmlUi(loc.displayName)}</strong>
             </td>
             ${cellsHtml}
-            ${uncompletedTd}
+            ${uncompletedTds}
           </tr>`;
         })
         .join('');
 
       const appendixProjectsHtml =
         pageIdx === chunks.length - 1 &&
-        session.settings.showUncompletedProjectsTable !== false &&
         datasets?.GPMB &&
         baselineLocalities
           ? renderUncompletedProjectsTableHtml({
@@ -669,7 +714,7 @@ function renderVerticalPages(params: {
                   <th class="doc-th doc-th-stt">STT</th>
                   <th class="doc-th doc-th-loc-name">Tên địa phương</th>
                   ${indicatorHeadersHtml}
-                  ${uncompletedHeaderTh}
+                  ${uncompletedHeadersTh}
                 </tr>
               </thead>
               <tbody>

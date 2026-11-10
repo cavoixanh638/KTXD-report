@@ -834,6 +834,22 @@ export class KtxhOfflineApp {
         </small>
       </div>
 
+      <div class="form-group" style="border-top: 1px dashed var(--border-color); padding-top: 12px; margin-top: 12px;">
+        <label style="font-weight: 600;">Dự án GPMB chưa hoàn thành:</label>
+        <label class="checkbox-label" style="margin-top:6px;">
+          <input type="checkbox" id="setting-show-uncompleted-summary" ${
+            s.showUncompletedSummaryRow !== false ? 'checked' : ''
+          } />
+          Hiện dòng "Số dự án chưa hoàn thành GPMB" (STT 8) và dòng chi tiết trong Bảng tổng hợp
+        </label>
+        <label class="checkbox-label" style="margin-top:6px;">
+          <input type="checkbox" id="setting-show-uncompleted-table" ${
+            s.showUncompletedProjectsTable !== false ? 'checked' : ''
+          } />
+          Hiện Bảng phụ lục chi tiết danh mục dự án ở cuối báo cáo
+        </label>
+      </div>
+
       <button type="submit" class="btn btn-primary" style="width:100%; margin-top:10px">Lưu thay đổi định dạng & tiêu đề</button>
     </form>`;
   }
@@ -1897,6 +1913,8 @@ export class KtxhOfflineApp {
       const uppercaseEl = document.getElementById('setting-title-uppercase') as HTMLInputElement | null;
       const sigEl = document.getElementById('setting-show-signatures') as HTMLInputElement | null;
       const indWidthEl = document.getElementById('setting-indicator-col-width') as HTMLInputElement | null;
+      const showUncompletedSummaryEl = document.getElementById('setting-show-uncompleted-summary') as HTMLInputElement | null;
+      const showUncompletedTableEl = document.getElementById('setting-show-uncompleted-table') as HTMLInputElement | null;
 
       activeSession.settings.reportTitle = titleEl?.value.trim() || activeSession.settings.reportTitle;
       activeSession.settings.subtitle = subtitleEl?.value.trim() || '';
@@ -1907,6 +1925,12 @@ export class KtxhOfflineApp {
       activeSession.settings.titleFontSizePx = Number(sizeEl?.value) || 16;
       activeSession.settings.titleUppercase = uppercaseEl?.checked ?? true;
       activeSession.settings.showSignatures = sigEl?.checked ?? true;
+      if (showUncompletedSummaryEl) {
+        activeSession.settings.showUncompletedSummaryRow = showUncompletedSummaryEl.checked;
+      }
+      if (showUncompletedTableEl) {
+        activeSession.settings.showUncompletedProjectsTable = showUncompletedTableEl.checked;
+      }
 
       if (indWidthEl) {
         const parsed = Number(indWidthEl.value);
@@ -1987,13 +2011,31 @@ export class KtxhOfflineApp {
       if (!activeSession) return;
       const current =
         activeSession.settings.uncompletedRowCustomLabel ||
-        'Trong đó: Số dự án GPMB chưa hoàn thành';
+        'Số dự án chưa hoàn thành GPMB';
       const next = window.prompt(
-        'Nhập tên hiển thị dòng tổng hợp số dự án GPMB chưa hoàn thành:',
+        'Nhập tên hiển thị dòng số dự án chưa hoàn thành GPMB (STT 8):',
         current
       );
       if (next !== null && next.trim()) {
         activeSession.settings.uncompletedRowCustomLabel = next.trim();
+        this.triggerAutosave();
+        this.render();
+      }
+    });
+
+    document.getElementById('btn-edit-uncompleted-list-label')?.addEventListener('click', (e) => {
+      e.stopPropagation();
+      const activeSession = this.getActiveSession();
+      if (!activeSession) return;
+      const current =
+        activeSession.settings.uncompletedProjectsListCustomLabel ||
+        'Tên dự án chưa hoàn thành GPMB';
+      const next = window.prompt(
+        'Nhập tên hiển thị dòng danh sách dự án chưa hoàn thành GPMB:',
+        current
+      );
+      if (next !== null && next.trim()) {
+        activeSession.settings.uncompletedProjectsListCustomLabel = next.trim();
         this.triggerAutosave();
         this.render();
       }

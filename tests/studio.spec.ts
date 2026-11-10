@@ -895,8 +895,9 @@ describe('KTXH Offline – A4 Report Studio & WYSIWYG Architecture Suite', () =>
       baselineLocalities,
       datasets: { DISB: disbDataset, REV: revDataset, GPMB: gpmbDataset },
     });
-    // Contains summary row
-    expect(studioHtml).toContain('Số dự án GPMB chưa hoàn thành');
+    // Contains summary row STT 8 and sub-row
+    expect(studioHtml).toContain('Số dự án chưa hoàn thành GPMB');
+    expect(studioHtml).toContain('Tên dự án chưa hoàn thành GPMB');
     // Contains appendix table
     expect(studioHtml).toContain('DANH MỤC CÁC DỰ ÁN GPMB CHƯA HOÀN THÀNH');
 
@@ -906,7 +907,18 @@ describe('KTXH Offline – A4 Report Studio & WYSIWYG Architecture Suite', () =>
       datasets: { DISB: disbDataset, REV: revDataset, GPMB: gpmbDataset },
       includeAppendix: false,
     });
-    expect(printHtml).toContain('Số dự án GPMB chưa hoàn thành');
+    expect(printHtml).toContain('Số dự án chưa hoàn thành GPMB');
+    expect(printHtml).toContain('Tên dự án chưa hoàn thành GPMB');
     expect(printHtml).toContain('DANH MỤC CÁC DỰ ÁN GPMB CHƯA HOÀN THÀNH');
+
+    // 6. Test hide/un-hide button when appendix table is hidden
+    session.settings.showUncompletedProjectsTable = false;
+    const studioHtmlHiddenTable = renderA4DocumentStudioHtml({
+      evaluated: evalReport,
+      baselineLocalities,
+      datasets: { DISB: disbDataset, REV: revDataset, GPMB: gpmbDataset },
+    });
+    expect(studioHtmlHiddenTable).toContain('Hiện bảng chi tiết danh mục dự án GPMB');
+    expect(studioHtmlHiddenTable).not.toContain('DANH MỤC CÁC DỰ ÁN GPMB CHƯA HOÀN THÀNH');
   });
 });

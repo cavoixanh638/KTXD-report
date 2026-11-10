@@ -303,26 +303,50 @@ export function exportSessionReportToXlsxBytes(params: {
       gpmbDataset: datasets.GPMB,
       baselineLocalities,
     });
-    const summaryRowCells: Array<XlsxCellInput | null> = [
-      { type: 's', value: '', styleIndex: 3 },
+
+    // Dòng STT 8: Số dự án chưa hoàn thành GPMB
+    const row8Cells: Array<XlsxCellInput | null> = [
+      { type: 'n', value: 8, styleIndex: 4 },
       {
         type: 's',
         value:
           session.settings.uncompletedRowCustomLabel ||
-          'Trong đó: Số dự án GPMB chưa hoàn thành',
-        styleIndex: 3,
+          'Số dự án chưa hoàn thành GPMB',
+        styleIndex: 2,
       },
     ];
     for (const loc of selectedLocalities) {
       const summaryText =
         uncompletedRes.summaryTextByLocalityId[loc.id] || 'Đã hoàn thành';
-      summaryRowCells.push({
+      row8Cells.push({
         type: 's',
         value: summaryText,
         styleIndex: 7,
       });
     }
-    sheet1Rows.push(summaryRowCells);
+    sheet1Rows.push(row8Cells);
+
+    // Dòng con (không STT): Tên dự án chưa hoàn thành GPMB
+    const subRowCells: Array<XlsxCellInput | null> = [
+      { type: 's', value: '', styleIndex: 3 },
+      {
+        type: 's',
+        value:
+          session.settings.uncompletedProjectsListCustomLabel ||
+          'Tên dự án chưa hoàn thành GPMB',
+        styleIndex: 3,
+      },
+    ];
+    for (const loc of selectedLocalities) {
+      const listText =
+        uncompletedRes.projectListTextByLocalityId[loc.id] || '-';
+      subRowCells.push({
+        type: 's',
+        value: listText,
+        styleIndex: 7,
+      });
+    }
+    sheet1Rows.push(subRowCells);
   }
 
   if (session.settings.showUncompletedProjectsTable !== false && datasets.GPMB) {

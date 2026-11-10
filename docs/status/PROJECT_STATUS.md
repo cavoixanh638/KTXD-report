@@ -57,10 +57,13 @@
       - Loại bỏ các biểu tượng cảnh báo `⚠` và ghi chú `📝` chen ngang giữa nội dung ô tính trong bảng Document Studio. Chuyển sang chấm chỉ báo tinh tế ở góc ô và mở chi tiết khi nhấp chuột (Cell Inspector), giữ cho bảng xem trước trên web luôn phẳng, sạch, đúng chuẩn văn bản hành chính như bản in ra giấy.
       - **Sửa triệt để lỗi chữ tràn ô (Wrap text & zero-bleed)**: thiết lập `box-sizing: border-box; overflow: hidden; white-space: normal; word-wrap: break-word; overflow-wrap: break-word;` cho toàn bộ các ô trong bảng, đảm bảo căn giữa chữ, ngắt dòng êm ái và tuyệt đối không bao giờ tràn qua viền sang ô khác.
   26. **Phương án 3 — Quản lý & hiển thị các dự án GPMB chưa hoàn thành (Option 3)**:
-      - **Dòng trong Bảng tổng hợp:** Thêm dòng `"Trong đó: Số dự án GPMB chưa hoàn thành"` (người dùng có thể sửa nhãn hoặc bật/tắt hiển thị). Ô địa phương hiển thị rõ:
-        - 6 địa bàn không có số liệu GPMB: `"Không có nhiệm vụ GPMB"`.
-        - Địa phương có toàn bộ dự án đã xong 100% (ví dụ Xã An Phú): `"Đã hoàn thành"`.
-        - Địa phương có dự án chưa xong: hiển thị số lượng cụ thể (ví dụ Xã Nam Sách: `"4 dự án"`, Xã Trần Phú: `"2 dự án"`, Xã Hợp Tiến: `"1 dự án"`).
+      - **Dòng trong Bảng tổng hợp:**
+        - **Dòng STT 8:** Đổi tên thành **"Số dự án chưa hoàn thành GPMB"** (có STT 8, in đậm, người dùng có thể nhấp ✎ để sửa nhãn). Ô tương ứng từng địa phương hiển thị:
+          - 6 địa bàn không có số liệu GPMB: `"Không có nhiệm vụ GPMB"`.
+          - Địa phương có toàn bộ dự án đã xong 100% (ví dụ Xã An Phú): `"Đã hoàn thành"`.
+          - Địa phương có dự án chưa xong: hiển thị số lượng cụ thể (ví dụ Xã Nam Sách: `"4 dự án"`, Xã Trần Phú: `"2 dự án"`, Xã Hợp Tiến: `"1 dự án"`).
+        - **Dòng con ngay dưới dòng 8:** Không có STT, tiêu đề in nghiêng **"Tên dự án chưa hoàn thành GPMB"**; các dự án được liệt kê trực tiếp trong ô ứng với từng xã theo đúng định dạng `tên dự án - tỷ lệ hoàn thành - hạn hoàn thành` (nhiều dự án được đánh số `1. ...`, `2. ...` xuống dòng rõ ràng, có nút ✎ trên web để sửa nhanh).
+      - **Nút hiện lại Bảng phụ lục chi tiết:** Khi người dùng bấm ẩn bảng chi tiết dự án, hệ thống giữ nút **`👁 Hiện bảng chi tiết danh mục dự án GPMB (X dự án)`** ngay tại vị trí phụ lục và trong bảng Cài đặt tiêu đề, giúp người dùng bật/tắt bảng linh hoạt bất kỳ lúc nào.
       - **Bảng phụ lục danh mục dự án chưa hoàn thành:** Hiển thị trực tiếp ngay dưới Bảng tổng hợp (trên Web, bản in A4 và tệp xuất XLSX) với đúng 5 cột theo yêu cầu: `STT | Địa phương | Tên dự án | Tỷ lệ hoàn thành | Hạn hoàn thành` (và nút thao tác trên Web). Tuyệt đối không hiển thị các cột diện tích, kinh phí thừa. Tự động lấy hạn hoàn thành từ Cột H file nguồn GPMB.
       - **Khả năng chỉnh sửa chủ động:** Bấm nút `✎ Sửa` trên từng dự án để sửa Tên dự án, Tỷ lệ hoàn thành, Hạn hoàn thành, hoặc đánh dấu Ẩn dự án; có nút `+ Thêm dự án` để thêm dự án mới và nút `Khôi phục mặc định`. Dữ liệu chỉnh sửa được lưu kiên định vào cấu hình phiên (`session.settings.projectOverrides` và `session.settings.customProjects`) và sao lưu nguyên vẹn trong `.kxh.json`.
       - **Bảo toàn tính độc lập (Non-interference):** Giữ nguyên vẹn 100% 14 dòng chỉ tiêu gốc (`TEMPLATE_14_ROWS_DEFAULT`), các mốc benchmark và không làm thay đổi hay xê dịch bất kỳ cột, dòng không liên quan nào khi nạp thêm dữ liệu khác.

@@ -94,27 +94,47 @@ export function generatePrintableReportHtml(params: {
 
       let uncompletedSummaryRow = '';
       if (session.settings.showUncompletedSummaryRow !== false && uncompletedRes) {
-        const uncompletedCells = chunk
+        // Dòng chính STT 8: Số dự án chưa hoàn thành GPMB
+        const row8Cells = chunk
           .map((loc) => {
             const summaryText = uncompletedRes.summaryTextByLocalityId[loc.id] || 'Đã hoàn thành';
-            return `<td class="print-cell" style="text-align: center; font-style: italic;">${escapeHtml(
+            return `<td class="print-cell" style="text-align: center; font-weight: bold;">${escapeHtml(
               summaryText
             )}</td>`;
           })
           .join('');
 
-        uncompletedSummaryRow = `<tr class="doc-row-sub">
+        const row8 = `<tr class="doc-row-primary">
+          <td class="stt-col">8</td>
+          <td class="label-col" style="width: ${indWidth}px; max-width: ${indWidth}px; font-weight: bold;">${escapeHtml(
+            session.settings.uncompletedRowCustomLabel || 'Số dự án chưa hoàn thành GPMB'
+          )}</td>
+          ${row8Cells}
+        </tr>`;
+
+        // Dòng con ngay dưới dòng 8 (không STT): Tên dự án chưa hoàn thành GPMB
+        const subRowCells = chunk
+          .map((loc) => {
+            const listHtml =
+              uncompletedRes.projectListHtmlByLocalityId[loc.id] ||
+              '<span class="text-muted" style="font-style:italic;">-</span>';
+            return `<td class="print-cell" style="text-align: left; vertical-align: top; padding: 3pt 4pt; font-size: 8pt; line-height: 1.3;">${listHtml}</td>`;
+          })
+          .join('');
+
+        const subRow = `<tr class="doc-row-sub">
           <td class="stt-col"></td>
           <td class="label-col" style="width: ${indWidth}px; max-width: ${indWidth}px; font-style: italic;">${escapeHtml(
-            session.settings.uncompletedRowCustomLabel || 'Trong đó: Số dự án GPMB chưa hoàn thành'
+            session.settings.uncompletedProjectsListCustomLabel || 'Tên dự án chưa hoàn thành GPMB'
           )}</td>
-          ${uncompletedCells}
+          ${subRowCells}
         </tr>`;
+
+        uncompletedSummaryRow = `${row8}\n${subRow}`;
       }
 
       const appendixProjectsHtml =
         pageIdx === chunks.length - 1 &&
-        session.settings.showUncompletedProjectsTable !== false &&
         datasets?.GPMB &&
         baselineLocalities
           ? renderUncompletedProjectsTableHtml({

@@ -23,6 +23,8 @@ export interface UncompletedProjectsResult {
   projects: UncompletedProject[];
   projectsByLocalityId: Record<string, UncompletedProject[]>;
   summaryTextByLocalityId: Record<string, string>;
+  projectListTextByLocalityId: Record<string, string>;
+  projectListHtmlByLocalityId: Record<string, string>;
   totalUncompletedCount: number;
 }
 
@@ -151,8 +153,19 @@ export function getUncompletedProjectsForSession(params: {
     }
   }
 
-  // Summary per locality
+  // Summary and project detail lists per locality
   const summaryTextByLocalityId: Record<string, string> = {};
+  const projectListTextByLocalityId: Record<string, string> = {};
+  const projectListHtmlByLocalityId: Record<string, string> = {};
+
+  const escapeXml = (str: string) =>
+    String(str ?? '')
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;')
+      .replace(/'/g, '&#39;');
+
   for (const loc of selectedLocalities) {
     // Check manual override for this locality
     const manualOv = session.overrides?.find(
@@ -162,6 +175,8 @@ export function getUncompletedProjectsForSession(params: {
     );
     if (manualOv && manualOv.overrideValue) {
       summaryTextByLocalityId[loc.id] = manualOv.overrideValue;
+      projectListTextByLocalityId[loc.id] = manualOv.overrideValue;
+      projectListHtmlByLocalityId[loc.id] = escapeXml(manualOv.overrideValue);
       continue;
     }
 
@@ -170,14 +185,46 @@ export function getUncompletedProjectsForSession(params: {
       GPMB_NO_RECORD_COMMUNES.includes(loc.canonicalNameNFC)
     ) {
       summaryTextByLocalityId[loc.id] = 'Không có nhiệm vụ GPMB';
+      projectListTextByLocalityId[loc.id] = 'Không có nhiệm vụ GPMB';
+      projectListHtmlByLocalityId[loc.id] =
+        '<span class="text-muted" style="font-style:italic;">Không có nhiệm vụ GPMB</span>';
       continue;
     }
 
     const locProjects = projectsByLocalityId[loc.id] || [];
     if (locProjects.length === 0) {
       summaryTextByLocalityId[loc.id] = 'Đã hoàn thành';
+      projectListTextByLocalityId[loc.id] = '-';
+      projectListHtmlByLocalityId[loc.id] = '<span class="text-muted">-</span>';
     } else {
       summaryTextByLocalityId[loc.id] = `${locProjects.length} dự án`;
+
+      // Text format for Excel / plain views:
+      // Tên dự án - Tỷ lệ hoàn thành - Hạn hoàn thành
+      const textLines = locProjects.map((p, idx) => {
+        const prefix = locProjects.length > 1 ? `${idx + 1}. ` : '';
+        return `${prefix}${p.projectName} - ${p.completionRate} - ${p.deadline}`;
+      });
+      projectListTextByLocalityId[loc.id] = textLines.join('\n');
+
+      // HTML format for Web & Print:
+      const htmlItems = locProjects.map((p, idx) => {
+        const prefix =
+          locProjects.length > 1
+            ? `<span class="proj-idx" style="font-weight:600;">${idx + 1}.</span> `
+            : '';
+        return `<div class="uncompleted-proj-inline-item">
+          <span class="proj-inline-text">${prefix}${escapeXml(
+          p.projectName
+        )} - <strong style="color:#0f172a;">${escapeXml(
+          p.completionRate
+        )}</strong> - ${escapeXml(p.deadline)}</span>
+          <button type="button" class="btn-action-edit-proj inline-item-edit-btn no-print" data-project-id="${escapeXml(
+            p.id
+          )}" title="Sửa dự án này">✎</button>
+        </div>`;
+      });
+      projectListHtmlByLocalityId[loc.id] = `<div class="uncompleted-proj-cell-list">${htmlItems.join('')}</div>`;
     }
   }
 
@@ -185,6 +232,8 @@ export function getUncompletedProjectsForSession(params: {
     projects,
     projectsByLocalityId,
     summaryTextByLocalityId,
+    projectListTextByLocalityId,
+    projectListHtmlByLocalityId,
     totalUncompletedCount: projects.length,
   };
 }
