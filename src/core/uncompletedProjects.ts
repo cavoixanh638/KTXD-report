@@ -289,8 +289,8 @@ export function getUncompletedProjectsForSession(params: {
       projectListTextByLocalityId[loc.id] = '-';
       projectListHtmlByLocalityId[loc.id] = '<div class="text-muted" style="text-align: center;">-</div>';
     } else {
-      // e.g. "2/4 dự án"
-      summaryTextByLocalityId[loc.id] = `${uncompleted}/${total} dự án`;
+      // e.g. "2/4 dự án chưa hoàn thành" or "4/4 dự án chưa hoàn thành"
+      summaryTextByLocalityId[loc.id] = `${uncompleted}/${total} dự án chưa hoàn thành`;
 
       // Text format for Excel / plain views:
       // Tên dự án - Tỷ lệ hoàn thành - Hạn hoàn thành
