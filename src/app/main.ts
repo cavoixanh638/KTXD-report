@@ -38,7 +38,10 @@ import {
 } from '../backup/workspace';
 import { saveWorkspacePersistent, loadWorkspacePersistent } from '../core/storage';
 import { CalculationTrace, LocalityType, Workspace, QualityIssue, ReportSession, Dataset } from '../core/types';
-import { getUncompletedProjectsForSession } from '../core/uncompletedProjects';
+import {
+  getUncompletedProjectsForSession,
+  formatProjectDeadline,
+} from '../core/uncompletedProjects';
 
 declare global {
   interface Window {
@@ -1657,8 +1660,8 @@ export class KtxhOfflineApp {
                 <input type="text" id="new-proj-rate" class="form-input" placeholder="Ví dụ: 75,50%" value="0,00%" required />
               </div>
               <div class="form-group">
-                <label>Hạn hoàn thành:</label>
-                <input type="text" id="new-proj-deadline" class="form-input" placeholder="Ví dụ: 31/12/2026 hoặc Trong năm 2026" value="31/12/2026" required />
+                <label>Hạn hoàn thành (chi tiết đến tháng):</label>
+                <input type="text" id="new-proj-deadline" class="form-input" placeholder="Ví dụ: Hạn tháng 11/2026 hoặc 30/11/2026" value="Hạn tháng 11/2026" required />
               </div>
             </div>
             <div class="proj-modal-footer">
@@ -1705,7 +1708,7 @@ export class KtxhOfflineApp {
               <input type="text" id="edit-proj-rate" class="form-input" value="${escapeHtmlUi(proj.completionRate)}" required />
             </div>
             <div class="form-group">
-              <label>Hạn hoàn thành:</label>
+              <label>Hạn hoàn thành (chi tiết đến tháng):</label>
               <input type="text" id="edit-proj-deadline" class="form-input" value="${escapeHtmlUi(proj.deadline)}" required />
             </div>
             <div class="form-group">
@@ -2089,7 +2092,7 @@ export class KtxhOfflineApp {
       activeSession.settings.projectOverrides[pId] = {
         projectName: nameVal,
         completionRate: rateVal,
-        deadline: deadlineVal,
+        deadline: deadlineVal ? formatProjectDeadline(deadlineVal) : 'Hạn tháng 11/2026',
         isHidden: hiddenVal,
       };
 
@@ -2150,7 +2153,9 @@ export class KtxhOfflineApp {
         projectStt: activeSession.settings.customProjects.length + 1,
         projectName: nameInput?.value.trim() || 'Dự án mới',
         completionRate: rateInput?.value.trim() || '0,00%',
-        deadline: deadlineInput?.value.trim() || 'Trong năm 2026',
+        deadline: deadlineInput?.value.trim()
+          ? formatProjectDeadline(deadlineInput.value.trim())
+          : 'Hạn tháng 11/2026',
         isCustom: true,
       });
 

@@ -38,6 +38,67 @@ export const GPMB_NO_RECORD_COMMUNES = [
   'Đặc khu Bạch Long Vĩ',
 ];
 
+export function formatProjectDeadline(raw?: string | null): string {
+  if (!raw || !raw.trim()) {
+    return 'Hạn tháng 11/2026';
+  }
+  const s = raw.trim();
+
+  // If already matches "Hạn tháng M/YYYY" or "Hạn tháng MM/YYYY"
+  if (/^hạn\s+tháng\s+\d{1,2}\/\d{4}$/i.test(s)) {
+    const match = s.match(/^hạn\s+tháng\s+(\d{1,2})\/(\d{4})$/i);
+    if (match) {
+      const month = parseInt(match[1], 10);
+      return `Hạn tháng ${month}/${match[2]}`;
+    }
+    return s;
+  }
+
+  // If starts with "Hạn ", strip it and re-format
+  if (/^hạn\s+/i.test(s)) {
+    const rest = s.replace(/^hạn\s+/i, '').trim();
+    return formatProjectDeadline(rest);
+  }
+
+  // If format DD/MM/YYYY or D/M/YYYY or with dots / dashes
+  const dmyMatch = s.match(/^(\d{1,2})[\/\-\.](\d{1,2})[\/\-\.](\d{4})$/);
+  if (dmyMatch) {
+    const month = parseInt(dmyMatch[2], 10);
+    const year = dmyMatch[3];
+    return `Hạn tháng ${month}/${year}`;
+  }
+
+  // If format MM/YYYY or M/YYYY
+  const myMatch = s.match(/^(\d{1,2})[\/\-\.](\d{4})$/);
+  if (myMatch) {
+    const month = parseInt(myMatch[1], 10);
+    const year = myMatch[2];
+    return `Hạn tháng ${month}/${year}`;
+  }
+
+  // If format "tháng M/YYYY" or "tháng MM/YYYY" or "tháng M năm YYYY"
+  const thMatch = s.match(/tháng\s*(\d{1,2})(?:[\/\-\.\s]|(?:\s*năm\s*))(\d{4})/i);
+  if (thMatch) {
+    const month = parseInt(thMatch[1], 10);
+    const year = thMatch[2];
+    return `Hạn tháng ${month}/${year}`;
+  }
+
+  // If mentions "Trong năm 2026" or "năm 2026" or just "2026" -> "Hạn tháng 11/2026"
+  if (/trong\s*năm\s*2026|năm\s*2026|^2026$/i.test(s)) {
+    return 'Hạn tháng 11/2026';
+  }
+
+  // If mentions "Trong năm YYYY" or "năm YYYY"
+  const yrMatch = s.match(/(?:trong\s*năm\s*|năm\s*)(\d{4})/i);
+  if (yrMatch) {
+    return `Hạn tháng 11/${yrMatch[1]}`;
+  }
+
+  // If any other text, prepend "Hạn "
+  return `Hạn ${s}`;
+}
+
 export function getUncompletedProjectsForSession(params: {
   session: ReportSession;
   gpmbDataset?: Dataset;
@@ -113,9 +174,8 @@ export function getUncompletedProjectsForSession(params: {
         rateText = '0,00%';
       }
 
-      // Deadline text
-      let deadlineText =
-        deadlineRaw && deadlineRaw.trim() ? deadlineRaw.trim() : 'Trong năm 2026';
+      // Deadline text (chi tiết đến tháng)
+      const deadlineText = formatProjectDeadline(deadlineRaw);
 
       const proj: UncompletedProject = {
         id: projectId,
@@ -126,7 +186,10 @@ export function getUncompletedProjectsForSession(params: {
           ov?.projectName !== undefined ? ov.projectName : rec.projectName,
         completionRate:
           ov?.completionRate !== undefined ? ov.completionRate : rateText,
-        deadline: ov?.deadline !== undefined ? ov.deadline : deadlineText,
+        deadline:
+          ov?.deadline !== undefined
+            ? formatProjectDeadline(ov.deadline)
+            : deadlineText,
         isCustom: false,
       };
 
@@ -156,7 +219,10 @@ export function getUncompletedProjectsForSession(params: {
         ov?.projectName !== undefined ? ov.projectName : cp.projectName,
       completionRate:
         ov?.completionRate !== undefined ? ov.completionRate : cp.completionRate,
-      deadline: ov?.deadline !== undefined ? ov.deadline : cp.deadline,
+      deadline:
+        ov?.deadline !== undefined
+          ? formatProjectDeadline(ov.deadline)
+          : formatProjectDeadline(cp.deadline),
       isCustom: true,
     };
     projects.push(proj);

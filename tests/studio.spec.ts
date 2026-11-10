@@ -817,6 +817,9 @@ describe('KTXH Offline – A4 Report Studio & WYSIWYG Architecture Suite', () =>
 
     // Total uncompleted projects: 4 + 2 + 1 = 7 projects
     expect(uncompletedRes.projects).toHaveLength(7);
+    // Deadlines are specific to month (format "Hạn tháng M/YYYY" or "Hạn tháng MM/YYYY")
+    expect(uncompletedRes.projects[0].deadline).toMatch(/^Hạn tháng \d+\/\d{4}$/);
+    expect(uncompletedRes.projects.some((p) => p.deadline === 'Hạn tháng 11/2026')).toBe(true);
 
     // 2. Verify Appendix Table strictly renders only 5 columns (STT, Địa phương, Tên dự án, Tỷ lệ hoàn thành, Hạn hoàn thành)
     const tableHtml = renderUncompletedProjectsTableHtml({
@@ -857,7 +860,7 @@ describe('KTXH Offline – A4 Report Studio & WYSIWYG Architecture Suite', () =>
     const editedProj = resAfterOverride.projects.find((p) => p.id === projToEdit.id)!;
     expect(editedProj.projectName).toBe('Tên dự án đã chỉnh sửa bởi người dùng');
     expect(editedProj.completionRate).toBe('95,00%');
-    expect(editedProj.deadline).toBe('15/12/2026');
+    expect(editedProj.deadline).toBe('Hạn tháng 12/2026');
 
     // 4. Custom Projects Addition
     session.settings.customProjects = [
@@ -879,7 +882,9 @@ describe('KTXH Offline – A4 Report Studio & WYSIWYG Architecture Suite', () =>
       baselineLocalities,
     });
     expect(resWithCustom.projects).toHaveLength(7);
-    expect(resWithCustom.projects.some((p) => p.projectName === 'Dự án bổ sung thủ công')).toBe(true);
+    const customProj = resWithCustom.projects.find((p) => p.projectName === 'Dự án bổ sung thủ công')!;
+    expect(customProj).toBeDefined();
+    expect(customProj.deadline).toBe('Hạn tháng 11/2026');
 
     // 5. Studio Document & Print Document rendering integration
     const evalReport = evaluateSessionReport({
