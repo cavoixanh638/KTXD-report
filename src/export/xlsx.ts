@@ -155,16 +155,16 @@ function buildStylesXml(): string {
       <alignment horizontal="left" vertical="center" wrapText="1"/>
     </xf>
     <xf numFmtId="164" fontId="0" fillId="0" borderId="1" xfId="0" applyNumberFormat="1" applyFont="1" applyBorder="1" applyAlignment="1">
-      <alignment horizontal="right" vertical="center"/>
+      <alignment horizontal="center" vertical="center" wrapText="1"/>
     </xf>
     <xf numFmtId="10" fontId="0" fillId="0" borderId="1" xfId="0" applyNumberFormat="1" applyFont="1" applyBorder="1" applyAlignment="1">
-      <alignment horizontal="right" vertical="center"/>
+      <alignment horizontal="center" vertical="center" wrapText="1"/>
     </xf>
     <xf numFmtId="3" fontId="0" fillId="0" borderId="1" xfId="0" applyNumberFormat="1" applyFont="1" applyBorder="1" applyAlignment="1">
-      <alignment horizontal="right" vertical="center"/>
+      <alignment horizontal="center" vertical="center" wrapText="1"/>
     </xf>
     <xf numFmtId="0" fontId="0" fillId="0" borderId="1" xfId="0" applyFont="1" applyBorder="1" applyAlignment="1">
-      <alignment horizontal="right" vertical="center" wrapText="1"/>
+      <alignment horizontal="center" vertical="center" wrapText="1"/>
     </xf>
   </cellXfs>
   <cellStyles count="1">

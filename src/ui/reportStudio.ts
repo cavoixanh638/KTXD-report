@@ -49,9 +49,9 @@ export function renderReportCellValueHtml(formattedVal: string): string {
   if (match) {
     const mainVal = match[1].trim();
     const subNote = match[2].trim();
-    return `<span class="cell-main-val">${mainVal}</span> <span class="cell-sub-note">${subNote}</span>`;
+    return `<span class="val-primary">${mainVal}</span> <span class="val-note">${subNote}</span>`;
   }
-  return `<span class="cell-main-val">${escaped}</span>`;
+  return `<span class="val-primary">${escaped}</span>`;
 }
 
 export function renderIndicatorLabelHtml(label: string): string {

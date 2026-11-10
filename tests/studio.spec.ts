@@ -648,21 +648,21 @@ describe('KTXH Offline – A4 Report Studio & WYSIWYG Architecture Suite', () =>
   it('12. Renders parenthesized notes (tăng/giảm/so sánh) as separate inline-block spans for clean wrapping', () => {
     // 1. Adjustment note
     const htmlAdjust = renderReportCellValueHtml('2.101,33 tỷ (tăng 38,25 tỷ)');
-    expect(htmlAdjust).toContain('<span class="cell-main-val">2.101,33 tỷ</span>');
-    expect(htmlAdjust).toContain('<span class="cell-sub-note">(tăng 38,25 tỷ)</span>');
+    expect(htmlAdjust).toContain('<span class="val-primary">2.101,33 tỷ</span>');
+    expect(htmlAdjust).toContain('<span class="val-note">(tăng 38,25 tỷ)</span>');
 
     // 2. Comparison notes
     const htmlHigher = renderReportCellValueHtml('cao hơn (>25,99%)');
-    expect(htmlHigher).toContain('<span class="cell-main-val">cao hơn</span>');
-    expect(htmlHigher).toContain('<span class="cell-sub-note">(&gt;25,99%)</span>');
+    expect(htmlHigher).toContain('<span class="val-primary">cao hơn</span>');
+    expect(htmlHigher).toContain('<span class="val-note">(&gt;25,99%)</span>');
 
     const htmlLower = renderReportCellValueHtml('thấp hơn (<47,05%)');
-    expect(htmlLower).toContain('<span class="cell-main-val">thấp hơn</span>');
-    expect(htmlLower).toContain('<span class="cell-sub-note">(&lt;47,05%)</span>');
+    expect(htmlLower).toContain('<span class="val-primary">thấp hơn</span>');
+    expect(htmlLower).toContain('<span class="val-note">(&lt;47,05%)</span>');
 
     // 3. Regular value without note
     const htmlRegular = renderReportCellValueHtml('Không có nhiệm vụ GPMB');
-    expect(htmlRegular).toBe('<span class="cell-main-val">Không có nhiệm vụ GPMB</span>');
+    expect(htmlRegular).toBe('<span class="val-primary">Không có nhiệm vụ GPMB</span>');
 
     // 4. Area value with m2 unit appended
     const mockAreaCell = {
