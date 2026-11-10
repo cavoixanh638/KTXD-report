@@ -366,6 +366,8 @@ function renderHorizontalPages(params: {
         })
       : null;
 
+  const indWidth = session.settings.indicatorColumnWidthPx || 240;
+
   const maxCols = session.settings.paperSize === 'A3' ? 12 : 7;
   const chunks: Locality[][] = [];
   for (let i = 0; i < selectedLocalities.length; i += maxCols) {
@@ -421,7 +423,7 @@ function renderHorizontalPages(params: {
           const hasStt = Boolean(r.rowConfig.sttLabel && r.rowConfig.sttLabel.trim());
           return `<tr class="doc-row ${hasStt ? 'doc-row-primary' : 'doc-row-sub'}" data-row-number="${r.rowConfig.rowNumber}">
             <td class="doc-td doc-td-stt">${escapeHtmlUi(r.rowConfig.sttLabel || '')}</td>
-            <td class="doc-td doc-td-indicator">
+            <td class="doc-td doc-td-indicator" style="width: ${indWidth}px; max-width: ${indWidth}px;">
               <div class="indicator-name-group">
                 <span class="indicator-name-text">${renderIndicatorLabelHtml(r.rowConfig.customLabel)}</span>
                 <button type="button" class="btn-inline-edit-ind" data-indicator-id="${escapeHtmlUi(
@@ -449,7 +451,7 @@ function renderHorizontalPages(params: {
 
         uncompletedSummaryRowHtml = `<tr class="doc-row doc-row-sub doc-row-uncompleted" data-row-type="uncompleted-summary">
           <td class="doc-td doc-td-stt"></td>
-          <td class="doc-td doc-td-indicator">
+          <td class="doc-td doc-td-indicator" style="width: ${indWidth}px; max-width: ${indWidth}px;">
             <div class="indicator-name-group">
               <span class="indicator-name-text">${escapeHtmlUi(
                 session.settings.uncompletedRowCustomLabel || 'Trong đó: Số dự án GPMB chưa hoàn thành'
@@ -482,7 +484,7 @@ function renderHorizontalPages(params: {
               <thead>
                 <tr>
                   <th class="doc-th doc-th-stt">STT</th>
-                  <th class="doc-th doc-th-indicator">Chỉ tiêu / Kết quả thực hiện</th>
+                  <th class="doc-th doc-th-indicator" style="width: ${indWidth}px; max-width: ${indWidth}px;">Chỉ tiêu / Kết quả thực hiện</th>
                   ${headerColsHtml}
                 </tr>
               </thead>
@@ -730,7 +732,7 @@ function renderPaperSheetHtml(params: {
               <em class="doc-subtitle-text">${escapeHtmlUi(session.settings.subtitle)}</em>
               <button type="button" class="btn-inline-pencil" title="Sửa dòng chữ nhỏ">✎</button>
             </div>`
-          : `<div class="doc-subtitle-add-hint no-print" data-action="open-title-editor" title="Nhấp để thêm dòng chữ nhỏ in nghiêng dưới tiêu đề">+ Thêm dòng chữ nhỏ in nghiêng dưới tiêu đề</div>`
+          : ''
       }
     </div>
 

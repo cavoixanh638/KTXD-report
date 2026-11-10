@@ -61,6 +61,8 @@ export function generatePrintableReportHtml(params: {
         })
       : null;
 
+  const indWidth = session.settings.indicatorColumnWidthPx || 240;
+
   const pagesHtml = chunks
     .map((chunk, pageIdx) => {
       const headerCols = chunk
@@ -84,7 +86,7 @@ export function generatePrintableReportHtml(params: {
             .join('');
           return `<tr class="${hasStt ? 'doc-row-primary' : 'doc-row-sub'}">
             <td class="stt-col">${escapeHtml(r.rowConfig.sttLabel || '')}</td>
-            <td class="label-col">${renderIndicatorLabelHtml(r.rowConfig.customLabel)}</td>
+            <td class="label-col" style="width: ${indWidth}px; max-width: ${indWidth}px;">${renderIndicatorLabelHtml(r.rowConfig.customLabel)}</td>
             ${cells}
           </tr>`;
         })
@@ -103,7 +105,7 @@ export function generatePrintableReportHtml(params: {
 
         uncompletedSummaryRow = `<tr class="doc-row-sub">
           <td class="stt-col"></td>
-          <td class="label-col" style="font-style: italic;">${escapeHtml(
+          <td class="label-col" style="width: ${indWidth}px; max-width: ${indWidth}px; font-style: italic;">${escapeHtml(
             session.settings.uncompletedRowCustomLabel || 'Trong đó: Số dự án GPMB chưa hoàn thành'
           )}</td>
           ${uncompletedCells}
@@ -138,7 +140,7 @@ export function generatePrintableReportHtml(params: {
           <thead>
             <tr>
               <th class="stt-col">STT</th>
-              <th class="label-col">Chỉ tiêu / Kết quả thực hiện</th>
+              <th class="label-col" style="width: ${indWidth}px; max-width: ${indWidth}px;">Chỉ tiêu / Kết quả thực hiện</th>
               ${headerCols}
             </tr>
           </thead>

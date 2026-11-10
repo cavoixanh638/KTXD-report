@@ -821,7 +821,20 @@ export class KtxhOfflineApp {
         </label>
       </div>
 
-      <button type="submit" class="btn btn-primary" style="width:100%; margin-top:10px">Lưu thay đổi tiêu đề</button>
+      <div class="form-group" style="border-top: 1px dashed var(--border-color); padding-top: 12px; margin-top: 12px;">
+        <label style="font-weight: 600;">Chiều rộng cột Chỉ tiêu / Kết quả thực hiện (px):</label>
+        <div style="display:flex; align-items:center; gap:10px; margin-top:4px;">
+          <input type="number" id="setting-indicator-col-width" class="form-input-sm" value="${
+            s.indicatorColumnWidthPx || 240
+          }" min="160" max="600" step="10" style="width: 110px;" />
+          <button type="button" class="btn btn-sm btn-outline-secondary" id="btn-reset-ind-width" title="Khôi phục độ rộng mặc định 240px">Mặc định (240px)</button>
+        </div>
+        <small class="text-muted" style="font-size:11px; display:block; margin-top:4px;">
+          Chiều rộng cột STT giữ cố định mặc định (30px). Phần chiều rộng thừa/thiếu sẽ tự động chia đều về các cột của các xã/phường.
+        </small>
+      </div>
+
+      <button type="submit" class="btn btn-primary" style="width:100%; margin-top:10px">Lưu thay đổi định dạng & tiêu đề</button>
     </form>`;
   }
 
@@ -1883,6 +1896,7 @@ export class KtxhOfflineApp {
       const sizeEl = document.getElementById('setting-title-size') as HTMLInputElement | null;
       const uppercaseEl = document.getElementById('setting-title-uppercase') as HTMLInputElement | null;
       const sigEl = document.getElementById('setting-show-signatures') as HTMLInputElement | null;
+      const indWidthEl = document.getElementById('setting-indicator-col-width') as HTMLInputElement | null;
 
       activeSession.settings.reportTitle = titleEl?.value.trim() || activeSession.settings.reportTitle;
       activeSession.settings.subtitle = subtitleEl?.value.trim() || '';
@@ -1894,8 +1908,26 @@ export class KtxhOfflineApp {
       activeSession.settings.titleUppercase = uppercaseEl?.checked ?? true;
       activeSession.settings.showSignatures = sigEl?.checked ?? true;
 
+      if (indWidthEl) {
+        const parsed = Number(indWidthEl.value);
+        if (parsed >= 160 && parsed <= 600) {
+          activeSession.settings.indicatorColumnWidthPx = parsed;
+        }
+      }
+
       this.triggerAutosave();
       this.setStatus('Đã cập nhật tiêu đề và định dạng báo cáo.', 'success');
+      this.render();
+    });
+
+    document.getElementById('btn-reset-ind-width')?.addEventListener('click', (e) => {
+      e.preventDefault();
+      const activeSession = this.getActiveSession();
+      if (!activeSession) return;
+      activeSession.settings.indicatorColumnWidthPx = 240;
+      this.triggerAutosave();
+      this.setStatus('Đã khôi phục chiều rộng cột chỉ tiêu về mặc định 240px.', 'info');
+      this.render();
     });
 
     // Inline edit indicator display label

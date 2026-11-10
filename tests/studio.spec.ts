@@ -740,7 +740,25 @@ describe('KTXH Offline – A4 Report Studio & WYSIWYG Architecture Suite', () =>
       datasets: { DISB: disbDataset, REV: revDataset, GPMB: gpmbDataset },
     });
     expect(studioHtmlHidden).not.toContain('doc-subtitle-text');
-    expect(studioHtmlHidden).toContain('doc-subtitle-add-hint');
+    expect(studioHtmlHidden).not.toContain('doc-subtitle-add-hint');
+    expect(studioHtmlHidden).not.toContain('doc-subtitle-block');
+
+    // 3. Customizable indicator column width (STT stays fixed 30px, remaining space evenly shared)
+    session.settings.indicatorColumnWidthPx = 310;
+    const studioHtmlCustomWidth = renderA4DocumentStudioHtml({
+      evaluated: evalReport,
+      baselineLocalities,
+      datasets: { DISB: disbDataset, REV: revDataset, GPMB: gpmbDataset },
+    });
+    expect(studioHtmlCustomWidth).toContain('style="width: 310px; max-width: 310px;"');
+
+    const printHtmlCustomWidth = generatePrintableReportHtml({
+      evaluated: evalReport,
+      baselineLocalities,
+      datasets: { DISB: disbDataset, REV: revDataset, GPMB: gpmbDataset },
+      includeAppendix: false,
+    });
+    expect(printHtmlCustomWidth).toContain('style="width: 310px; max-width: 310px;"');
   });
 
   it('14. Option 3: Uncompleted GPMB projects extraction, summary row, appendix table with 3 key fields, user editing and non-interference', () => {

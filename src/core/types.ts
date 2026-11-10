@@ -385,6 +385,7 @@ export interface ReportSession {
     fontFamily: string;
     fontSizePx: number;
     columnWidthPx: number;
+    indicatorColumnWidthPx?: number;
     showBenchmarkRows: boolean;
     showCommentRows: boolean;
     showScopeFootnotes: boolean;

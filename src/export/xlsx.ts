@@ -377,7 +377,13 @@ export function exportSessionReportToXlsxBytes(params: {
 
   const sheet1Xml = buildWorksheetXml({
     rows: sheet1Rows,
-    colWidths: [8, 46, ...selectedLocalities.map(() => 18)],
+    colWidths: [
+      8,
+      session.settings.indicatorColumnWidthPx
+        ? Math.round((session.settings.indicatorColumnWidthPx / 240) * 46)
+        : 46,
+      ...selectedLocalities.map(() => 18),
+    ],
     mergeRanges: [`A1:${lastColLetter}1`],
     paperSize: session.settings.paperSize,
     orientation: session.settings.orientation,
