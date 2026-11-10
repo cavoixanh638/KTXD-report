@@ -405,6 +405,29 @@ export interface ReportSession {
     summaryNoteText?: string;
     showSummaryNote?: boolean;
     zoomScale?: number;
+    showUncompletedSummaryRow?: boolean;
+    showUncompletedProjectsTable?: boolean;
+    uncompletedRowCustomLabel?: string;
+    projectOverrides?: Record<
+      string,
+      {
+        projectName?: string;
+        completionRate?: string;
+        deadline?: string;
+        isHidden?: boolean;
+      }
+    >;
+    customProjects?: Array<{
+      id: string;
+      localityId: string;
+      localityName: string;
+      projectStt: number | string;
+      projectName: string;
+      completionRate: string;
+      deadline: string;
+      isCustom?: boolean;
+      isHidden?: boolean;
+    }>;
   };
   overrides: ManualOverride[];
   templateId?: string;

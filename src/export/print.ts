@@ -5,7 +5,9 @@ import {
   formatReportCellValue,
   renderIndicatorLabelHtml,
   renderReportCellValueHtml,
+  renderUncompletedProjectsTableHtml,
 } from '../ui/reportStudio';
+import { getUncompletedProjectsForSession } from '../core/uncompletedProjects';
 
 function escapeHtml(str: string): string {
   return String(str ?? '')
@@ -50,6 +52,15 @@ export function generatePrintableReportHtml(params: {
     (r) => r.indicator.id !== 'DISB_PLAN_VS_AVG_COMMENT' && r.rowConfig.visible !== false
   );
 
+  const uncompletedRes =
+    datasets?.GPMB && baselineLocalities
+      ? getUncompletedProjectsForSession({
+          session,
+          gpmbDataset: datasets.GPMB,
+          baselineLocalities,
+        })
+      : null;
+
   const pagesHtml = chunks
     .map((chunk, pageIdx) => {
       const headerCols = chunk
@@ -79,6 +90,39 @@ export function generatePrintableReportHtml(params: {
         })
         .join('');
 
+      let uncompletedSummaryRow = '';
+      if (session.settings.showUncompletedSummaryRow !== false && uncompletedRes) {
+        const uncompletedCells = chunk
+          .map((loc) => {
+            const summaryText = uncompletedRes.summaryTextByLocalityId[loc.id] || 'Đã hoàn thành';
+            return `<td class="print-cell" style="text-align: center; font-style: italic;">${escapeHtml(
+              summaryText
+            )}</td>`;
+          })
+          .join('');
+
+        uncompletedSummaryRow = `<tr class="doc-row-sub">
+          <td class="stt-col"></td>
+          <td class="label-col" style="font-style: italic;">${escapeHtml(
+            session.settings.uncompletedRowCustomLabel || 'Trong đó: Số dự án GPMB chưa hoàn thành'
+          )}</td>
+          ${uncompletedCells}
+        </tr>`;
+      }
+
+      const appendixProjectsHtml =
+        pageIdx === chunks.length - 1 &&
+        session.settings.showUncompletedProjectsTable !== false &&
+        datasets?.GPMB &&
+        baselineLocalities
+          ? renderUncompletedProjectsTableHtml({
+              session,
+              gpmbDataset: datasets.GPMB,
+              baselineLocalities,
+              isPrintMode: true,
+            })
+          : '';
+
       return `<section class="print-page-chunk">
         <div class="print-title-center">
           <h2>${escapeHtml(session.settings.reportTitle)} ${
@@ -100,8 +144,10 @@ export function generatePrintableReportHtml(params: {
           </thead>
           <tbody>
             ${bodyRows}
+            ${uncompletedSummaryRow}
           </tbody>
         </table>
+        ${appendixProjectsHtml}
       </section>`;
     })
     .join('\n');

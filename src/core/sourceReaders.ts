@@ -610,6 +610,36 @@ function buildMetricCell(
     };
   }
 
+  if (unit === 'date_or_text' || unit === 'text') {
+    const strVal = rawCell.value !== null && rawCell.value !== undefined ? String(rawCell.value).trim() : '';
+    if (!strVal) {
+      return {
+        raw: rawCell.value,
+        normalizedValue: null,
+        normalizedDecimal: null,
+        unit,
+        state: 'MISSING',
+        cellType: rawCell.cellType,
+        sourceRow: row,
+        sourceColumn: col,
+        extractionConfidence: 1.0,
+        provenance,
+      };
+    }
+    return {
+      raw: rawCell.value,
+      normalizedValue: strVal,
+      normalizedDecimal: null,
+      unit,
+      state: 'VALUE',
+      cellType: rawCell.cellType,
+      sourceRow: row,
+      sourceColumn: col,
+      extractionConfidence: 1.0,
+      provenance,
+    };
+  }
+
   if (rawCell.cellType === 'n' && typeof rawCell.value === 'number') {
     const decStr = new Decimal(rawCell.value.toString()).toString();
     const state: ValueState = new Decimal(decStr).isZero() ? 'ZERO' : 'VALUE';
@@ -1338,6 +1368,7 @@ export function importGpmbWorkbook(
       doneOrgsCol?: string;
       doneHouseholdsCol?: string;
       rateCol?: string;
+      deadlineCol?: string;
     } = {};
 
     for (let r = 1; r <= Math.min(5, targetSheet.maxRow); r++) {
@@ -1359,6 +1390,7 @@ export function importGpmbWorkbook(
         else if (/^số\s*tổ\s*chức$/i.test(txt)) found.doneOrgsCol = col;
         else if (/^số\s*hộ\s*dân$/i.test(txt)) found.doneHouseholdsCol = col;
         else if (/tỷ\s*lệ\s*gpmb/i.test(txt)) found.rateCol = col;
+        else if (/hạn\s*hoàn\s*thành|thời\s*hạn|tiến\s*độ\s*hoàn\s*thành/i.test(txt)) found.deadlineCol = col;
       }
       if (found.localityCol && (found.declaredAreaCol || found.recordedAreaCol)) {
         headerRow = r;
@@ -1389,6 +1421,7 @@ export function importGpmbWorkbook(
         { fieldId: 'gpmb_declared_households', col: colMapFlat.declaredHouseholdsCol, unit: 'household_count' },
         { fieldId: 'gpmb_done_orgs', col: colMapFlat.doneOrgsCol, unit: 'org_count' },
         { fieldId: 'gpmb_done_households', col: colMapFlat.doneHouseholdsCol, unit: 'household_count' },
+        { fieldId: 'gpmb_deadline', col: colMapFlat.deadlineCol, unit: 'date_or_text' },
       ];
 
       for (const def of fieldsDef) {
@@ -1542,6 +1575,7 @@ export function importGpmbWorkbook(
       E: { fieldId: 'gpmb_declared_orgs', unit: 'org_count' },
       F: { fieldId: 'gpmb_declared_households', unit: 'household_count' },
       G: { fieldId: 'gpmb_allocated_budget', unit: 'vnd' },
+      H: { fieldId: 'gpmb_deadline', unit: 'date_or_text' },
       I: { fieldId: 'gpmb_recorded_area', unit: 'm2' },
       J: { fieldId: 'gpmb_paid_amount', unit: 'vnd' },
       K: { fieldId: 'gpmb_done_orgs', unit: 'org_count' },

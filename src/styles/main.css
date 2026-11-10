@@ -1460,7 +1460,7 @@ code {
 .a4-paper-sheet.a4-landscape {
   width: 297mm;
   min-height: 210mm;
-  padding: 14mm 15mm 14mm 15mm;
+  padding: 8mm 10mm;
 }
 
 .a4-paper-sheet.a4-portrait {
@@ -1647,16 +1647,18 @@ code {
   font-family: 'Times New Roman', Times, serif;
   font-size: 9pt;
   color: #000000;
-  table-layout: auto;
+  table-layout: fixed;
   margin: 0 auto;
 }
 
 .doc-table th,
 .doc-table td {
   border: 0.5pt solid #000000;
-  padding: 3pt 5pt;
+  padding: 3pt 4pt;
   vertical-align: middle;
   line-height: 1.25;
+  box-sizing: border-box;
+  overflow: hidden;
 }
 
 .doc-th {
@@ -1666,13 +1668,15 @@ code {
 }
 
 .doc-th-stt {
-  width: 28px;
+  width: 30px;
+  max-width: 30px;
   text-align: center;
   font-weight: bold;
 }
 
 .doc-th-indicator {
-  width: 270px;
+  width: 240px;
+  max-width: 240px;
   text-align: left;
   font-weight: 600;
 }
@@ -1683,13 +1687,15 @@ code {
 }
 
 .doc-td-stt {
-  width: 28px;
+  width: 30px;
+  max-width: 30px;
   text-align: center;
   font-weight: bold;
 }
 
 .doc-td-indicator {
-  width: 270px;
+  width: 240px;
+  max-width: 240px;
   text-align: left;
 }
 
@@ -2811,6 +2817,7 @@ code {
     border-collapse: collapse;
     font-family: 'Times New Roman', Times, serif;
     font-size: 9pt;
+    table-layout: fixed;
     margin: 0 auto;
   }
 
@@ -2825,9 +2832,11 @@ code {
   .print-table th,
   .print-table td {
     border: 0.5pt solid #000000;
-    padding: 3pt 5pt;
+    padding: 3pt 4pt;
     vertical-align: middle;
     line-height: 1.25;
+    box-sizing: border-box;
+    overflow: hidden;
   }
 
   .print-table th {
@@ -2840,13 +2849,16 @@ code {
 
   .print-table th.stt-col,
   .print-table td.stt-col {
-    width: 28px;
+    width: 30px;
+    max-width: 30px;
     text-align: center;
     font-weight: bold;
   }
 
   .print-table th.label-col,
   .print-table td.label-col {
+    width: 240px;
+    max-width: 240px;
     text-align: left;
     font-weight: 600;
   }
@@ -2857,6 +2869,7 @@ code {
     white-space: normal;
     word-wrap: break-word;
     overflow-wrap: break-word;
+    box-sizing: border-box;
   }
 
   .print-table .val-primary,
@@ -2902,3 +2915,152 @@ code {
     margin-top: 4pt;
   }
 }
+
+/* ==========================================================================
+   10. PHỤ LỤC DANH MỤC DỰ ÁN GPMB CHƯA HOÀN THÀNH (OPTION 3)
+   ========================================================================== */
+.doc-appendix-projects {
+  margin-top: 14pt;
+  page-break-inside: avoid;
+}
+
+.projects-header-wrap {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 6pt;
+}
+
+.projects-title-text {
+  font-family: 'Times New Roman', Times, serif;
+  font-size: 10pt;
+  font-weight: bold;
+  text-transform: uppercase;
+  color: #000000;
+  margin: 0;
+}
+
+.projects-block-toolbar {
+  display: flex;
+  gap: 8px;
+}
+
+.projects-table,
+.projects-print-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-family: 'Times New Roman', Times, serif;
+  font-size: 9pt;
+  table-layout: fixed;
+  margin: 0 auto;
+}
+
+.projects-table th,
+.projects-table td,
+.projects-print-table th,
+.projects-print-table td {
+  border: 0.5pt solid #000000;
+  padding: 3pt 4pt;
+  vertical-align: middle;
+  line-height: 1.25;
+  box-sizing: border-box;
+  overflow: hidden;
+}
+
+.projects-table th,
+.projects-print-table th {
+  background-color: #f8fafc;
+  font-weight: bold;
+  text-align: center;
+}
+
+.btn-action-edit-proj {
+  padding: 2px 8px;
+  font-size: 11px;
+  color: var(--primary);
+  background: #eff6ff;
+  border: 1px solid #bfdbfe;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.btn-action-edit-proj:hover {
+  background: #dbeafe;
+  border-color: var(--primary);
+}
+
+/* Modal for editing projects */
+.proj-modal-backdrop {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(15, 23, 42, 0.45);
+  backdrop-filter: blur(2px);
+  z-index: 1050;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
+}
+
+.proj-modal-dialog {
+  background: #ffffff;
+  border-radius: 8px;
+  box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.2), 0 10px 10px -5px rgba(0, 0, 0, 0.08);
+  width: 100%;
+  max-width: 520px;
+  overflow: hidden;
+  border: 1px solid var(--border-color);
+  animation: modalFadeIn 0.15s ease-out;
+}
+
+@keyframes modalFadeIn {
+  from { opacity: 0; transform: scale(0.96); }
+  to { opacity: 1; transform: scale(1); }
+}
+
+.proj-modal-header {
+  padding: 12px 18px;
+  background: #f8fafc;
+  border-bottom: 1px solid var(--border-color);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.proj-modal-title {
+  margin: 0;
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--text-main);
+}
+
+.proj-modal-close {
+  background: transparent;
+  border: none;
+  font-size: 20px;
+  line-height: 1;
+  color: #64748b;
+  cursor: pointer;
+  padding: 0 4px;
+}
+
+.proj-modal-body {
+  padding: 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.proj-modal-footer {
+  padding: 12px 18px;
+  background: #f8fafc;
+  border-top: 1px solid var(--border-color);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+

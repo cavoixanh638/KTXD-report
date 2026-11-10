@@ -5,6 +5,7 @@ import { DEFAULT_INDICATORS } from '../core/indicators';
 import { Dataset, Locality } from '../core/types';
 import { formatReportCellValue } from '../ui/reportStudio';
 import { formatVnDate } from '../core/sessions';
+import { getUncompletedProjectsForSession } from '../core/uncompletedProjects';
 
 function escapeXml(str: string): string {
   return String(str ?? '')
@@ -294,6 +295,68 @@ export function exportSessionReportToXlsxBytes(params: {
     }
 
     sheet1Rows.push(rowCells);
+  }
+
+  if (session.settings.showUncompletedSummaryRow !== false && datasets.GPMB) {
+    const uncompletedRes = getUncompletedProjectsForSession({
+      session,
+      gpmbDataset: datasets.GPMB,
+      baselineLocalities,
+    });
+    const summaryRowCells: Array<XlsxCellInput | null> = [
+      { type: 's', value: '', styleIndex: 3 },
+      {
+        type: 's',
+        value:
+          session.settings.uncompletedRowCustomLabel ||
+          'Trong đó: Số dự án GPMB chưa hoàn thành',
+        styleIndex: 3,
+      },
+    ];
+    for (const loc of selectedLocalities) {
+      const summaryText =
+        uncompletedRes.summaryTextByLocalityId[loc.id] || 'Đã hoàn thành';
+      summaryRowCells.push({
+        type: 's',
+        value: summaryText,
+        styleIndex: 7,
+      });
+    }
+    sheet1Rows.push(summaryRowCells);
+  }
+
+  if (session.settings.showUncompletedProjectsTable !== false && datasets.GPMB) {
+    const uncompletedRes = getUncompletedProjectsForSession({
+      session,
+      gpmbDataset: datasets.GPMB,
+      baselineLocalities,
+    });
+    if (uncompletedRes.projects.length > 0) {
+      sheet1Rows.push([]);
+      sheet1Rows.push([
+        {
+          type: 's',
+          value: 'DANH MỤC CÁC DỰ ÁN GPMB CHƯA HOÀN THÀNH',
+          styleIndex: 2,
+        },
+      ]);
+      sheet1Rows.push([
+        { type: 's', value: 'STT', styleIndex: 2 },
+        { type: 's', value: 'Địa phương', styleIndex: 2 },
+        { type: 's', value: 'Tên dự án', styleIndex: 2 },
+        { type: 's', value: 'Tỷ lệ hoàn thành', styleIndex: 2 },
+        { type: 's', value: 'Hạn hoàn thành', styleIndex: 2 },
+      ]);
+      uncompletedRes.projects.forEach((p, idx) => {
+        sheet1Rows.push([
+          { type: 'n', value: idx + 1, styleIndex: 4 },
+          { type: 's', value: p.localityName, styleIndex: 3 },
+          { type: 's', value: p.projectName, styleIndex: 3 },
+          { type: 's', value: p.completionRate, styleIndex: 7 },
+          { type: 's', value: p.deadline, styleIndex: 7 },
+        ]);
+      });
+    }
   }
 
   // Footnote rows on Sheet 1

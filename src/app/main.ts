@@ -37,7 +37,8 @@ import {
   restoreWorkspaceFromBackupJson,
 } from '../backup/workspace';
 import { saveWorkspacePersistent, loadWorkspacePersistent } from '../core/storage';
-import { CalculationTrace, LocalityType, Workspace, QualityIssue } from '../core/types';
+import { CalculationTrace, LocalityType, Workspace, QualityIssue, ReportSession, Dataset } from '../core/types';
+import { getUncompletedProjectsForSession } from '../core/uncompletedProjects';
 
 declare global {
   interface Window {
@@ -107,6 +108,10 @@ export class KtxhOfflineApp {
   public autosaveTimer: number | null = null;
   public zoomScale = 1;
   public isPrintPreviewActive = false;
+
+  // Uncompleted Projects editor state
+  public editingProjectId: string | null = null;
+  public isAddingProject = false;
 
   constructor() {
     this.workspace = createEmptyWorkspace('Hồ sơ Báo cáo KTXH Offline (MASTER V2.2)');
@@ -425,6 +430,8 @@ export class KtxhOfflineApp {
       }
     }
 
+    const projectModalHtml = this.renderProjectModal(activeSession, datasets);
+
     root.innerHTML = `
       <div class="studio-app-shell">
         ${topBarHtml}
@@ -446,6 +453,7 @@ export class KtxhOfflineApp {
         </div>
       </div>
       ${popoverHtml}
+      ${projectModalHtml}
       <div id="print-mount-area" class="print-only">
         ${
           evaluatedReport
@@ -1574,6 +1582,130 @@ export class KtxhOfflineApp {
     });
   }
 
+  private renderProjectModal(
+    session: ReportSession | undefined,
+    datasets: { GPMB?: Dataset }
+  ): string {
+    if (!session || (!this.editingProjectId && !this.isAddingProject)) {
+      return '';
+    }
+
+    const baselineLocalities = this.workspace.localities;
+    const selectedLocalities = baselineLocalities.filter((l) =>
+      session.selectedLocalityIds.includes(l.id)
+    );
+
+    if (this.isAddingProject) {
+      const locOptionsHtml = selectedLocalities
+        .map(
+          (loc) =>
+            `<option value="${escapeHtmlUi(loc.id)}">${escapeHtmlUi(
+              loc.displayName
+            )}</option>`
+        )
+        .join('');
+
+      return `<div class="proj-modal-backdrop" id="proj-modal-backdrop">
+        <div class="proj-modal-dialog">
+          <div class="proj-modal-header">
+            <h3 class="proj-modal-title">Thêm dự án GPMB mới vào danh sách</h3>
+            <button type="button" class="proj-modal-close" id="btn-close-proj-modal">&times;</button>
+          </div>
+          <form id="form-add-project">
+            <div class="proj-modal-body">
+              <div class="form-group">
+                <label>Địa phương:</label>
+                <select id="new-proj-locality" class="form-select" required>
+                  ${locOptionsHtml}
+                </select>
+              </div>
+              <div class="form-group">
+                <label>Tên dự án:</label>
+                <input type="text" id="new-proj-name" class="form-input" placeholder="Nhập tên dự án..." required />
+              </div>
+              <div class="form-group">
+                <label>Tỷ lệ hoàn thành:</label>
+                <input type="text" id="new-proj-rate" class="form-input" placeholder="Ví dụ: 75,50%" value="0,00%" required />
+              </div>
+              <div class="form-group">
+                <label>Hạn hoàn thành:</label>
+                <input type="text" id="new-proj-deadline" class="form-input" placeholder="Ví dụ: 31/12/2026 hoặc Trong năm 2026" value="31/12/2026" required />
+              </div>
+            </div>
+            <div class="proj-modal-footer">
+              <button type="button" class="btn btn-secondary" id="btn-cancel-proj-modal">Hủy</button>
+              <button type="submit" class="btn btn-primary">Thêm dự án</button>
+            </div>
+          </form>
+        </div>
+      </div>`;
+    }
+
+    // Editing existing project
+    const uncompletedRes = getUncompletedProjectsForSession({
+      session,
+      gpmbDataset: datasets.GPMB,
+      baselineLocalities,
+    });
+    const proj = uncompletedRes.projects.find((p) => p.id === this.editingProjectId);
+    if (!proj) {
+      return '';
+    }
+
+    const overrides = session.settings.projectOverrides || {};
+    const hasOverride = Boolean(overrides[proj.id]);
+
+    return `<div class="proj-modal-backdrop" id="proj-modal-backdrop">
+      <div class="proj-modal-dialog">
+        <div class="proj-modal-header">
+          <h3 class="proj-modal-title">Chỉnh sửa thông tin dự án GPMB</h3>
+          <button type="button" class="proj-modal-close" id="btn-close-proj-modal">&times;</button>
+        </div>
+        <form id="form-edit-project" data-project-id="${escapeHtmlUi(proj.id)}">
+          <div class="proj-modal-body">
+            <div class="form-group">
+              <label>Địa phương:</label>
+              <input type="text" class="form-input" value="${escapeHtmlUi(proj.localityName)}" disabled style="background:#f1f5f9; cursor:not-allowed;" />
+            </div>
+            <div class="form-group">
+              <label>Tên dự án:</label>
+              <textarea id="edit-proj-name" class="form-input" rows="2" required>${escapeHtmlUi(proj.projectName)}</textarea>
+            </div>
+            <div class="form-group">
+              <label>Tỷ lệ hoàn thành:</label>
+              <input type="text" id="edit-proj-rate" class="form-input" value="${escapeHtmlUi(proj.completionRate)}" required />
+            </div>
+            <div class="form-group">
+              <label>Hạn hoàn thành:</label>
+              <input type="text" id="edit-proj-deadline" class="form-input" value="${escapeHtmlUi(proj.deadline)}" required />
+            </div>
+            <div class="form-group">
+              <label style="display:inline-flex; align-items:center; gap:8px; cursor:pointer;">
+                <input type="checkbox" id="edit-proj-hidden" ${proj.isHidden ? 'checked' : ''} />
+                <span>Ẩn dự án này khỏi danh mục báo cáo</span>
+              </label>
+            </div>
+          </div>
+          <div class="proj-modal-footer">
+            <div>
+              ${
+                hasOverride
+                  ? `<button type="button" class="btn btn-outline-danger btn-sm" id="btn-reset-proj-override" data-project-id="${escapeHtmlUi(
+                      proj.id
+                    )}" title="Khôi phục lại tên, tỷ lệ, hạn hoàn thành từ file gốc">Khôi phục mặc định</button>`
+                  : ''
+              }
+            </div>
+            <div style="display:flex; gap:8px;">
+              <button type="button" class="btn btn-secondary" id="btn-cancel-proj-modal">Hủy</button>
+              <button type="submit" class="btn btn-primary">Lưu thay đổi</button>
+            </div>
+          </div>
+        </form>
+      </div>
+    </div>`;
+  }
+
   private bindDomEvents(
     evaluatedReport: EvaluatedSessionReport | null,
     datasets: {
@@ -1785,6 +1917,173 @@ export class KtxhOfflineApp {
           this.render();
         }
       });
+    });
+
+    // Uncompleted Projects toolbar & modal events
+    document.querySelectorAll('.btn-action-edit-proj').forEach((btn) => {
+      btn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        const pId = btn.getAttribute('data-project-id');
+        if (pId) {
+          this.editingProjectId = pId;
+          this.isAddingProject = false;
+          this.render();
+        }
+      });
+    });
+
+    document.getElementById('btn-add-custom-project')?.addEventListener('click', (e) => {
+      e.stopPropagation();
+      this.isAddingProject = true;
+      this.editingProjectId = null;
+      this.render();
+    });
+
+    document.getElementById('btn-toggle-projects-table')?.addEventListener('click', (e) => {
+      e.stopPropagation();
+      const activeSession = this.getActiveSession();
+      if (!activeSession) return;
+      activeSession.settings.showUncompletedProjectsTable =
+        activeSession.settings.showUncompletedProjectsTable === false ? true : false;
+      this.triggerAutosave();
+      this.render();
+    });
+
+    document.getElementById('btn-edit-uncompleted-label')?.addEventListener('click', (e) => {
+      e.stopPropagation();
+      const activeSession = this.getActiveSession();
+      if (!activeSession) return;
+      const current =
+        activeSession.settings.uncompletedRowCustomLabel ||
+        'Trong đó: Số dự án GPMB chưa hoàn thành';
+      const next = window.prompt(
+        'Nhập tên hiển thị dòng tổng hợp số dự án GPMB chưa hoàn thành:',
+        current
+      );
+      if (next !== null && next.trim()) {
+        activeSession.settings.uncompletedRowCustomLabel = next.trim();
+        this.triggerAutosave();
+        this.render();
+      }
+    });
+
+    document.getElementById('btn-close-proj-modal')?.addEventListener('click', () => {
+      this.editingProjectId = null;
+      this.isAddingProject = false;
+      this.render();
+    });
+
+    document.getElementById('btn-cancel-proj-modal')?.addEventListener('click', () => {
+      this.editingProjectId = null;
+      this.isAddingProject = false;
+      this.render();
+    });
+
+    document.getElementById('proj-modal-backdrop')?.addEventListener('click', (e) => {
+      if (e.target === document.getElementById('proj-modal-backdrop')) {
+        this.editingProjectId = null;
+        this.isAddingProject = false;
+        this.render();
+      }
+    });
+
+    document.getElementById('form-edit-project')?.addEventListener('submit', (e) => {
+      e.preventDefault();
+      const activeSession = this.getActiveSession();
+      if (!activeSession) return;
+
+      const pId = (e.target as HTMLElement).getAttribute('data-project-id');
+      if (!pId) return;
+
+      const nameVal = (
+        document.getElementById('edit-proj-name') as HTMLTextAreaElement | null
+      )?.value.trim();
+      const rateVal = (
+        document.getElementById('edit-proj-rate') as HTMLInputElement | null
+      )?.value.trim();
+      const deadlineVal = (
+        document.getElementById('edit-proj-deadline') as HTMLInputElement | null
+      )?.value.trim();
+      const hiddenVal =
+        (document.getElementById('edit-proj-hidden') as HTMLInputElement | null)
+          ?.checked ?? false;
+
+      if (!activeSession.settings.projectOverrides) {
+        activeSession.settings.projectOverrides = {};
+      }
+
+      activeSession.settings.projectOverrides[pId] = {
+        projectName: nameVal,
+        completionRate: rateVal,
+        deadline: deadlineVal,
+        isHidden: hiddenVal,
+      };
+
+      this.editingProjectId = null;
+      this.triggerAutosave();
+      this.setStatus('Đã cập nhật dự án thành công.', 'success');
+      this.render();
+    });
+
+    document.getElementById('btn-reset-proj-override')?.addEventListener('click', (e) => {
+      e.preventDefault();
+      const activeSession = this.getActiveSession();
+      if (!activeSession) return;
+
+      const pId = (e.currentTarget as HTMLElement).getAttribute('data-project-id');
+      if (pId && activeSession.settings.projectOverrides) {
+        delete activeSession.settings.projectOverrides[pId];
+        this.editingProjectId = null;
+        this.triggerAutosave();
+        this.setStatus('Đã khôi phục dữ liệu gốc cho dự án.', 'info');
+        this.render();
+      }
+    });
+
+    document.getElementById('form-add-project')?.addEventListener('submit', (e) => {
+      e.preventDefault();
+      const activeSession = this.getActiveSession();
+      if (!activeSession) return;
+
+      const locSelect = document.getElementById(
+        'new-proj-locality'
+      ) as HTMLSelectElement | null;
+      const nameInput = document.getElementById(
+        'new-proj-name'
+      ) as HTMLInputElement | null;
+      const rateInput = document.getElementById(
+        'new-proj-rate'
+      ) as HTMLInputElement | null;
+      const deadlineInput = document.getElementById(
+        'new-proj-deadline'
+      ) as HTMLInputElement | null;
+
+      const locId = locSelect?.value;
+      const loc = this.workspace.localities.find((l) => l.id === locId);
+      if (!locId || !loc) return;
+
+      if (!activeSession.settings.customProjects) {
+        activeSession.settings.customProjects = [];
+      }
+
+      const customId = `custom_${Date.now()}_${Math.random()
+        .toString(36)
+        .substring(2, 7)}`;
+      activeSession.settings.customProjects.push({
+        id: customId,
+        localityId: loc.id,
+        localityName: loc.displayName,
+        projectStt: activeSession.settings.customProjects.length + 1,
+        projectName: nameInput?.value.trim() || 'Dự án mới',
+        completionRate: rateInput?.value.trim() || '0,00%',
+        deadline: deadlineInput?.value.trim() || 'Trong năm 2026',
+        isCustom: true,
+      });
+
+      this.isAddingProject = false;
+      this.triggerAutosave();
+      this.setStatus(`Đã thêm dự án mới cho ${loc.displayName}.`, 'success');
+      this.render();
     });
 
     // Interactive Cell click -> Popover

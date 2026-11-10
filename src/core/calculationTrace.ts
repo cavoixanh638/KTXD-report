@@ -22,6 +22,7 @@ import {
   ZeroDenominatorContributor,
 } from './types';
 import { DEFAULT_INDICATORS, IndicatorDefinition } from './indicators';
+import { getUncompletedProjectsForSession } from './uncompletedProjects';
 
 export function makeSourceCellRef(
   dataset: Dataset,
@@ -2607,6 +2608,117 @@ export function evaluateLocalityIndicator(params: {
         qualityStatus: 'PARTIAL_AGGREGATE',
         hasWarning: true,
         warningCount: 1,
+        trace,
+      };
+    }
+
+    // GPMB_UNCOMPLETED_PROJECTS_COUNT (Row 17)
+    if (indicator.id === 'GPMB_UNCOMPLETED_PROJECTS_COUNT') {
+      const uncompletedRes = getUncompletedProjectsForSession({
+        session,
+        gpmbDataset: gpmb,
+        baselineLocalities,
+      });
+
+      const manualOverride = session.overrides?.find(
+        (o) =>
+          o.indicatorId === indicator.id && o.localityId === locality.id
+      );
+
+      const displayedText =
+        manualOverride?.overrideValue ||
+        uncompletedRes.summaryTextByLocalityId[locality.id] ||
+        'Đã hoàn thành';
+      const locProjects =
+        uncompletedRes.projectsByLocalityId[locality.id] || [];
+      const count = locProjects.length;
+
+      const traceId = `TRACE_GPMB_UNCOMPLETED_${locality.id}_${gpmb.id}`;
+      const isNoTask = displayedText === 'Không có nhiệm vụ GPMB';
+
+      const trace: CalculationTrace = {
+        traceId,
+        indicatorId: indicator.id,
+        indicatorLabel: indicator.label,
+        localityId: locality.id,
+        localityName: locality.canonicalNameNFC,
+        resultKind: 'CALCULATED',
+        result: {
+          exactDecimal: count.toString(),
+          displayedText,
+          canonicalUnit: 'count',
+          displayUnit: 'text',
+          state: isNoTask ? 'NOT_APPLICABLE' : 'VALUE',
+        },
+        formula: {
+          formulaId: 'COUNT_UNCOMPLETED_GPMB_PROJECTS',
+          formulaVersion: '2.2',
+          readableExpression: `Đếm số dự án GPMB có tỷ lệ hoàn thành < 100% thuộc địa bàn ${locality.canonicalNameNFC}`,
+          expressionTree: { op: 'COUNT_WHERE', condition: 'rate < 100%' },
+          method: 'PROJECT_STATUS_FILTER',
+          roundingPolicy: 'INTEGER',
+          tolerancePolicy: '0',
+        },
+        scope: {
+          type: 'LOCALITY_PROJECTS',
+          sourceDatasetIds: [gpmb.id],
+          selectedLocalityIds: [locality.id],
+          expectedCount: 1,
+          matchingPolicyId: 'STRICT_NFC_DIACRITICS_V2_2',
+          asOfDates: [gpmb.asOfDate],
+        },
+        operands: [
+          {
+            role: 'uncompleted_project_count',
+            fieldId: 'uncompleted_projects',
+            exactValue: count.toString(),
+            unit: 'project_count',
+            state: isNoTask ? 'NOT_APPLICABLE' : 'VALUE',
+            sources: [],
+          },
+        ],
+        population: {
+          eligibleCount: projRecords.length,
+          includedCount: count,
+          excludedCount: projRecords.length - count,
+          missingCount: 0,
+          includedRecordIds: locProjects.map((p) => p.id),
+          excludedRecordIds: [],
+        },
+        coverageDetails: [],
+        exclusions: [],
+        steps: [
+          {
+            operation: 'COUNT_UNCOMPLETED',
+            inputs: [`${projRecords.length} dự án thuộc địa bàn`],
+            output: displayedText,
+            reason: `Xác định các dự án có tỷ lệ GPMB < 100% của ${locality.canonicalNameNFC}`,
+          },
+        ],
+        quality: {
+          status: 'COMPLETE',
+          warningIds: [],
+        },
+        sourceRefs: [],
+        createdAt: new Date().toISOString(),
+        engineVersion: '2.2.0',
+        datasetHashes: [gpmb.workbookSha256],
+      };
+
+      return {
+        traceId,
+        indicatorId: indicator.id,
+        localityId: locality.id,
+        localityName: locality.canonicalNameNFC,
+        exactDecimal: count.toString(),
+        numericValueForExcel: count,
+        excelFormatType: 'TEXT',
+        displayedText,
+        unitLabel: '',
+        state: isNoTask ? 'NOT_APPLICABLE' : 'VALUE',
+        qualityStatus: 'COMPLETE',
+        hasWarning: false,
+        warningCount: 0,
         trace,
       };
     }

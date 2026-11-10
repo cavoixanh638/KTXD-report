@@ -28,7 +28,9 @@ import {
   renderA4DocumentStudioHtml,
   formatReportCellValue,
   renderReportCellValueHtml,
+  renderUncompletedProjectsTableHtml,
 } from '../src/ui/reportStudio';
+import { getUncompletedProjectsForSession } from '../src/core/uncompletedProjects';
 import {
   renderCellTracePopoverHtml,
   formatMax4Decimals,
@@ -739,5 +741,154 @@ describe('KTXH Offline – A4 Report Studio & WYSIWYG Architecture Suite', () =>
     });
     expect(studioHtmlHidden).not.toContain('doc-subtitle-text');
     expect(studioHtmlHidden).toContain('doc-subtitle-add-hint');
+  });
+
+  it('14. Option 3: Uncompleted GPMB projects extraction, summary row, appendix table with 3 key fields, user editing and non-interference', () => {
+    const ws = createEmptyWorkspace();
+    registerDatasetInWorkspace(ws, disbDataset, baselineLocalities);
+    registerDatasetInWorkspace(ws, revDataset);
+    registerDatasetInWorkspace(ws, gpmbDataset);
+
+    // Test with 5 sample communes
+    const locNames = ['Xã Nam Sách', 'Xã Thái Tân', 'Xã Trần Phú', 'Xã Hợp Tiến', 'Xã An Phú'];
+    const sampleLocs = locNames
+      .map((name) => baselineLocalities.find((l) => l.displayName === name))
+      .filter(Boolean) as Locality[];
+    expect(sampleLocs).toHaveLength(5);
+
+    const session = createReportSession(ws, { name: 'Option 3 Test Session' });
+    setSessionLocalities(
+      ws,
+      session.id,
+      sampleLocs.map((l) => l.id)
+    );
+
+    // 1. Verify getUncompletedProjectsForSession
+    const uncompletedRes = getUncompletedProjectsForSession({
+      session,
+      gpmbDataset,
+      baselineLocalities,
+    });
+
+    const namSach = sampleLocs.find((l) => l.displayName === 'Xã Nam Sách')!;
+    const thaiTan = sampleLocs.find((l) => l.displayName === 'Xã Thái Tân')!;
+    const tranPhu = sampleLocs.find((l) => l.displayName === 'Xã Trần Phú')!;
+    const hopTien = sampleLocs.find((l) => l.displayName === 'Xã Hợp Tiến')!;
+    const anPhu = sampleLocs.find((l) => l.displayName === 'Xã An Phú')!;
+
+    // Counts:
+    // Nam Sách has 4 uncompleted projects
+    expect(uncompletedRes.projectsByLocalityId[namSach.id]).toHaveLength(4);
+    expect(uncompletedRes.summaryTextByLocalityId[namSach.id]).toBe('4 dự án');
+
+    // Thái Tân is in GPMB_NO_RECORD_COMMUNES -> "Không có nhiệm vụ GPMB"
+    expect(uncompletedRes.projectsByLocalityId[thaiTan.id]).toHaveLength(0);
+    expect(uncompletedRes.summaryTextByLocalityId[thaiTan.id]).toBe('Không có nhiệm vụ GPMB');
+
+    // Trần Phú has 2 uncompleted projects
+    expect(uncompletedRes.projectsByLocalityId[tranPhu.id]).toHaveLength(2);
+    expect(uncompletedRes.summaryTextByLocalityId[tranPhu.id]).toBe('2 dự án');
+
+    // Hợp Tiến has 1 uncompleted project
+    expect(uncompletedRes.projectsByLocalityId[hopTien.id]).toHaveLength(1);
+    expect(uncompletedRes.summaryTextByLocalityId[hopTien.id]).toBe('1 dự án');
+
+    // An Phú has 1 project that is 100% completed -> 0 uncompleted -> "Đã hoàn thành"
+    expect(uncompletedRes.projectsByLocalityId[anPhu.id]).toHaveLength(0);
+    expect(uncompletedRes.summaryTextByLocalityId[anPhu.id]).toBe('Đã hoàn thành');
+
+    // Total uncompleted projects: 4 + 2 + 1 = 7 projects
+    expect(uncompletedRes.projects).toHaveLength(7);
+
+    // 2. Verify Appendix Table strictly renders only 5 columns (STT, Địa phương, Tên dự án, Tỷ lệ hoàn thành, Hạn hoàn thành)
+    const tableHtml = renderUncompletedProjectsTableHtml({
+      session,
+      gpmbDataset,
+      baselineLocalities,
+      isPrintMode: true,
+    });
+    expect(tableHtml).toContain('DANH MỤC CÁC DỰ ÁN GPMB CHƯA HOÀN THÀNH');
+    expect(tableHtml).toContain('Địa phương');
+    expect(tableHtml).toContain('Tên dự án');
+    expect(tableHtml).toContain('Tỷ lệ hoàn thành');
+    expect(tableHtml).toContain('Hạn hoàn thành');
+    // Ensure excluded columns (Area D, I, Kinh phí G, J) are NOT present in table headers
+    expect(tableHtml).not.toContain('Diện tích');
+    expect(tableHtml).not.toContain('Kinh phí');
+
+    // 3. User Override Capability: Edit project name, rate, deadline, hide project
+    const projToEdit = uncompletedRes.projects[0];
+    session.settings.projectOverrides = {
+      [projToEdit.id]: {
+        projectName: 'Tên dự án đã chỉnh sửa bởi người dùng',
+        completionRate: '95,00%',
+        deadline: '15/12/2026',
+      },
+      [uncompletedRes.projects[1].id]: {
+        isHidden: true,
+      },
+    };
+
+    const resAfterOverride = getUncompletedProjectsForSession({
+      session,
+      gpmbDataset,
+      baselineLocalities,
+    });
+    // 1 project was hidden, so 7 - 1 = 6
+    expect(resAfterOverride.projects).toHaveLength(6);
+    const editedProj = resAfterOverride.projects.find((p) => p.id === projToEdit.id)!;
+    expect(editedProj.projectName).toBe('Tên dự án đã chỉnh sửa bởi người dùng');
+    expect(editedProj.completionRate).toBe('95,00%');
+    expect(editedProj.deadline).toBe('15/12/2026');
+
+    // 4. Custom Projects Addition
+    session.settings.customProjects = [
+      {
+        id: 'custom_proj_1',
+        localityId: namSach.id,
+        localityName: 'Xã Nam Sách',
+        projectStt: 99,
+        projectName: 'Dự án bổ sung thủ công',
+        completionRate: '50,00%',
+        deadline: '30/11/2026',
+        isCustom: true,
+      },
+    ];
+
+    const resWithCustom = getUncompletedProjectsForSession({
+      session,
+      gpmbDataset,
+      baselineLocalities,
+    });
+    expect(resWithCustom.projects).toHaveLength(7);
+    expect(resWithCustom.projects.some((p) => p.projectName === 'Dự án bổ sung thủ công')).toBe(true);
+
+    // 5. Studio Document & Print Document rendering integration
+    const evalReport = evaluateSessionReport({
+      session,
+      baselineLocalities,
+      datasets: { DISB: disbDataset, REV: revDataset, GPMB: gpmbDataset },
+    });
+    // Master spec rule: 14 core rows remain untouched!
+    expect(evalReport.rows).toHaveLength(14);
+
+    const studioHtml = renderA4DocumentStudioHtml({
+      evaluated: evalReport,
+      baselineLocalities,
+      datasets: { DISB: disbDataset, REV: revDataset, GPMB: gpmbDataset },
+    });
+    // Contains summary row
+    expect(studioHtml).toContain('Số dự án GPMB chưa hoàn thành');
+    // Contains appendix table
+    expect(studioHtml).toContain('DANH MỤC CÁC DỰ ÁN GPMB CHƯA HOÀN THÀNH');
+
+    const printHtml = generatePrintableReportHtml({
+      evaluated: evalReport,
+      baselineLocalities,
+      datasets: { DISB: disbDataset, REV: revDataset, GPMB: gpmbDataset },
+      includeAppendix: false,
+    });
+    expect(printHtml).toContain('Số dự án GPMB chưa hoàn thành');
+    expect(printHtml).toContain('DANH MỤC CÁC DỰ ÁN GPMB CHƯA HOÀN THÀNH');
   });
 });
