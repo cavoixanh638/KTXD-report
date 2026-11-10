@@ -140,7 +140,19 @@ export function renderReportGridHtml(params: {
       <ul>
         <li><strong>Giải ngân ĐTC (${escapeHtmlUi(
           disbDate
-        )}):</strong> Phạm vi <strong>114/114 địa phương</strong> (mốc chuẩn 114 địa phương = <strong>67,10%</strong> từ SUM(I13:I126)/SUM(F13:F126); vốn giao bình quân = <strong>136,41 tỷ đồng/địa phương</strong>).</li>
+        )}):</strong> Phạm vi <strong>${datasets.DISB?.unitCount ?? 114}/114 địa phương</strong>${
+          datasets.DISB?.schemaFingerprint === 'DISB_PHAN_CAP_XA_V1'
+            ? ' (vốn phân cấp cấp xã)'
+            : ''
+        } (mốc chuẩn ${datasets.DISB?.unitCount ?? 114} địa phương = <strong>${escapeHtmlUi(
+          evaluated.benchmarks?.disbRateBenchmark?.displayedText || '67,10%'
+        )}</strong> từ ${
+          datasets.DISB?.schemaFingerprint === 'DISB_PHAN_CAP_XA_V1'
+            ? 'SUM(G8:G121)/SUM(C8:C121)'
+            : 'SUM(I13:I126)/SUM(F13:F126)'
+        }; vốn giao bình quân = <strong>${escapeHtmlUi(
+          evaluated.benchmarks?.disbPlanAvg?.displayedText || '136,41 tỷ đồng'
+        )}/địa phương</strong>).</li>
         <li><strong>Thu NSNN (kỳ 10 tháng/2026, ngày chốt: ${escapeHtmlUi(
           revDate
         )}):</strong> Phạm vi <strong>113/114 địa phương</strong> (mốc tham khảo 113 địa phương = <strong>111,30%</strong>). Địa phương chưa có bản ghi (` +

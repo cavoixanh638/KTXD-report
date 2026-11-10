@@ -54,12 +54,22 @@ export function analyzeSourceCoverage(
     }
 
     const fieldMissingDetails: CoverageDetail[] = [];
-    const compCols: Array<{ field: string; col: string }> = [
-      { field: 'adjusted_city_component', col: 'G' },
-      { field: 'disbursed_city_component', col: 'J' },
-      { field: 'disbursed_gpmb', col: 'M' },
-      { field: 'disbursed_other', col: 'N' },
-    ];
+    const compCols: Array<{ field: string; col: string }> =
+      disb.schemaFingerprint === 'DISB_PHAN_CAP_XA_V1'
+        ? [
+            { field: 'plan_land_use_fee', col: 'D' },
+            { field: 'plan_targeted_support', col: 'E' },
+            { field: 'plan_revenue_increase', col: 'F' },
+            { field: 'disbursed_land_use_fee', col: 'H' },
+            { field: 'disbursed_targeted_support', col: 'I' },
+            { field: 'disbursed_revenue_increase', col: 'J' },
+          ]
+        : [
+            { field: 'adjusted_city_component', col: 'G' },
+            { field: 'disbursed_city_component', col: 'J' },
+            { field: 'disbursed_gpmb', col: 'M' },
+            { field: 'disbursed_other', col: 'N' },
+          ];
     for (const rec of disb.records) {
       for (const { field, col } of compCols) {
         const cell = rec.metrics[field];

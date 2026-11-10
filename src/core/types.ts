@@ -252,7 +252,7 @@ export interface QualityIssue {
 }
 
 export interface IdentityCheckResult {
-  equation: 'F=G+H' | 'I=J+K' | 'I=L+M+N';
+  equation: 'F=G+H' | 'I=J+K' | 'I=L+M+N' | 'C=D+E+F' | 'G=H+I+J';
   row: number;
   localityId: string;
   localityName: string;
@@ -388,6 +388,7 @@ export interface ReportSession {
     indicatorColumnWidthPx?: number;
     showBenchmarkRows: boolean;
     showCommentRows: boolean;
+    showDisbPlanAdjustmentComparison?: boolean;
     showScopeFootnotes: boolean;
     tableLayoutMode?: 'AUTO' | 'HORIZONTAL' | 'VERTICAL';
     agencyName?: string;

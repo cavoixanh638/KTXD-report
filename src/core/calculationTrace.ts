@@ -744,6 +744,11 @@ export function computeDisbPlanPerUnitBenchmark(
     moneyUnit === 'billion' ? millionToBillion(avgMillion) : avgMillion;
   const unitText = moneyUnit === 'billion' ? 'tỷ đồng' : 'triệu đồng';
   const displayedText = `${formatVnNumber(avgDisplay, decimals)} ${unitText}`;
+  const planCol = disbDataset.schemaFingerprint === 'DISB_PHAN_CAP_XA_V1' ? 'C' : 'F';
+  const planRange =
+    disbDataset.schemaFingerprint === 'DISB_PHAN_CAP_XA_V1'
+      ? `${planCol}8:${planCol}${7 + count}`
+      : `${planCol}13:${planCol}${12 + count}`;
 
   const trace: CalculationTrace = {
     traceId: `TRACE_BM_DISB_PLAN_PER_UNIT_${disbDataset.id}`,
@@ -759,8 +764,8 @@ export function computeDisbPlanPerUnitBenchmark(
     formula: {
       formulaId: 'DISB_MEAN_PLAN_PER_LOCALITY',
       formulaVersion: '2.2',
-      readableExpression: `SUM(F13:F126) / ${count}${moneyUnit === 'billion' ? ' / 1000' : ''}`,
-      expressionTree: { op: 'DIV', lhs: 'SUM(F)', rhs: count },
+      readableExpression: `SUM(${planRange}) / ${count}${moneyUnit === 'billion' ? ' / 1000' : ''}`,
+      expressionTree: { op: 'DIV', lhs: `SUM(${planCol})`, rhs: count },
       method: 'MEAN_ABSOLUTE_PER_UNIT',
       roundingPolicy: `ROUND_HALF_UP_${decimals}`,
       tolerancePolicy: 'EXACT_DECIMAL',
@@ -796,7 +801,7 @@ export function computeDisbPlanPerUnitBenchmark(
     steps: [
       {
         operation: 'SUM',
-        inputs: [`${count} dòng F13..F126`],
+        inputs: [`${count} dòng ${planRange}`],
         output: sumF.toString(),
         inputUnit: 'million_vnd',
         outputUnit: 'million_vnd',
@@ -1540,7 +1545,10 @@ export function evaluateLocalityIndicator(params: {
       };
 
       let adjustmentNote: string | null = null;
-      if (indicator.id === 'DISB_PLAN') {
+      if (
+        indicator.id === 'DISB_PLAN' &&
+        session.settings.showDisbPlanAdjustmentComparison !== false
+      ) {
         const initCell = rec.metrics['initial_total_plan'];
         if (initCell && initCell.normalizedDecimal !== null && initCell.normalizedDecimal !== undefined) {
           const initMillion = new Decimal(initCell.normalizedDecimal);
@@ -1610,14 +1618,21 @@ export function evaluateLocalityIndicator(params: {
         formula: {
           formulaId: 'COMPARE_DISB_PLAN_VS_MEAN_114',
           formulaVersion: '2.2',
-          readableExpression: `So sánh F (${formatVnNumber(
+          readableExpression: `So sánh ${fRef.address} (${formatVnNumber(
             millionToBillion(fMillion),
             2
           )} tỷ) với mức vốn bình quân 114 địa phương (${formatVnNumber(
             millionToBillion(avg.exactMillion),
             2
           )} tỷ) => "${label}"`,
-          expressionTree: { op: 'COMPARE', lhs: fRef.address, rhs: 'SUM(F13:F126)/114' },
+          expressionTree: {
+            op: 'COMPARE',
+            lhs: fRef.address,
+            rhs:
+              disb.schemaFingerprint === 'DISB_PHAN_CAP_XA_V1'
+                ? 'SUM(C8:C121)/114'
+                : 'SUM(F13:F126)/114',
+          },
           method: 'COMPARISON_RULE',
           roundingPolicy: 'EXACT_DECIMAL_BEFORE_COMPARE',
           tolerancePolicy: '0',
@@ -1920,7 +1935,10 @@ export function evaluateLocalityIndicator(params: {
             output: diffPp.toString(),
             inputUnit: 'percent',
             outputUnit: 'percentage_points',
-            reason: 'Tính chênh lệch điểm phần trăm giữa tỷ lệ địa phương và mốc 114 địa phương (67,10%)',
+            reason: `Tính chênh lệch điểm phần trăm giữa tỷ lệ địa phương và mốc 114 địa phương (${formatVnPercent(
+              bmPct,
+              decPct
+            )})`,
           },
           {
             operation: 'CLASSIFY_LABEL',

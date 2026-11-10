@@ -1,7 +1,7 @@
 import { describe, it, expect, beforeAll } from 'vitest';
 import fs from 'node:fs';
 import path from 'node:path';
-import { unzipSync, strFromU8 } from 'fflate';
+import { unzipSync, strFromU8, zipSync, strToU8 } from 'fflate';
 import {
   importDisbursementWorkbook,
   importRevenueWorkbook,
@@ -1061,5 +1061,193 @@ describe('KTXH Offline – A4 Report Studio & WYSIWYG Architecture Suite', () =>
     });
     expect(studioHtmlNoNq11).not.toContain('doc-row-nq11');
     expect(studioHtmlNoNq11).not.toContain('Dự án theo NQ 11 trên địa bàn xã có khó khăn, vướng mắc');
+  });
+
+  it('15. Recognizes DISB_PHAN_CAP_XA_V1 (12-col allocated capital workbook without pre-adjustment column) and omits plan adjustment comparison', () => {
+    const buildMinimalPhanCapXaXlsx = (): Uint8Array => {
+      const cellXml = (addr: string, val: string | number) => {
+        if (typeof val === 'number') {
+          return `<c r="${addr}" t="n"><v>${val}</v></c>`;
+        }
+        const escaped = String(val)
+          .replace(/&/g, '&amp;')
+          .replace(/</g, '&lt;')
+          .replace(/>/g, '&gt;');
+        return `<c r="${addr}" t="inlineStr"><is><t>${escaped}</t></is></c>`;
+      };
+      const rows: string[] = [];
+      const pushRow = (r: number, cols: Array<[string, string | number]>) => {
+        rows.push(`<row r="${r}">${cols.map(([c, v]) => cellXml(`${c}${r}`, v)).join('')}</row>`);
+      };
+      pushRow(1, [['A', 'TÌNH HÌNH GIẢI NGÂN KẾ HOẠCH VỐN ĐẦU TƯ CÔNG NĂM 2026 ĐẾN HẾT NGÀY 08/11/2026']]);
+      pushRow(2, [['A', 'Đơn vị: Triệu đồng']]);
+      pushRow(3, [
+        ['A', 'Stt'],
+        ['B', 'Chủ đầu tư'],
+        ['C', 'Kế hoạch vốn năm 2026'],
+        ['G', 'Giải ngân đến hết ngày 08/11/2026 theo báo cáo của Kho bạc Nhà nước khu vực III'],
+        ['K', 'Tỷ lệ'],
+        ['L', 'Ghi chú'],
+      ]);
+      pushRow(4, [['C', 'Tổng số'], ['D', 'Chi tiết theo nguồn vốn'], ['G', 'Tổng số'], ['H', 'Chi tiết theo nguồn vốn']]);
+      pushRow(5, [
+        ['D', 'Nguồn thu tiền sử dụng đất'],
+        ['E', 'Bổ sung có mục tiêu'],
+        ['F', 'Nguồn tăng thu'],
+        ['H', 'Nguồn thu tiền sử dụng đất'],
+        ['I', 'Bổ sung có mục tiêu'],
+        ['J', 'Nguồn tăng thu'],
+      ]);
+      pushRow(6, [['A', 1], ['B', 2], ['C', '3=4+5+6'], ['G', '7=8+9+10'], ['K', '11=7/3'], ['L', 12]]);
+      // Row 7 summary = sum of 3 sample communes
+      pushRow(7, [
+        ['B', 'Tổng số'],
+        ['C', 258787.89399932264],
+        ['D', 22854],
+        ['E', 135933.89399932264],
+        ['F', 100000],
+        ['G', 195050],
+        ['H', 22363],
+        ['I', 134549],
+        ['J', 38138],
+        ['K', 0.7537060405768989],
+      ]);
+      pushRow(8, [
+        ['A', 1],
+        ['B', 'Xã Nam Sách'],
+        ['C', 88745.03866983537],
+        ['D', 10172],
+        ['E', 28573.03866983536],
+        ['F', 50000],
+        ['G', 76883],
+        ['H', 10172],
+        ['I', 28573],
+        ['J', 38138],
+        ['K', 0.8663357541150376],
+      ]);
+      pushRow(9, [
+        ['A', 2],
+        ['B', 'Xã Thái Tân'],
+        ['C', 24169.16741313712],
+        ['D', 3570],
+        ['E', 20599.16741313712],
+        ['F', 0],
+        ['G', 23157],
+        ['H', 3081],
+        ['I', 20076],
+        ['J', 0],
+        ['K', 0.9581215440385027],
+      ]);
+      pushRow(10, [
+        ['A', 3],
+        ['B', 'Phường Phù Liễn'],
+        ['C', 145873.68791631915],
+        ['D', 9112],
+        ['E', 86761.68791631915],
+        ['F', 50000],
+        ['G', 95010],
+        ['H', 9110],
+        ['I', 85900],
+        ['J', 0],
+        ['K', 0.6513169130633202],
+        ['L', 'Loại trừ nguồn tăng thu bổ sung theo Quyết định số 4581/QĐ-UBND ngày 31/10/2026, tỷ lệ giải ngân đạt 99%'],
+      ]);
+
+      const sheetXml = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main"><sheetData>${rows.join('')}</sheetData></worksheet>`;
+      const workbookXml = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<workbook xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships"><sheets><sheet name="Tổng hợp" sheetId="1" state="visible" r:id="rId1"/></sheets></workbook>`;
+      const relsXml = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet" Target="worksheets/sheet1.xml"/></Relationships>`;
+      const rootRels = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="xl/workbook.xml"/></Relationships>`;
+      const contentTypes = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types"><Default Extension="rels" ContentType="application/vnd.openxmlformats-officedocument.relationships+xml"/><Default Extension="xml" ContentType="application/xml"/><Override PartName="/xl/workbook.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet.main+xml"/><Override PartName="/xl/worksheets/sheet1.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"/></Types>`;
+
+      return zipSync({
+        '[Content_Types].xml': strToU8(contentTypes),
+        '_rels/.rels': strToU8(rootRels),
+        'xl/workbook.xml': strToU8(workbookXml),
+        'xl/_rels/workbook.xml.rels': strToU8(relsXml),
+        'xl/worksheets/sheet1.xml': strToU8(sheetXml),
+      });
+    };
+
+    const bytes = buildMinimalPhanCapXaXlsx();
+    const parsedWb = parseWorkbookBytes(bytes, 'Von_phan_cap_xa_08.11.xlsx');
+    expect(detectSheetFingerprint(parsedWb.sheets[0])).toBe('DISB_PHAN_CAP_XA_V1');
+
+    const imported = importDisbursementWorkbook(bytes, 'Von_phan_cap_xa_08.11.xlsx');
+    expect(imported.dataset.schemaFingerprint).toBe('DISB_PHAN_CAP_XA_V1');
+    expect(imported.dataset.asOfDate).toBe('2026-11-08');
+    expect(imported.dataset.unitCount).toBe(3);
+    expect(imported.dataset.citySummaryRecord).toBeUndefined();
+    expect(imported.dataset.unplannedDisbursementRecord).toBeUndefined();
+    expect(imported.dataset.summaryRecord?.sourceRow).toBe(7);
+    expect(imported.dataset.identityChecks?.length).toBe(6); // 3 rows x (C=D+E+F, G=H+I+J)
+    expect(imported.dataset.identityChecks?.every((c) => c.status === 'PASS_COMPLETE')).toBe(true);
+
+    const phuLienRec = imported.dataset.records.find((r) => r.localityName === 'Phường Phù Liễn')!;
+    expect(phuLienRec.officialNote).toContain('4581/QĐ-UBND');
+    expect(phuLienRec.adjustedScenarios?.[0].excludedItems[0]).toContain('4581');
+
+    const ws = createEmptyWorkspace();
+    registerDatasetInWorkspace(ws, imported.dataset, imported.localities);
+    registerDatasetInWorkspace(ws, revDataset);
+    registerDatasetInWorkspace(ws, gpmbDataset);
+    const session = createReportSession(ws, {
+      name: 'Phân cấp xã 08.11',
+      dataBindings: { DISB: imported.dataset.id, REV: revDataset.id, GPMB: gpmbDataset.id },
+    });
+    const namSachId = imported.localities.find((l) => l.displayName === 'Xã Nam Sách')!.id;
+    const thaiTanId = imported.localities.find((l) => l.displayName === 'Xã Thái Tân')!.id;
+    setSessionLocalities(ws, session.id, [namSachId, thaiTanId]);
+
+    const evaluated = evaluateSessionReport({
+      session,
+      baselineLocalities: ws.localities,
+      datasets: { DISB: imported.dataset, REV: revDataset, GPMB: gpmbDataset },
+    });
+
+    const row3 = evaluated.rows.find((r) => r.indicator.id === 'DISB_PLAN')!;
+    const namSachPlan = row3.cellsByLocalityId[namSachId];
+    expect(namSachPlan.adjustmentNote).toBeNull();
+    expect(formatReportCellValue(namSachPlan, row3.indicator.displayUnit, 'billion')).toBe('88,75 tỷ');
+    expect(evaluated.benchmarks?.disbRateBenchmark?.displayedText).toBe('75,37%');
+
+    const studioHtml = renderA4DocumentStudioHtml({
+      evaluated,
+      baselineLocalities: ws.localities,
+      datasets: { DISB: imported.dataset, REV: revDataset, GPMB: gpmbDataset },
+    });
+    expect(studioHtml).toContain('88,75 tỷ');
+    expect(studioHtml).toContain('08/11/2026');
+    expect(studioHtml).not.toContain('(tăng');
+    expect(studioHtml).not.toContain('(giữ nguyên');
+
+    const xlsxBytes = exportSessionReportToXlsxBytes({
+      evaluated,
+      baselineLocalities: ws.localities,
+      datasets: { DISB: imported.dataset, REV: revDataset, GPMB: gpmbDataset },
+    });
+    const sheet1Xml = strFromU8(unzipSync(xlsxBytes)['xl/worksheets/sheet1.xml']);
+    expect(sheet1Xml).toContain('88.74503866983537');
+
+    // Also test explicit toggle-off on DISB_V1 omits adjustmentNote cleanly
+    const wsV1 = createEmptyWorkspace();
+    registerDatasetInWorkspace(wsV1, disbDataset, baselineLocalities);
+    registerDatasetInWorkspace(wsV1, revDataset);
+    registerDatasetInWorkspace(wsV1, gpmbDataset);
+    const sV1 = createReportSession(wsV1, { name: 'V1 without adj comparison' });
+    const kienThuyLoc = baselineLocalities.find((l) => l.displayName.includes('Kiến Thụy'))!;
+    setSessionLocalities(wsV1, sV1.id, [kienThuyLoc.id]);
+    sV1.settings.showDisbPlanAdjustmentComparison = false;
+    const evalV1NoAdj = evaluateSessionReport({
+      session: sV1,
+      baselineLocalities,
+      datasets: { DISB: disbDataset, REV: revDataset, GPMB: gpmbDataset },
+    });
+    const ktCell = evalV1NoAdj.rows.find((r) => r.indicator.id === 'DISB_PLAN')!.cellsByLocalityId[kienThuyLoc.id];
+    expect(ktCell.adjustmentNote).toBeNull();
   });
 });

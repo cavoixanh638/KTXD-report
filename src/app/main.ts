@@ -23,6 +23,7 @@ import {
 import {
   evaluateSessionReport,
   EvaluatedSessionReport,
+  computeBenchmarkRatio,
 } from '../core/calculationTrace';
 import { analyzeSourceCoverage } from '../core/coverage';
 import { summarizeDatasetWarnings, filterWarningsForSession } from '../core/warnings';
@@ -280,16 +281,26 @@ export class KtxhOfflineApp {
       const visibleSheets = wb.sheets.filter((s) => s.state === 'visible');
       for (const s of visibleSheets) {
         const fp = detectSheetFingerprint(s);
-        if (fp === 'DISB_V1') {
+        if (fp === 'DISB_V1' || fp === 'DISB_PHAN_CAP_XA_V1') {
           const { dataset, localities } = importDisbursementWorkbook(bytes, filename);
           registerDatasetInWorkspace(this.workspace, dataset, localities);
           for (const sess of this.workspace.sessions) {
             sess.dataBindings.DISB = dataset.id;
+            if (sess.benchmarkBindings['DISB_BENCHMARK_RATE']) {
+              sess.benchmarkBindings['DISB_BENCHMARK_RATE'] = {
+                ...sess.benchmarkBindings['DISB_BENCHMARK_RATE'],
+                datasetId: dataset.id,
+                asOfDate: dataset.asOfDate,
+                coverageActual: dataset.unitCount,
+              };
+            }
           }
           syncReportLabelsWithDatasetDates(this.workspace);
           this.triggerAutosave();
           this.setStatus(
-            `Đã nhận diện & nhập nguồn Giải ngân "${filename}" (${dataset.unitCount} địa phương, ngày chốt ${formatVnDate(dataset.asOfDate)}).`,
+            fp === 'DISB_PHAN_CAP_XA_V1'
+              ? `Đã nhận diện & nhập nguồn Giải ngân (Vốn phân cấp cấp xã) "${filename}" (${dataset.unitCount} địa phương, ngày chốt ${formatVnDate(dataset.asOfDate)}; tự động bỏ so sánh đầu năm do nguồn không có cột trước ĐC).`
+              : `Đã nhận diện & nhập nguồn Giải ngân "${filename}" (${dataset.unitCount} địa phương, ngày chốt ${formatVnDate(dataset.asOfDate)}).`,
             'success'
           );
           this.render();
@@ -897,6 +908,19 @@ export class KtxhOfflineApp {
         </small>
       </div>
 
+      <div class="form-group" style="border-top: 1px dashed var(--border-color); padding-top: 12px; margin-top: 12px;">
+        <label style="font-weight: 600;">Kế hoạch vốn đầu tư công (Dòng 3):</label>
+        <label class="checkbox-label" style="margin-top:6px;">
+          <input type="checkbox" id="setting-show-disb-adjustment" ${
+            s.showDisbPlanAdjustmentComparison !== false ? 'checked' : ''
+          } />
+          Hiện so sánh đầu năm (tăng/giảm/giữ nguyên) khi file nguồn có cột trước điều chỉnh
+        </label>
+        <small class="text-muted" style="font-size: 11px; display: block; margin-top: 2px;">
+          Với file Vốn phân cấp cấp xã không có cột trước ĐC (như bản 08/11), hệ thống tự động bỏ phần so sánh này.
+        </small>
+      </div>
+
       <button type="submit" class="btn btn-primary" style="width:100%; margin-top:10px">Lưu thay đổi định dạng & tiêu đề</button>
     </form>`;
   }
@@ -1203,11 +1227,23 @@ export class KtxhOfflineApp {
     DISB?: Workspace['datasets'][number];
     GPMB?: Workspace['datasets'][number];
   }): string {
+    const liveDisbBmText = datasets.DISB
+      ? computeBenchmarkRatio({
+          indicatorId: 'DISB_BENCHMARK_RATE',
+          dataset: datasets.DISB,
+          baselineLocalities: this.workspace.localities,
+          numeratorField: 'disbursed_total',
+          denominatorField: 'adjusted_total_plan',
+          scopeType: 'LOCALITIES_FULL_114',
+          decimals: 2,
+        }).displayedText
+      : '67,10%';
+
     const kpiHtml = `<div class="kpi-summary-grid">
       <div class="kpi-box">
-        <div class="kpi-box-title">1. Giải ngân Đầu tư công (DISB)</div>
+        <div class="kpi-box-title">1. Giải ngân Đầu tư công (DISB)${datasets.DISB?.schemaFingerprint === 'DISB_PHAN_CAP_XA_V1' ? ' · Phân cấp xã' : ''}</div>
         <div class="kpi-box-value">${datasets.DISB ? `${datasets.DISB.unitCount}/114 địa phương` : 'Chưa nạp'}</div>
-        <div class="kpi-box-sub">Ngày chốt: <strong>${escapeHtmlUi(formatVnDate(datasets.DISB?.asOfDate) || '15/10/2026')}</strong> | Mốc chuẩn: <strong>67,10%</strong></div>
+        <div class="kpi-box-sub">Ngày chốt: <strong>${escapeHtmlUi(formatVnDate(datasets.DISB?.asOfDate) || '15/10/2026')}</strong> | Mốc chuẩn: <strong>${escapeHtmlUi(liveDisbBmText)}</strong></div>
       </div>
       <div class="kpi-box">
         <div class="kpi-box-title">2. Thu Ngân sách Nhà nước (REV)</div>
@@ -1328,7 +1364,7 @@ export class KtxhOfflineApp {
           <div class="source-card-header">
             <div class="source-card-title">
               <strong>${label}</strong>
-              <span class="source-card-code">(${type})</span>
+              <span class="source-card-code">(${type}${ds?.schemaFingerprint === 'DISB_PHAN_CAP_XA_V1' ? ' · phân cấp xã' : ''})</span>
             </div>
             <span class="badge badge-COMPLETE">Đã nạp</span>
           </div>
@@ -1481,7 +1517,9 @@ export class KtxhOfflineApp {
         <h2>Mốc So sánh Chuẩn Chung &amp; Tùy chỉnh Bảng 14 Dòng</h2>
         <p>Mọi tỷ lệ chuẩn chung đều tính bằng <strong>SUM(tử số) / SUM(mẫu số)</strong> trên toàn phạm vi hợp lệ.</p>
         <ul class="benchmark-summary-list">
-          <li><strong>Giải ngân 114 địa phương (15/10/2026):</strong> Tỷ lệ chung = <strong>${escapeHtmlUi(
+          <li><strong>Giải ngân ${datasets.DISB?.unitCount ?? 114} địa phương (${escapeHtmlUi(
+            formatVnDate(datasets.DISB?.asOfDate) || '15/10/2026'
+          )})${datasets.DISB?.schemaFingerprint === 'DISB_PHAN_CAP_XA_V1' ? ' [vốn phân cấp cấp xã]' : ''}:</strong> Tỷ lệ chung = <strong>${escapeHtmlUi(
             bm?.disbRateBenchmark?.displayedText || '67,10%'
           )}</strong> | Vốn giao bình quân = <strong>${escapeHtmlUi(
       bm?.disbPlanAvg?.displayedText || '136,41 tỷ đồng'
@@ -2067,6 +2105,7 @@ export class KtxhOfflineApp {
       const showUncompletedSummaryEl = document.getElementById('setting-show-uncompleted-summary') as HTMLInputElement | null;
       const showUncompletedTableEl = document.getElementById('setting-show-uncompleted-table') as HTMLInputElement | null;
       const showNq11RowEl = document.getElementById('setting-show-nq11-row') as HTMLInputElement | null;
+      const showDisbAdjEl = document.getElementById('setting-show-disb-adjustment') as HTMLInputElement | null;
       const splitRow8El = document.getElementById('setting-split-row8-to-new-page') as HTMLInputElement | null;
       const projFontEl = document.getElementById('setting-proj-font-size') as HTMLInputElement | null;
 
@@ -2087,6 +2126,9 @@ export class KtxhOfflineApp {
       }
       if (showNq11RowEl) {
         activeSession.settings.showNq11Row = showNq11RowEl.checked;
+      }
+      if (showDisbAdjEl) {
+        activeSession.settings.showDisbPlanAdjustmentComparison = showDisbAdjEl.checked;
       }
       if (splitRow8El) {
         activeSession.settings.splitRow8ToNewPage = splitRow8El.checked;
