@@ -527,12 +527,5 @@ function renderPaperSheetHtml(params: {
     <div class="doc-body-table">
       ${contentHtml}
     </div>
-
-    <!-- CHÂN TRANG (SỐ TRANG) -->
-    <footer class="doc-footer">
-      <div class="doc-page-counter">
-        <span>Trang ${pageIdx} / ${totalPages}</span>
-      </div>
-    </footer>
   </div>`;
 }

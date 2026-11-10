@@ -1845,9 +1845,9 @@ export function evaluateLocalityIndicator(params: {
       const diffPp = locPct.minus(bmPct);
       const diffFormatted = formatVnNumber(diffPp.abs(), decPct);
       const label = diffPp.gt(session.comparisonRules.higherThresholdPp)
-        ? `${session.comparisonRules.higherLabel} (+${diffFormatted}%)`
+        ? `${session.comparisonRules.higherLabel} (>${diffFormatted}%)`
         : diffPp.lt(-session.comparisonRules.lowerThresholdPp)
-        ? `${session.comparisonRules.lowerLabel} (-${diffFormatted}%)`
+        ? `${session.comparisonRules.lowerLabel} (<${diffFormatted}%)`
         : `${session.comparisonRules.equalLabel} (0,00%)`;
 
       const traceId = `TRACE_DISB_COMPARISON_${locality.id}_${disb.id}`;
@@ -2479,9 +2479,9 @@ export function evaluateLocalityIndicator(params: {
       const diffFormatted = formatVnNumber(diffPp.abs(), decPct);
 
       const label = diffPp.gt(session.comparisonRules.higherThresholdPp)
-        ? `${session.comparisonRules.higherLabel} (+${diffFormatted}%)`
+        ? `${session.comparisonRules.higherLabel} (>${diffFormatted}%)`
         : diffPp.lt(-session.comparisonRules.lowerThresholdPp)
-        ? `${session.comparisonRules.lowerLabel} (-${diffFormatted}%)`
+        ? `${session.comparisonRules.lowerLabel} (<${diffFormatted}%)`
         : `${session.comparisonRules.equalLabel} (0,00%)`;
 
       const traceId = `TRACE_GPMB_COMPARISON_${locality.id}_${gpmb.id}`;

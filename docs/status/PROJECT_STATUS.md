@@ -46,11 +46,12 @@
   17. Sửa triệt để lỗi nhảy con trỏ tìm kiếm địa phương: lọc danh sách in-place không tải lại toàn trang và tự động bảo lưu focus/selectionRange của ô nhập liệu.
   18. Xóa nhãn phân loại thừa (`Xã`, `Phường`, `Đặc khu`) ở tiêu đề cột khi tên đã có chữ Xã/Phường; xóa cột `Loại` ở bố cục bảng dọc.
   19. So sánh tỷ lệ GPMB trực tiếp với mốc trung bình 108 địa bàn: loại bỏ giới hạn "Chưa đủ cơ sở đánh giá", tính trực tiếp độ lệch điểm phần trăm.
-  20. Chuẩn hóa kết quả so sánh giải ngân và GPMB: hiển thị rõ mức độ `cao hơn (+X,XX%)`, `thấp hơn (-X,XX%)` hoặc `tương đương (0,00%)`.
+  20. Chuẩn hóa kết quả so sánh giải ngân và GPMB: đổi dấu +/- thành dấu >/<, hiển thị rõ mức độ `cao hơn (>X,XX%)`, `thấp hơn (<X,XX%)` hoặc `tương đương (0,00%)` (ví dụ: `thấp hơn (<47,05%)`, `cao hơn (>25,99%)`).
   21. Các dòng chỉ tiêu không có số thứ tự (dòng phụ con) được định dạng chữ nghiêng (`font-style: italic;`) và không in đậm (`font-weight: normal;`).
-  22. **In ấn & Xuất PDF chuẩn văn bản hành chính:** Loại bỏ hoàn toàn ký hiệu cảnh báo ⚠, biểu tượng ghi chú 📝 và các bảng phụ lục (Coverage Audit, Trace, M-mismatch) khi in; bản in và xuất PDF chỉ in đúng 1 trang Báo cáo tổng hợp sạch sẽ, chuẩn xác.
+  22. **In ấn & Xuất PDF chuẩn văn bản hành chính:** Loại bỏ hoàn toàn ký hiệu cảnh báo ⚠, biểu tượng ghi chú 📝, thông tin số trang ("Trang 1 / 1") và các bảng phụ lục (Coverage Audit, Trace, M-mismatch) khi in; bản in và xuất PDF chỉ in đúng 1 trang Báo cáo tổng hợp sạch sẽ, chuẩn xác.
   23. **Sắp xếp thứ tự địa phương linh hoạt:** Mặc định đưa các địa phương được chọn lên đầu danh sách (`SELECTED_FIRST`); bổ sung thanh công cụ sắp xếp thứ tự cột báo cáo (nút di chuyển ▲/▼, sắp xếp A→Z, Z→A, đảo ngược và gỡ bỏ ✕ trực tiếp).
   24. **Giao diện Nhập nguồn thu gọn (Compact One-Screen):** Thiết kế lại thanh kéo thả compact và hiển thị 3 nguồn dữ liệu (DISB, REV, GPMB) theo dạng lưới 3 cột ngang (`.card-grid-3`), gom gọn kiểm toán nguồn thiếu dạng pills giúp toàn bộ trang hiển thị trọn vẹn trên 1 màn hình không cần cuộn; khắc phục lỗi thanh cuộn cho khu vực làm việc trung tâm.
+  25. **Loại bỏ hiển thị số trang:** Đã gỡ bỏ toàn bộ dòng chữ "Trang 1 / 1" ở cuối báo cáo trong cả giao diện Document Studio lẫn bản in theo yêu cầu.
 - **Bằng chứng JSON xuất tự động từ runtime:** [`docs/data_checks/PH1_ACCEPTANCE_EVIDENCE_20261109.json`](../data_checks/PH1_ACCEPTANCE_EVIDENCE_20261109.json) (chứa bảng đối chiếu 14 dòng cho Phiên A 5 xã và Phiên B 7 phường cùng trạng thái từng mã `T01`–`T66`).
 - **Minh chứng Microsoft Edge Headless Offline (`file://`):**
   - [`docs/evidence/EDGE_HEADLESS_DOM_DUMP.html`](../evidence/EDGE_HEADLESS_DOM_DUMP.html) (2.04 MB DOM dump xác nhận khởi chạy JS & Document Studio hoàn chỉnh).

@@ -170,7 +170,7 @@ describe('KTXH Offline – A4 Report Studio & WYSIWYG Architecture Suite', () =>
     expect(html5).not.toContain('Ghi chú phương pháp tính & Dữ liệu nguồn');
     expect(html5).not.toContain('NGƯỜI LẬP BIỂU');
     expect(html5).not.toContain('THỦ TRƯỞNG ĐƠN VỊ');
-    expect(html5).toContain('Trang 1 / 1');
+    expect(html5).not.toContain('Trang 1 / 1');
 
     // Render in Vertical mode (Transposed table)
     session5.settings.tableLayoutMode = 'VERTICAL';
@@ -408,10 +408,10 @@ describe('KTXH Offline – A4 Report Studio & WYSIWYG Architecture Suite', () =>
     const row7 = evalReport.rows.find((r) => r.rowConfig.rowNumber === 7)!;
     expect(row7.rowConfig.customLabel).toBe('Kế hoạch vốn đầu tư công sau NQ điều chỉnh, bổ sung của HĐND');
 
-    // 8. Check GPMB comparison format (+X,XX%) or (-X,XX%)
+    // 8. Check GPMB comparison format (>X,XX%) or (<X,XX%)
     const row16Comp = evalReport.rows.find((r) => r.rowConfig.rowNumber === 16)!;
     const cellRow16 = row16Comp.cellsByLocalityId[firstLocId];
-    expect(cellRow16.displayedText).toMatch(/(cao hơn \(\+[0-9,]+%\)|thấp hơn \(\-[0-9,]+%\)|tương đương \(0,00%\))/i);
+    expect(cellRow16.displayedText).toMatch(/(cao hơn \(\>[0-9,]+%\)|thấp hơn \(\<[0-9,]+%\)|tương đương \(0,00%\))/i);
     expect(cellRow16.displayedText).not.toContain('Chưa đủ cơ sở đánh giá');
 
     // 9. Verify Locality classification removed from header and sub-row styling applied
@@ -473,6 +473,7 @@ describe('KTXH Offline – A4 Report Studio & WYSIWYG Architecture Suite', () =>
     expect(cleanPrintHtml).not.toContain('print-appendix');
     expect(cleanPrintHtml).not.toContain('Phiên:');
     expect(cleanPrintHtml).not.toContain('Ngày chốt độc lập');
+    expect(cleanPrintHtml).not.toContain('Trang 1 / 1');
     expect(cleanPrintHtml).toContain('Kế hoạch vốn đầu tư công sau NQ điều chỉnh, bổ sung của HĐND');
   });
 });

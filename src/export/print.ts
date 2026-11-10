@@ -92,7 +92,6 @@ export function generatePrintableReportHtml(params: {
             ${bodyRows}
           </tbody>
         </table>
-        <div class="print-page-number">Trang ${pageIdx + 1} / ${chunks.length}</div>
       </section>`;
     })
     .join('\n');
