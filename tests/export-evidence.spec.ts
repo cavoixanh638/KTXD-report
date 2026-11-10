@@ -58,6 +58,7 @@ describe('Evidence Export Refresher', () => {
     });
     session.settings.showSubtitle = true;
     session.settings.subtitle = '(Số liệu tổng hợp phục vụ công tác chỉ đạo, điều hành)';
+    session.settings.showUncompletedProjectsTable = false;
 
     const chosenNames = [
       'Xã Nam Sách',
@@ -109,7 +110,7 @@ describe('Evidence Export Refresher', () => {
 ${cssContent}
   </style>
 </head>
-<body style="background:#fff; margin:0; padding:10mm;">
+<body style="background:#fff; margin:0; padding:0;">
   <div id="print-mount-area">
     ${printBody}
   </div>

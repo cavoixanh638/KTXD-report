@@ -478,7 +478,7 @@ function renderHorizontalPages(params: {
             const projListHtml =
               uncompletedRes.projectListHtmlByLocalityId[loc.id] ||
               '<span class="text-muted" style="font-style:italic;">-</span>';
-            return `<td class="doc-td doc-cell doc-cell-proj-list state-VALUE quality-DIRECT_SOURCE" style="text-align: left; vertical-align: top; padding: 3pt 4pt;">
+            return `<td class="doc-td doc-cell doc-cell-proj-list state-VALUE quality-DIRECT_SOURCE" style="text-align: left; vertical-align: top; padding: 2pt 3.5pt;">
               ${projListHtml}
             </td>`;
           })

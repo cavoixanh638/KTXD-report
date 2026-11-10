@@ -118,7 +118,7 @@ export function generatePrintableReportHtml(params: {
             const listHtml =
               uncompletedRes.projectListHtmlByLocalityId[loc.id] ||
               '<span class="text-muted" style="font-style:italic;">-</span>';
-            return `<td class="print-cell" style="text-align: left; vertical-align: top; padding: 3pt 4pt; font-size: 8pt; line-height: 1.3;">${listHtml}</td>`;
+            return `<td class="print-cell" style="text-align: left; vertical-align: top; padding: 2pt 3.5pt; font-size: 7.5pt; line-height: 1.15;">${listHtml}</td>`;
           })
           .join('');
 
