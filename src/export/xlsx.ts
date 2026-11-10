@@ -147,7 +147,7 @@ function buildStylesXml(): string {
   <cellStyleXfs count="1">
     <xf numFmtId="0" fontId="0" fillId="0" borderId="0"/>
   </cellStyleXfs>
-  <cellXfs count="8">
+  <cellXfs count="12">
     <xf numFmtId="0" fontId="0" fillId="0" borderId="0" xfId="0"/>
     <xf numFmtId="0" fontId="1" fillId="0" borderId="0" xfId="0" applyFont="1" applyAlignment="1">
       <alignment horizontal="center" vertical="center" wrapText="1"/>
@@ -169,6 +169,18 @@ function buildStylesXml(): string {
     </xf>
     <xf numFmtId="0" fontId="0" fillId="0" borderId="1" xfId="0" applyFont="1" applyBorder="1" applyAlignment="1">
       <alignment horizontal="center" vertical="center" wrapText="1"/>
+    </xf>
+    <xf numFmtId="0" fontId="2" fillId="2" borderId="1" xfId="0" applyFont="1" applyFill="1" applyBorder="1" applyAlignment="1">
+      <alignment horizontal="center" vertical="top" wrapText="1"/>
+    </xf>
+    <xf numFmtId="0" fontId="2" fillId="2" borderId="1" xfId="0" applyFont="1" applyFill="1" applyBorder="1" applyAlignment="1">
+      <alignment horizontal="left" vertical="top" wrapText="1"/>
+    </xf>
+    <xf numFmtId="0" fontId="0" fillId="0" borderId="1" xfId="0" applyFont="1" applyBorder="1" applyAlignment="1">
+      <alignment horizontal="left" vertical="top" wrapText="1"/>
+    </xf>
+    <xf numFmtId="0" fontId="0" fillId="0" borderId="1" xfId="0" applyFont="1" applyBorder="1" applyAlignment="1">
+      <alignment horizontal="center" vertical="top" wrapText="1"/>
     </xf>
   </cellXfs>
   <cellStyles count="1">
@@ -309,13 +321,13 @@ export function exportSessionReportToXlsxBytes(params: {
 
     // Dòng STT 8: Số dự án chưa hoàn thành GPMB
     const row8Cells: Array<XlsxCellInput | null> = [
-      { type: 'n', value: 8, styleIndex: 4 },
+      { type: 's', value: '8', styleIndex: 8 },
       {
         type: 's',
         value:
           session.settings.uncompletedRowCustomLabel ||
           'Số dự án chưa hoàn thành GPMB',
-        styleIndex: 2,
+        styleIndex: 9,
       },
     ];
     for (const loc of selectedLocalities) {
@@ -324,29 +336,30 @@ export function exportSessionReportToXlsxBytes(params: {
       row8Cells.push({
         type: 's',
         value: summaryText,
-        styleIndex: 7,
+        styleIndex: 11,
       });
     }
     sheet1Rows.push(row8Cells);
 
     // Dòng con (không STT): Tên dự án chưa hoàn thành GPMB
     const subRowCells: Array<XlsxCellInput | null> = [
-      { type: 's', value: '', styleIndex: 3 },
+      { type: 's', value: '', styleIndex: 10 },
       {
         type: 's',
         value:
           session.settings.uncompletedProjectsListCustomLabel ||
           'Tên dự án chưa hoàn thành GPMB',
-        styleIndex: 3,
+        styleIndex: 10,
       },
     ];
     for (const loc of selectedLocalities) {
       const listText =
         uncompletedRes.projectListTextByLocalityId[loc.id] || '-';
+      const isPlaceholder = listText === '-' || listText === 'Không có nhiệm vụ GPMB';
       subRowCells.push({
         type: 's',
         value: listText,
-        styleIndex: 7,
+        styleIndex: isPlaceholder ? 11 : 10,
       });
     }
     sheet1Rows.push(subRowCells);
@@ -358,13 +371,13 @@ export function exportSessionReportToXlsxBytes(params: {
       selectedLocalities,
     });
     const row9Cells: Array<XlsxCellInput | null> = [
-      { type: 's', value: '9', styleIndex: 2 },
+      { type: 's', value: '9', styleIndex: 8 },
       {
         type: 's',
         value:
           session.settings.nq11RowCustomLabel ||
           'Dự án theo NQ 11 trên địa bàn xã có khó khăn, vướng mắc',
-        styleIndex: 2,
+        styleIndex: 9,
       },
     ];
     for (const loc of selectedLocalities) {
@@ -372,7 +385,7 @@ export function exportSessionReportToXlsxBytes(params: {
       row9Cells.push({
         type: 's',
         value: listText,
-        styleIndex: 3,
+        styleIndex: listText === '-' ? 11 : 10,
       });
     }
     sheet1Rows.push(row9Cells);

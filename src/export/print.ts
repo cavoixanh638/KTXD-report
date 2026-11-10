@@ -101,15 +101,15 @@ export function generatePrintableReportHtml(params: {
         const row8Cells = chunk
           .map((loc) => {
             const summaryText = uncompletedRes.summaryTextByLocalityId[loc.id] || 'Đã hoàn thành';
-            return `<td class="print-cell" style="text-align: center; font-weight: bold;">${escapeHtml(
+            return `<td class="print-cell" style="text-align: center; vertical-align: top; font-weight: bold;">${escapeHtml(
               summaryText
             )}</td>`;
           })
           .join('');
 
-        const row8 = `<tr class="doc-row-primary">
-          <td class="stt-col">8</td>
-          <td class="label-col" style="width: ${indWidth}px; max-width: ${indWidth}px; font-weight: bold;">${escapeHtml(
+        const row8 = `<tr class="doc-row-primary doc-row-uncompleted-count">
+          <td class="stt-col" style="vertical-align: top;">8</td>
+          <td class="label-col" style="width: ${indWidth}px; max-width: ${indWidth}px; font-weight: bold; vertical-align: top;">${escapeHtml(
             session.settings.uncompletedRowCustomLabel || 'Số dự án chưa hoàn thành GPMB'
           )}</td>
           ${row8Cells}
@@ -121,14 +121,14 @@ export function generatePrintableReportHtml(params: {
           .map((loc) => {
             const listHtml =
               uncompletedRes.projectListHtmlByLocalityId[loc.id] ||
-              '<span class="text-muted" style="font-style:italic;">-</span>';
+              '<div class="text-muted" style="text-align: center;">-</div>';
             return `<td class="print-cell" style="text-align: left; vertical-align: top; padding: 2pt 3.5pt; font-size: ${projFontPt}pt; line-height: 1.15;">${listHtml}</td>`;
           })
           .join('');
 
-        const subRow = `<tr class="doc-row-sub">
-          <td class="stt-col"></td>
-          <td class="label-col" style="width: ${indWidth}px; max-width: ${indWidth}px; font-style: italic;">${escapeHtml(
+        const subRow = `<tr class="doc-row-sub doc-row-uncompleted-names">
+          <td class="stt-col" style="vertical-align: top;"></td>
+          <td class="label-col" style="width: ${indWidth}px; max-width: ${indWidth}px; font-style: italic; vertical-align: top;">${escapeHtml(
             session.settings.uncompletedProjectsListCustomLabel || 'Tên dự án chưa hoàn thành GPMB'
           )}</td>
           ${subRowCells}
@@ -148,14 +148,14 @@ export function generatePrintableReportHtml(params: {
           .map((loc) => {
             const listHtml =
               nq11Res.htmlByLocalityId[loc.id] ||
-              '<span class="text-muted" style="font-style:italic;">-</span>';
+              '<div class="text-muted" style="text-align: center;">-</div>';
             return `<td class="print-cell" style="text-align: left; vertical-align: top; padding: 2pt 3.5pt; font-size: ${projFontPt}pt; line-height: 1.15;">${listHtml}</td>`;
           })
           .join('');
 
         nq11PrintRow = `<tr class="doc-row-primary doc-row-nq11">
-          <td class="stt-col">9</td>
-          <td class="label-col" style="width: ${indWidth}px; max-width: ${indWidth}px; font-weight: 600;">${escapeHtml(
+          <td class="stt-col" style="vertical-align: top;">9</td>
+          <td class="label-col" style="width: ${indWidth}px; max-width: ${indWidth}px; font-weight: 600; vertical-align: top;">${escapeHtml(
             session.settings.nq11RowCustomLabel || 'Dự án theo NQ 11 trên địa bàn xã có khó khăn, vướng mắc'
           )}</td>
           ${nq11Cells}

@@ -1,6 +1,7 @@
 import { describe, it, expect, beforeAll } from 'vitest';
 import fs from 'node:fs';
 import path from 'node:path';
+import { unzipSync, strFromU8 } from 'fflate';
 import {
   importDisbursementWorkbook,
   importRevenueWorkbook,
@@ -1009,14 +1010,17 @@ describe('KTXH Offline – A4 Report Studio & WYSIWYG Architecture Suite', () =>
       datasets: { DISB: disbDataset, REV: revDataset, GPMB: gpmbDataset },
     });
 
-    // Verify NQ 11 project rendering in HTML with font size (9.5pt) applied
+    // Verify NQ 11 project rendering in HTML with font size (9.5pt) applied and top alignment
     expect(studioHtmlNq11).toContain('Đường gom dân sinh ven kênh NQ11');
     expect(studioHtmlNq11).toContain('Vướng GPMB 5 hộ dân chưa nhận tiền đền bù');
     expect(studioHtmlNq11).toContain('Hạn tháng 12/2026');
     expect(studioHtmlNq11).toContain('font-size: 9.5pt');
     expect(studioHtmlNq11).toContain('data-nq11-id="nq11-proj-1"');
+    expect(studioHtmlNq11).toContain('vertical-align: top;');
+    // Ensure no duplicate style attribute on td elements for rows 8 & 9
+    expect(studioHtmlNq11).not.toMatch(/style="[^"]*"\s+style="/);
 
-    // Verify NQ 11 presence in Print HTML
+    // Verify NQ 11 presence and top alignment in Print HTML
     const printHtmlNq11 = generatePrintableReportHtml({
       evaluated: evalWithNq11,
       baselineLocalities,
@@ -1026,15 +1030,22 @@ describe('KTXH Offline – A4 Report Studio & WYSIWYG Architecture Suite', () =>
     expect(printHtmlNq11).toContain('Dự án theo NQ 11 trên địa bàn xã có khó khăn, vướng mắc');
     expect(printHtmlNq11).toContain('Đường gom dân sinh ven kênh NQ11');
     expect(printHtmlNq11).toContain('Vướng GPMB 5 hộ dân chưa nhận tiền đền bù');
+    expect(printHtmlNq11).toContain('doc-row-uncompleted-count');
+    expect(printHtmlNq11).toContain('doc-row-uncompleted-names');
+    expect(printHtmlNq11).toContain('vertical-align: top;');
 
-    // Verify NQ 11 presence in XLSX export
+    // Verify NQ 11 presence and top-alignment styles in XLSX export
     const xlsxBytes = exportSessionReportToXlsxBytes({
-      session,
       evaluated: evalWithNq11,
       baselineLocalities,
       datasets: { DISB: disbDataset, REV: revDataset, GPMB: gpmbDataset },
     });
     expect(xlsxBytes.length).toBeGreaterThan(1000);
+    const unzipped = unzipSync(xlsxBytes);
+    const stylesXml = strFromU8(unzipped['xl/styles.xml']);
+    const sheet1Xml = strFromU8(unzipped['xl/worksheets/sheet1.xml']);
+    expect(stylesXml).toContain('vertical="top"');
+    expect(sheet1Xml).toContain('Đường gom dân sinh ven kênh NQ11');
 
     // Verify hiding Row 9 when showNq11Row = false
     session.settings.showNq11Row = false;

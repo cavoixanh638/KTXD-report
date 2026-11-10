@@ -3141,17 +3141,26 @@ code {
   border-radius: 6px;
 }
 
-/* NQ 11 Row styling */
+/* NQ 11 & Row 8 Top Align styling */
+.doc-table tr.doc-row-uncompleted-count td,
+.doc-table tr.doc-row-uncompleted-names td,
+.doc-table tr.doc-row-nq11 td,
+.print-table tr.doc-row-uncompleted-count td,
+.print-table tr.doc-row-uncompleted-names td,
+.print-table tr.doc-row-nq11 td {
+  vertical-align: top !important;
+}
+
 .doc-row-nq11 td {
   border-top: 1px solid #94a3b8 !important;
 }
 
 .nq11-empty-cell {
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   justify-content: center;
   gap: 6px;
-  min-height: 20px;
+  min-height: 0;
 }
 
 .btn-action-add-nq11-loc {

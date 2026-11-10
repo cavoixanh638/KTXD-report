@@ -459,7 +459,7 @@ function renderHorizontalPages(params: {
         const row8CellsHtml = chunk
           .map((loc) => {
             const summaryText = uncompletedRes.summaryTextByLocalityId[loc.id] || 'Đã hoàn thành';
-            return `<td class="doc-td doc-cell state-VALUE quality-DIRECT_SOURCE" style="text-align: center; font-weight: 600;">
+            return `<td class="doc-td doc-cell state-VALUE quality-DIRECT_SOURCE" style="text-align: center; vertical-align: top; font-weight: 600;">
               <div class="cell-content">
                 <span class="cell-val"><span class="val-primary">${escapeHtmlUi(summaryText)}</span></span>
               </div>
@@ -468,8 +468,8 @@ function renderHorizontalPages(params: {
           .join('');
 
         const row8Html = `<tr class="doc-row doc-row-primary doc-row-uncompleted-count" data-row-type="uncompleted-count">
-          <td class="doc-td doc-td-stt">8</td>
-          <td class="doc-td doc-td-indicator" style="width: ${indWidth}px; max-width: ${indWidth}px;">
+          <td class="doc-td doc-td-stt" style="vertical-align: top;">8</td>
+          <td class="doc-td doc-td-indicator" style="width: ${indWidth}px; max-width: ${indWidth}px; vertical-align: top;">
             <div class="indicator-name-group">
               <span class="indicator-name-text" style="font-weight: 600;">${escapeHtmlUi(
                 session.settings.uncompletedRowCustomLabel || 'Số dự án chưa hoàn thành GPMB'
@@ -482,21 +482,22 @@ function renderHorizontalPages(params: {
 
         // 2. Dòng con ngay dưới dòng 8 (không STT): Tên dự án chưa hoàn thành GPMB
         const projFontPt = session.settings.uncompletedProjectsFontSizePt;
-        const fontStyle = projFontPt ? ` style="font-size: ${projFontPt}pt;"` : '';
         const subRowCellsHtml = chunk
           .map((loc) => {
             const projListHtml =
               uncompletedRes.projectListHtmlByLocalityId[loc.id] ||
-              '<span class="text-muted" style="font-style:italic;">-</span>';
-            return `<td class="doc-td doc-cell doc-cell-proj-list state-VALUE quality-DIRECT_SOURCE"${fontStyle} style="text-align: left; vertical-align: top; padding: 2pt 3.5pt; ${projFontPt ? `font-size:${projFontPt}pt;` : ''}">
+              '<div class="text-muted" style="text-align: center;">-</div>';
+            return `<td class="doc-td doc-cell doc-cell-proj-list state-VALUE quality-DIRECT_SOURCE" style="text-align: left; vertical-align: top; padding: 2pt 3.5pt; ${
+              projFontPt ? `font-size: ${projFontPt}pt;` : ''
+            }">
               ${projListHtml}
             </td>`;
           })
           .join('');
 
         const subRowHtml = `<tr class="doc-row doc-row-sub doc-row-uncompleted-names" data-row-type="uncompleted-names">
-          <td class="doc-td doc-td-stt"></td>
-          <td class="doc-td doc-td-indicator" style="width: ${indWidth}px; max-width: ${indWidth}px;">
+          <td class="doc-td doc-td-stt" style="vertical-align: top;"></td>
+          <td class="doc-td doc-td-indicator" style="width: ${indWidth}px; max-width: ${indWidth}px; vertical-align: top;">
             <div class="indicator-name-group">
               <span class="indicator-name-text" style="font-style: italic; font-weight: normal;">${escapeHtmlUi(
                 session.settings.uncompletedProjectsListCustomLabel || 'Tên dự án chưa hoàn thành GPMB'
@@ -523,13 +524,13 @@ function renderHorizontalPages(params: {
         });
 
         const projFontPt = session.settings.uncompletedProjectsFontSizePt;
-        const fontStyle = projFontPt ? ` style="font-size: ${projFontPt}pt;"` : '';
-
         const nq11CellsHtml = chunk
           .map((loc) => {
-            const cellHtml = nq11Res.htmlByLocalityId[loc.id] || '<span class="text-muted">-</span>';
-            return `<td class="doc-td doc-cell doc-cell-nq11-list state-VALUE quality-DIRECT_SOURCE"${fontStyle} style="text-align: left; vertical-align: top; padding: 2pt 3.5pt; ${
-              projFontPt ? `font-size:${projFontPt}pt;` : ''
+            const cellHtml =
+              nq11Res.htmlByLocalityId[loc.id] ||
+              '<div class="text-muted" style="text-align: center;">-</div>';
+            return `<td class="doc-td doc-cell doc-cell-nq11-list state-VALUE quality-DIRECT_SOURCE" style="text-align: left; vertical-align: top; padding: 2pt 3.5pt; ${
+              projFontPt ? `font-size: ${projFontPt}pt;` : ''
             }">
               ${cellHtml}
             </td>`;
@@ -537,8 +538,8 @@ function renderHorizontalPages(params: {
           .join('');
 
         nq11RowHtml = `<tr class="doc-row doc-row-primary doc-row-nq11" data-row-type="nq11">
-          <td class="doc-td doc-td-stt">9</td>
-          <td class="doc-td doc-td-indicator" style="width: ${indWidth}px; max-width: ${indWidth}px;">
+          <td class="doc-td doc-td-stt" style="vertical-align: top;">9</td>
+          <td class="doc-td doc-td-indicator" style="width: ${indWidth}px; max-width: ${indWidth}px; vertical-align: top;">
             <div class="indicator-name-group">
               <span class="indicator-name-text" style="font-weight: 600;">${escapeHtmlUi(
                 session.settings.nq11RowCustomLabel || 'Dự án theo NQ 11 trên địa bàn xã có khó khăn, vướng mắc'

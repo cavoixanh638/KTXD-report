@@ -279,7 +279,7 @@ export function getUncompletedProjectsForSession(params: {
       summaryTextByLocalityId[loc.id] = 'Không có nhiệm vụ GPMB';
       projectListTextByLocalityId[loc.id] = 'Không có nhiệm vụ GPMB';
       projectListHtmlByLocalityId[loc.id] =
-        '<span class="text-muted" style="font-style:italic;">Không có nhiệm vụ GPMB</span>';
+        '<div class="text-muted" style="text-align: center; font-style:italic;">Không có nhiệm vụ GPMB</div>';
       continue;
     }
 
@@ -287,7 +287,7 @@ export function getUncompletedProjectsForSession(params: {
       // All projects completed: e.g. "Hoàn thành 4/4" or "Hoàn thành 1/1"
       summaryTextByLocalityId[loc.id] = `Hoàn thành ${total}/${total}`;
       projectListTextByLocalityId[loc.id] = '-';
-      projectListHtmlByLocalityId[loc.id] = '<span class="text-muted">-</span>';
+      projectListHtmlByLocalityId[loc.id] = '<div class="text-muted" style="text-align: center;">-</div>';
     } else {
       // e.g. "2/4 dự án"
       summaryTextByLocalityId[loc.id] = `${uncompleted}/${total} dự án`;
@@ -366,7 +366,7 @@ export function getNq11ProjectsForSession(params: {
 
     if (locProjects.length === 0) {
       textByLocalityId[loc.id] = '-';
-      htmlByLocalityId[loc.id] = `<div class="nq11-empty-cell" style="display:flex; align-items:center; justify-content:center; gap:6px;">
+      htmlByLocalityId[loc.id] = `<div class="nq11-empty-cell" style="display:flex; align-items:flex-start; justify-content:center; gap:6px;">
         <span class="text-muted">-</span>
         <button type="button" class="btn-action-add-nq11-loc inline-item-edit-btn no-print" data-locality-id="${escapeXml(
           loc.id

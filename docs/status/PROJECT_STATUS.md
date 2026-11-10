@@ -84,6 +84,7 @@
   30. **Hạn hoàn thành chi tiết đến tháng:** Chuẩn hóa toàn bộ thời hạn hoàn thành của các dự án GPMB và NQ 11 chi tiết đến tháng (ví dụ: `Hạn tháng 11/2026`, chuyển đổi từ "Trong năm 2026" hoặc ngày cụ thể).
   31. **Tùy chỉnh độ rộng cột Chỉ tiêu & Tự động chia đều cột xã:** Cho phép tùy chỉnh chiều rộng cột `Chỉ tiêu / Kết quả thực hiện` (mặc định 240px, có thể tăng/giảm từ 160px–600px). Chiều rộng cột STT giữ nguyên (30px), phần chiều rộng thừa hoặc thiếu sẽ tự động phân bổ đều về các cột của các xã/phường.
   32. **Căn giữa tiêu đề báo cáo:** Khi tùy chọn ẩn dòng chữ nhỏ in nghiêng dưới tiêu đề, hệ thống tự động ẩn hoàn toàn phần ghi chú và căn giữa tuyệt đối tiêu đề báo cáo chính.
+  33. **Căn lề trên (Top Align) đồng bộ cho Dòng 8, Dòng con dưới Dòng 8 và Dòng 9:** Khắc phục lỗi trùng thuộc tính `style` HTML trong `reportStudio.ts`, đồng bộ `vertical-align: top` trên toàn bộ cột (STT, Chỉ tiêu, các xã/phường) ở cả Web Studio (`main.css`), bản in (`print.ts`) và tệp Excel (`xlsx.ts`, `vertical="top"`).
 - **Bằng chứng JSON xuất tự động từ runtime:** [`docs/data_checks/PH1_ACCEPTANCE_EVIDENCE_20261109.json`](../data_checks/PH1_ACCEPTANCE_EVIDENCE_20261109.json) (chứa bảng đối chiếu 14 dòng cho Phiên A 5 xã và Phiên B 7 phường cùng trạng thái từng mã `T01`–`T66`).
 - **Minh chứng Microsoft Edge Headless Offline (`file://`):**
   - [`docs/evidence/EDGE_HEADLESS_DOM_DUMP.html`](../evidence/EDGE_HEADLESS_DOM_DUMP.html) (2.04 MB DOM dump xác nhận khởi chạy JS & Document Studio hoàn chỉnh).
