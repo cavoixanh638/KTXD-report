@@ -70,7 +70,8 @@ export function renderReportGridHtml(params: {
           const formattedVal = formatReportCellValue(
             cell,
             r.indicator.displayUnit,
-            session.settings.moneyUnit
+            session.settings.moneyUnit,
+            session.settings.areaUnit
           );
 
           return `<td class="report-cell state-${escapeHtmlUi(

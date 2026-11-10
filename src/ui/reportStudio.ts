@@ -6,7 +6,8 @@ import { escapeHtmlUi } from './cellInspector';
 export function formatReportCellValue(
   cell: EvaluatedReportCell | undefined,
   displayUnit: string,
-  moneyUnit: 'billion' | 'million' = 'billion'
+  moneyUnit: 'billion' | 'million' = 'billion',
+  areaUnit: 'm2' | 'ha' = 'm2'
 ): string {
   if (!cell) return 'Chưa có số liệu';
   const text = cell.displayedText;
@@ -24,6 +25,14 @@ export function formatReportCellValue(
     if (!result.includes('tỷ') && !result.includes('triệu')) {
       if (/^[-+]?[\d.,\s]+$/.test(result.trim())) {
         result = `${result} tỷ`;
+      }
+    }
+  }
+  if (displayUnit === 'm2' || cell.unitLabel === 'm²' || cell.unitLabel === 'm2' || cell.unitLabel === 'ha') {
+    if (!result.includes('m2') && !result.includes('m²') && !result.includes('ha')) {
+      if (/^[-+]?[\d.,\s]+$/.test(result.trim())) {
+        const u = areaUnit === 'ha' || cell.unitLabel === 'ha' ? 'ha' : 'm2';
+        result = `${result} ${u}`;
       }
     }
   }
@@ -292,7 +301,8 @@ function renderHorizontalPages(params: {
               const formattedVal = formatReportCellValue(
                 cell,
                 r.indicator.displayUnit,
-                session.settings.moneyUnit
+                session.settings.moneyUnit,
+                session.settings.areaUnit
               );
 
               return `<td class="doc-td doc-cell state-${escapeHtmlUi(
@@ -436,7 +446,8 @@ function renderVerticalPages(params: {
               const formattedVal = formatReportCellValue(
                 cell,
                 r.indicator.displayUnit,
-                session.settings.moneyUnit
+                session.settings.moneyUnit,
+                session.settings.areaUnit
               );
 
               return `<td class="doc-td doc-cell state-${escapeHtmlUi(

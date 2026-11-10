@@ -65,7 +65,8 @@ export function generatePrintableReportHtml(params: {
               const formattedVal = formatReportCellValue(
                 c,
                 r.indicator.displayUnit,
-                session.settings.moneyUnit
+                session.settings.moneyUnit,
+                session.settings.areaUnit
               );
               return `<td class="print-cell">${renderReportCellValueHtml(formattedVal)}</td>`;
             })

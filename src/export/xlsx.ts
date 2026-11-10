@@ -240,7 +240,20 @@ export function exportSessionReportToXlsxBytes(params: {
         const formattedVal = formatReportCellValue(
           cellEval,
           r.indicator.displayUnit,
-          session.settings.moneyUnit
+          session.settings.moneyUnit,
+          session.settings.areaUnit
+        );
+        rowCells.push({
+          type: 's',
+          value: formattedVal,
+          styleIndex: 7,
+        });
+      } else if (r.indicator.id === 'GPMB_AREA_PLAN') {
+        const formattedVal = formatReportCellValue(
+          cellEval,
+          r.indicator.displayUnit,
+          session.settings.moneyUnit,
+          session.settings.areaUnit
         );
         rowCells.push({
           type: 's',
@@ -254,9 +267,6 @@ export function exportSessionReportToXlsxBytes(params: {
         const styleIdx =
           cellEval.excelFormatType === 'PERCENT_RATIO'
             ? 5
-            : cellEval.excelFormatType === 'AREA' &&
-              session.settings.areaUnit === 'm2'
-            ? 6
             : 4;
         rowCells.push({
           type: 'n',
@@ -267,7 +277,8 @@ export function exportSessionReportToXlsxBytes(params: {
         const formattedVal = formatReportCellValue(
           cellEval,
           r.indicator.displayUnit,
-          session.settings.moneyUnit
+          session.settings.moneyUnit,
+          session.settings.areaUnit
         );
         rowCells.push({
           type: 's',

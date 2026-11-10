@@ -663,5 +663,25 @@ describe('KTXH Offline – A4 Report Studio & WYSIWYG Architecture Suite', () =>
     // 3. Regular value without note
     const htmlRegular = renderReportCellValueHtml('Không có nhiệm vụ GPMB');
     expect(htmlRegular).toBe('<span class="cell-main-val">Không có nhiệm vụ GPMB</span>');
+
+    // 4. Area value with m2 unit appended
+    const mockAreaCell = {
+      traceId: 'T1',
+      indicatorId: 'GPMB_AREA_PLAN',
+      localityId: 'L1',
+      localityName: 'Xã A',
+      exactDecimal: '550000',
+      numericValueForExcel: 550000,
+      excelFormatType: 'AREA' as const,
+      displayedText: '550.000',
+      unitLabel: 'm²',
+      state: 'VALUE' as const,
+      qualityStatus: 'COMPLETE' as const,
+      hasWarning: false,
+      warningCount: 0,
+      trace: {} as any,
+    };
+    const areaFormatted = formatReportCellValue(mockAreaCell, 'm2', 'billion', 'm2');
+    expect(areaFormatted).toBe('550.000 m2');
   });
 });
