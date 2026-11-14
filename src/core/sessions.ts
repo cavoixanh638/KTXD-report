@@ -7,6 +7,7 @@ import {
   TemplateRowCustomConfig,
   Workspace,
 } from './types';
+import { createLocalityFromName } from './localities';
 import {
   formatVnDateText,
   replaceDateInLabel,
@@ -49,8 +50,20 @@ export function registerDatasetInWorkspace(
     workspace.datasets[existingIdx] = dataset;
   }
 
-  if (localitiesFromDisb && localitiesFromDisb.length > 0 && workspace.localities.length === 0) {
-    workspace.localities = localitiesFromDisb.map((l) => ({ ...l, aliases: [...l.aliases] }));
+  if (localitiesFromDisb && localitiesFromDisb.length > 0) {
+    if (workspace.localities.length === 0) {
+      workspace.localities = localitiesFromDisb.map((l) => ({ ...l, aliases: [...l.aliases] }));
+    } else {
+      const existingIds = new Set(workspace.localities.map((l) => l.id));
+      const existingNames = new Set(workspace.localities.map((l) => l.canonicalNameNFC));
+      for (const loc of localitiesFromDisb) {
+        if (!existingIds.has(loc.id) && !existingNames.has(loc.canonicalNameNFC)) {
+          workspace.localities.push({ ...loc, aliases: [...loc.aliases] });
+          existingIds.add(loc.id);
+          existingNames.add(loc.canonicalNameNFC);
+        }
+      }
+    }
   }
 
   syncReportLabelsWithDatasetDates(workspace);
@@ -298,54 +311,74 @@ export function createReportSession(
     name: string;
     description?: string;
     dataBindings?: { REV?: string; DISB?: string; GPMB?: string };
+    inheritEmptySources?: boolean;
+    exactBindings?: boolean;
   }
 ): ReportSession {
   const latestRev = [...workspace.datasets].reverse().find((d) => d.sourceType === 'REV');
   const latestDisb = [...workspace.datasets].reverse().find((d) => d.sourceType === 'DISB');
   const latestGpmb = [...workspace.datasets].reverse().find((d) => d.sourceType === 'GPMB');
 
-  const bindings = {
-    REV: params.dataBindings?.REV ?? latestRev?.id,
-    DISB: params.dataBindings?.DISB ?? latestDisb?.id,
-    GPMB: params.dataBindings?.GPMB ?? latestGpmb?.id,
-  };
+  const bindings: { REV?: string; DISB?: string; GPMB?: string } = params.inheritEmptySources
+    ? {}
+    : params.exactBindings
+    ? {
+        REV: params.dataBindings?.REV,
+        DISB: params.dataBindings?.DISB,
+        GPMB: params.dataBindings?.GPMB,
+      }
+    : {
+        REV: params.dataBindings?.REV ?? latestRev?.id,
+        DISB: params.dataBindings?.DISB ?? latestDisb?.id,
+        GPMB: params.dataBindings?.GPMB ?? latestGpmb?.id,
+      };
+
+  const boundDisb = bindings.DISB
+    ? workspace.datasets.find((d) => d.id === bindings.DISB)
+    : undefined;
+  const boundRev = bindings.REV
+    ? workspace.datasets.find((d) => d.id === bindings.REV)
+    : undefined;
+  const boundGpmb = bindings.GPMB
+    ? workspace.datasets.find((d) => d.id === bindings.GPMB)
+    : undefined;
 
   const templateRows: TemplateRowCustomConfig[] = TEMPLATE_14_ROWS_DEFAULT.map((r) => ({
     ...r,
   }));
 
   const benchmarkBindings: Record<string, BenchmarkConfig> = {};
-  if (bindings.DISB && latestDisb) {
+  if (bindings.DISB && boundDisb) {
     benchmarkBindings['DISB_BENCHMARK_RATE'] = {
       scope: 'LOCALITIES_FULL_114',
       numeratorField: 'disbursed_total',
       denominatorField: 'adjusted_total_plan',
-      coverageActual: 114,
-      coverageExpected: 114,
+      coverageActual: boundDisb.unitCount || 114,
+      coverageExpected: boundDisb.unitCount || 114,
       datasetId: bindings.DISB,
-      asOfDate: latestDisb.asOfDate,
+      asOfDate: boundDisb.asOfDate,
     };
   }
-  if (bindings.REV && latestRev) {
+  if (bindings.REV && boundRev) {
     benchmarkBindings['REV_RATE_Y'] = {
       scope: 'LOCALITIES_AVAILABLE_N',
       numeratorField: 'actual_total_revenue',
       denominatorField: 'annual_total_budget',
-      coverageActual: 113,
-      coverageExpected: 114,
+      coverageActual: boundRev.unitCount || 113,
+      coverageExpected: boundDisb?.unitCount || workspace.localities.length || 114,
       datasetId: bindings.REV,
-      asOfDate: latestRev.asOfDate,
+      asOfDate: boundRev.asOfDate,
     };
   }
-  if (bindings.GPMB && latestGpmb) {
+  if (bindings.GPMB && boundGpmb) {
     benchmarkBindings['GPMB_BENCHMARK_AREA_RATE'] = {
       scope: 'LOCALITIES_AVAILABLE_N',
       numeratorField: 'gpmb_recorded_area',
       denominatorField: 'gpmb_declared_area',
-      coverageActual: 108,
-      coverageExpected: 114,
+      coverageActual: boundGpmb.unitCount || 108,
+      coverageExpected: boundDisb?.unitCount || workspace.localities.length || 114,
       datasetId: bindings.GPMB,
-      asOfDate: latestGpmb.asOfDate,
+      asOfDate: boundGpmb.asOfDate,
     };
   }
 
@@ -370,6 +403,10 @@ export function createReportSession(
     indicatorIds: templateRows.map((r) => r.indicatorId),
     templateRows,
     dataBindings: bindings,
+    allowEmptySources: Boolean(
+      params.inheritEmptySources ||
+        (params.exactBindings && (!bindings.DISB || !bindings.REV || !bindings.GPMB))
+    ),
     benchmarkBindings,
     comparisonRules,
     settings: {
@@ -460,6 +497,35 @@ export function cloneReportSession(
   return cloned;
 }
 
+export function renameReportSession(
+  workspace: Workspace,
+  sessionId: string,
+  newName: string
+): ReportSession {
+  const session = workspace.sessions.find((s) => s.id === sessionId);
+  if (!session) {
+    throw new Error(`Session ${sessionId} not found`);
+  }
+  const cleanName = newName.trim();
+  if (!cleanName) {
+    throw new Error('Tên phiên báo cáo không được để trống.');
+  }
+  const prevName = session.name;
+  session.name = cleanName;
+  session.sessionRevision += 1;
+  session.updatedAt = new Date().toISOString();
+  workspace.updatedAt = new Date().toISOString();
+  workspace.unsavedChanges = true;
+  workspace.auditLog.push({
+    id: `AUDIT_${Date.now()}_RENAME_SESSION`,
+    timestamp: new Date().toISOString(),
+    action: 'SESSION_RENAMED',
+    sessionId: session.id,
+    details: `Đổi tên phiên "${prevName}" thành "${cleanName}"`,
+  });
+  return session;
+}
+
 export function deleteReportSession(
   workspace: Workspace,
   sessionId: string,
@@ -527,6 +593,49 @@ export function setSessionLocalities(
   return session;
 }
 
+function syncSessionBenchmarkBindingForDataset(
+  workspace: Workspace,
+  session: ReportSession,
+  ds: Dataset
+): void {
+  const disbDs = session.dataBindings.DISB
+    ? workspace.datasets.find((d) => d.id === session.dataBindings.DISB)
+    : undefined;
+  const expectedCount = disbDs?.unitCount || workspace.localities.length || 114;
+
+  if (ds.sourceType === 'DISB') {
+    session.benchmarkBindings['DISB_BENCHMARK_RATE'] = {
+      scope: 'LOCALITIES_FULL_114',
+      numeratorField: 'disbursed_total',
+      denominatorField: 'adjusted_total_plan',
+      coverageActual: ds.unitCount || expectedCount,
+      coverageExpected: ds.unitCount || expectedCount,
+      datasetId: ds.id,
+      asOfDate: ds.asOfDate,
+    };
+  } else if (ds.sourceType === 'REV') {
+    session.benchmarkBindings['REV_RATE_Y'] = {
+      scope: 'LOCALITIES_AVAILABLE_N',
+      numeratorField: 'actual_total_revenue',
+      denominatorField: 'annual_total_budget',
+      coverageActual: ds.unitCount,
+      coverageExpected: expectedCount,
+      datasetId: ds.id,
+      asOfDate: ds.asOfDate,
+    };
+  } else if (ds.sourceType === 'GPMB') {
+    session.benchmarkBindings['GPMB_BENCHMARK_AREA_RATE'] = {
+      scope: 'LOCALITIES_AVAILABLE_N',
+      numeratorField: 'gpmb_recorded_area',
+      denominatorField: 'gpmb_declared_area',
+      coverageActual: ds.unitCount,
+      coverageExpected: expectedCount,
+      datasetId: ds.id,
+      asOfDate: ds.asOfDate,
+    };
+  }
+}
+
 export function rebindSessionDataset(
   workspace: Workspace,
   sessionId: string,
@@ -543,6 +652,8 @@ export function rebindSessionDataset(
   }
 
   session.dataBindings[sourceType] = newDatasetId;
+  session.allowEmptySources = false;
+  syncSessionBenchmarkBindingForDataset(workspace, session, ds);
   session.sessionRevision += 1;
   session.updatedAt = new Date().toISOString();
   syncReportLabelsWithDatasetDates(workspace);
@@ -559,6 +670,172 @@ export function rebindSessionDataset(
   });
 
   return session;
+}
+
+export function clearSessionDatasetBinding(
+  workspace: Workspace,
+  sessionId: string,
+  sourceType: 'REV' | 'DISB' | 'GPMB'
+): ReportSession {
+  const session = workspace.sessions.find((s) => s.id === sessionId);
+  if (!session) {
+    throw new Error(`Session ${sessionId} not found`);
+  }
+  delete session.dataBindings[sourceType];
+  session.allowEmptySources = true;
+  if (sourceType === 'DISB') delete session.benchmarkBindings['DISB_BENCHMARK_RATE'];
+  if (sourceType === 'REV') delete session.benchmarkBindings['REV_RATE_Y'];
+  if (sourceType === 'GPMB') delete session.benchmarkBindings['GPMB_BENCHMARK_AREA_RATE'];
+  session.sessionRevision += 1;
+  session.updatedAt = new Date().toISOString();
+  syncReportLabelsWithDatasetDates(workspace);
+  workspace.updatedAt = new Date().toISOString();
+  workspace.unsavedChanges = true;
+
+  workspace.auditLog.push({
+    id: `AUDIT_${Date.now()}_UNBIND_DATASET`,
+    timestamp: new Date().toISOString(),
+    action: 'SESSION_DATASET_UNBOUND',
+    sessionId: session.id,
+    details: `Gỡ nguồn ${sourceType} khỏi riêng phiên "${session.name}"`,
+  });
+
+  return session;
+}
+
+export function updateDatasetAsOfDateForSession(
+  workspace: Workspace,
+  sessionId: string,
+  datasetId: string,
+  newDateIso: string,
+  reason = 'Người dùng điều chỉnh ngày chốt cho phiên hiện tại'
+): Dataset {
+  const session = workspace.sessions.find((s) => s.id === sessionId);
+  if (!session) {
+    throw new Error(`Session ${sessionId} not found`);
+  }
+  const sourceDs = workspace.datasets.find((d) => d.id === datasetId);
+  if (!sourceDs) {
+    throw new Error(`Dataset ${datasetId} not found`);
+  }
+  const cleanDate = newDateIso.trim();
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(cleanDate)) {
+    throw new Error('Ngày chốt phải có định dạng YYYY-MM-DD hợp lệ.');
+  }
+
+  const sharedByOtherSession = workspace.sessions.some(
+    (s) =>
+      s.id !== sessionId &&
+      (s.dataBindings.DISB === datasetId ||
+        s.dataBindings.REV === datasetId ||
+        s.dataBindings.GPMB === datasetId)
+  );
+
+  let targetDs = sourceDs;
+  if (sharedByOtherSession && (sourceDs.sourceType === 'DISB' || sourceDs.sourceType === 'REV' || sourceDs.sourceType === 'GPMB')) {
+    const clonedDs: Dataset = JSON.parse(JSON.stringify(sourceDs));
+    clonedDs.id = `${sourceDs.id}__S_${sessionId.slice(-5)}_${Date.now().toString(36)}`;
+    workspace.datasets.push(clonedDs);
+    session.dataBindings[sourceDs.sourceType] = clonedDs.id;
+    targetDs = clonedDs;
+  }
+
+  targetDs.asOfDate = cleanDate;
+  targetDs.asOfStatus = 'MANUAL_CONFIRMED';
+  targetDs.asOfDateConfirmation = {
+    confirmedByUser: true,
+    confirmedAt: new Date().toISOString(),
+    reason,
+  };
+  targetDs.issues = targetDs.issues.filter((i) => i.ruleId !== 'MISSING_CONFIRMED_AS_OF_DATE');
+
+  for (const rec of targetDs.records) {
+    for (const m of Object.values(rec.metrics)) {
+      m.provenance.asOfDate = targetDs.asOfDate;
+    }
+  }
+
+  syncSessionBenchmarkBindingForDataset(workspace, session, targetDs);
+  session.sessionRevision += 1;
+  session.updatedAt = new Date().toISOString();
+  syncReportLabelsWithDatasetDates(workspace);
+  workspace.updatedAt = new Date().toISOString();
+  workspace.unsavedChanges = true;
+  workspace.auditLog.push({
+    id: `AUDIT_${Date.now()}_AS_OF_DATE_SESSION`,
+    timestamp: new Date().toISOString(),
+    action: 'SESSION_DATASET_AS_OF_DATE_UPDATED',
+    sessionId: session.id,
+    datasetId: targetDs.id,
+    details: `Cập nhật ngày chốt ${targetDs.asOfDate} cho nguồn ${targetDs.sourceType} trong phiên "${session.name}"`,
+  });
+
+  return targetDs;
+}
+
+export function getSessionLocalitiesBaseline(
+  workspace: Workspace,
+  session: ReportSession | undefined,
+  datasets: { REV?: Dataset; DISB?: Dataset; GPMB?: Dataset }
+): Locality[] {
+  const byId = new Map(workspace.localities.map((l) => [l.id, l]));
+
+  if (datasets.DISB && datasets.DISB.records.length > 0) {
+    const out: Locality[] = [];
+    const seen = new Set<string>();
+
+    for (const rec of datasets.DISB.records) {
+      if (
+        !rec.localityId ||
+        rec.localityId === 'CITY_TOTAL' ||
+        rec.localityId === 'LOCALITIES_BLOCK_114' ||
+        rec.localityId === 'UNPLANNED_ROW_145' ||
+        seen.has(rec.localityId)
+      ) {
+        continue;
+      }
+      seen.add(rec.localityId);
+      const known = byId.get(rec.localityId);
+      if (known) {
+        out.push(known);
+      } else if (rec.localityName) {
+        out.push(createLocalityFromName(rec.localityName, datasets.DISB.id));
+      }
+    }
+
+    if (session) {
+      for (const selId of session.selectedLocalityIds) {
+        if (!seen.has(selId)) {
+          const known = byId.get(selId);
+          if (known) {
+            seen.add(selId);
+            out.push(known);
+          }
+        }
+      }
+    }
+
+    if (out.length > 0) {
+      return out;
+    }
+  }
+
+  if (workspace.localities.length > 0) {
+    return workspace.localities;
+  }
+
+  const fallbackOut: Locality[] = [];
+  const seenFb = new Set<string>();
+  for (const ds of [datasets.REV, datasets.GPMB]) {
+    if (!ds) continue;
+    for (const rec of ds.records) {
+      if (rec.localityId && rec.localityName && !seenFb.has(rec.localityId)) {
+        seenFb.add(rec.localityId);
+        fallbackOut.push(createLocalityFromName(rec.localityName, ds.id));
+      }
+    }
+  }
+  return fallbackOut;
 }
 
 export function resolveSessionDatasets(

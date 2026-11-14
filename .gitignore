@@ -8,12 +8,14 @@
 *.sqlite
 *.sqlite3
 
-# Local outputs
+# Local outputs & AI agent skills workspace caches
 node_modules/
 dist/
 coverage/
 .tmp/
 .cache/
+.agents/
+.agent/
 .DS_Store
 Thumbs.db
 

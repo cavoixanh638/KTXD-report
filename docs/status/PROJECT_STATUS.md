@@ -1,10 +1,21 @@
 # CHECKPOINT — WebApp KTXH Offline (MASTER V2.2)
 
-- **Ngày cập nhật:** 2026-11-10
+- **Ngày cập nhật:** 2026-11-14
 - **Repository:** `cavoixanh638/KTXD-report` (Private)
-- **Nhánh triển khai:** `gemini` (Kiến trúc Modern Administrative Document Studio WYSIWYG A4 ngang — đã hoàn thiện các tinh chỉnh hiển thị & định dạng)
+- **Nhánh triển khai:** `gemini` (Dual-Pane Live Studio Phương án 5, cô lập nguồn dữ liệu theo từng phiên, tổ chức hệ thống tài liệu chuẩn hóa)
 - **Tài liệu có hiệu lực:** [`MASTER V2.2`](../specs/KTXH_OFFLINE_MASTER_SPEC_V2_2_CURRENT.md), [`PH1`](../plans/PHASE_1_RESULT_TEMPLATE.md), [`PH2`](../plans/PHASE_2_EXTENSIBILITY.md).
 - **Trạng thái tổng:** `MASTER_V2.2 / PH1_DOCUMENT_STUDIO_WYSIWYG_IMPLEMENTED / PH2_NOT_STARTED`.
+- **Hệ thống Tài liệu Mới:**
+  - `docs/README.md`: Mục lục & Bản đồ điều hướng tài liệu toàn hệ thống.
+  - `docs/guides/USER_GUIDE.md`: Sổ tay hướng dẫn người dùng chi tiết (cán bộ, chuyên viên, lãnh đạo).
+  - `docs/guides/DEVELOPER_GUIDE.md`: Sổ tay lập trình, kiến trúc mã nguồn, quy trình build và test.
+  - `docs/design/DUAL_STUDIO_ARCHITECTURE.md`: Đặc tả kiến trúc Dual-Pane Studio (Phương án 5).
+  - `docs/design/UI_UX_DESIGN_SYSTEM.md`: Chuẩn UI/UX Design System, Typography, Icon SVG nội bộ, phím tắt.
+  - `docs/design/OPTIONS_COMPARISON.md`: Đánh giá 5 phương án thiết kế UI/UX và các tinh gọn đã chốt.
+  - `docs/design/mockups/`: Lưu trữ ảnh demo 5 phương án và ảnh chụp thực tế màn hình app.
+- **Dọn dẹp thư mục dự án:**
+  - Xóa 4 tệp Excel trùng lặp ở thư mục gốc (`Báo cáo giải ngân 15.10 sửa(1).xlsx`, `Báo cáo thu 10 thang-19.10-BC (1)(1).xlsx`, `Kết quả Tổng hợp chỉ tiêu KTXH 11 xã.xlsx`, `Tổng hợp DA_26.12.26(1).xlsx`), chỉ giữ 4 tệp chuẩn trong `data/reference/`.
+  - Xóa thư mục thừa `chatgpt/` và thư mục rỗng `docs/screenshots/`.
 - **Bốn file nguồn tham chiếu (`data/reference/MANIFEST.json` — 4/4 SHA-256 PASS):**
   - `DISB_20261015`: `3ba33b3efd579499500d956c2580a170e84dd38b8d700fdfaaf9a361ea7cb38c` (114 địa phương, ngày chốt `2026-10-15`, sheet `Tổng hợp` index 5 `visible`, 7 sheet `hidden`).
   - `REV_10M_2026`: `b41227d1444c581e6f3b65d761fad8918b65aedfbd8114443e6dee9d4938356f` (113 địa phương, thiếu `Đặc khu Bạch Long Vĩ`, sheet `10T-19.10` `visible`, ngày chốt yêu cầu người dùng xác nhận).
@@ -24,8 +35,8 @@
 
 ## KẾT QUẢ KIỂM THỬ RUNTIME (`T01`–`T66` & STUDIO SUITE)
 
-- **Lệnh kiểm thử:** `npm run typecheck; npm test; npm run build; python tools/verify_reference_files.py`
-- **Bộ kiểm thử runtime:** 3 test suites, **41/41 tests PASS** (`tests/ph1.spec.ts` 18 tests, `tests/studio.spec.ts` 22 tests, `tests/export-evidence.spec.ts` 1 test).
+- **Lệnh kiểm thử:** `npm run typecheck; npm test; npm run build` (kèm kiểm chứng Edge Headless CDP trên `file:///.../dist/index.html`)
+- **Bộ kiểm thử runtime:** 3 test suites, **43/43 tests PASS** (`tests/ph1.spec.ts` 18 tests, `tests/studio.spec.ts` 24 tests, `tests/export-evidence.spec.ts` 1 test).
 - **Tinh chỉnh giao diện, tìm kiếm và công thức tính đã hoàn thiện:**
   1. Loại bỏ hoàn toàn khối cơ quan chủ quản (Sở KH&ĐT), quốc hiệu tiêu ngữ và dòng ngày chốt số liệu meta ở đầu trang báo cáo.
   2. Loại bỏ phụ đề và huy hiệu phiên ở đầu báo cáo; căn giữa tiêu đề chính `TÌNH HÌNH THỰC HIỆN MỘT SỐ CHỈ TIÊU KINH TẾ - XÃ HỘI CỦA CÁC ĐỊA PHƯƠNG`.
@@ -93,6 +104,11 @@
   39. **Đồng bộ định dạng xuất Excel (`.xlsx`) sát giao diện Webapp (`xlsx.ts`, `sourceReaders.ts`):** Đồng bộ tỷ lệ độ rộng cột (`STT=6`, `Chỉ tiêu` theo `indicatorColumnWidthPx`, cột địa phương co giãn theo cấu hình và khổ trang A4/A3), tự động tính chiều cao từng dòng (`ht`/`customHeight`) theo chữ xuống dòng và cỡ chữ dự án (`uncompletedProjectsFontSizePt`), phân biệt kiểu chữ đậm cho dòng có STT và in nghiêng cho dòng con, căn giữa tiêu đề & số liệu, căn trên (`vertical="top"`) nền trắng cho Dòng 8 và Dòng 9, định dạng rich-text giữ nguyên Tiêu đề (đậm) + Phụ đề (nghiêng) trên Hàng 1 và định dạng số giữ nguyên giá trị số thực kèm đơn vị (`tỷ`, `m2`, `%`) để tính toán Excel trực tiếp.
   40. **Bỏ chọn ô bằng phím `Esc` & giải thích phương pháp tự tìm ô Excel nguồn (`cellInspector.ts`, `main.ts`, `main.css`):** Khi đang chọn ô trên bảng báo cáo (kể cả khi đã đóng popup chỉ còn viền xanh `.doc-cell-active` hoặc đang mở panel Truy vết), nhấn `Esc` (hoặc nút `×` khi không ghim panel) sẽ xóa sạch trạng thái chọn `activeTraceId` và bỏ focus để nhìn bảng báo cáo rõ ràng; đồng thời khi bấm vào bất kỳ ô nào, cả popup nổi và hồ sơ giải trình `CalculationTrace` đều hiển thị chi tiết phương pháp tự động nhận diện sheet/mẫu (`DISB_V1`/`DISB_PHAN_CAP_XA_V1`/`DISB_PHAN_CAP_XA_V2`, `REV_V1`, `GPMB_V1`/`GPMB_FLAT`), dò dòng địa phương hoặc gom nhóm dự án theo Unicode NFC và ánh xạ chính xác cột/ô giá trị nguồn.
   41. **Khắc phục lỗi Trang 1 bản in/PDF chỉ hiện tiêu đề còn cả bảng bị đẩy sang Trang 2 (`main.css`, `print.ts`):** Loại bỏ `page-break-inside: avoid` khỏi `.print-page-chunk`, `.print-table` và `.doc-appendix-projects` (giữ `break-inside: auto` cho bảng cùng `thead { display: table-header-group }` để lặp tiêu đề cột khi sang trang), bổ sung `break-after: avoid` cho `.print-title-center`, đặt lại `min-height: 0 !important; height: auto !important; overflow: visible !important` trên `html, body` trong `@media print`, và xuất quy tắc `@page` động theo khổ giấy/hướng in của phiên.
+  42. **Thiết kế lại giao diện vỏ điều khiển theo Phương án 5 (Dual-Pane Live Studio) & Cô lập hoàn toàn nguồn dữ liệu theo từng phiên (`types.ts`, `sessions.ts`, `icons.ts`, `reportStudio.ts`, `main.ts`, `main.css`):**
+      - Thay vỏ điều khiển 7 tab cũ bằng giao diện 2 cột trực tiếp: thanh trên sáng 48px (nút bật/tắt sidebar duy nhất `#btn-toggle-sidebar`, chuyển/sửa tên/tạo/nhân bản/xóa phiên qua `renameReportSession`, sao lưu/khôi phục `.kxh.json`, In/PDF, Xuất Excel) + thanh điều khiển trái 332px có thể thu gọn về 0px gồm 3 khối accordion (*1. Nguồn dữ liệu phiên*, *2. Địa phương chọn*, *3. Tùy chỉnh bảng gọn*) cập nhật trực tiếp lên tờ A4 bên phải.
+      - Loại bỏ 6 trường không sử dụng (`Cơ quan cấp trên`, `Đơn vị ban hành`, `Căn lề tiêu đề`, `Cỡ chữ tiêu đề`, `In hoa toàn bộ tiêu đề`, `Hiển thị khu vực chữ ký`), bỏ dải nút chọn mẫu thừa (`5 xã / 7 phường / 11 xã / Tất cả / Về 0`), gộp sắp xếp thứ tự cột (`1..N` và `▲`/`▼`) trực tiếp vào dòng tích chọn địa phương (loại bỏ danh sách chip trùng lặp và bỏ nhãn loại thừa khi tên đã có tiền tố `Xã`/`Phường`/`Đặc khu`), thay toàn bộ emoji vỏ điều khiển bằng SVG inline offline (`src/ui/icons.ts`), bổ sung `:focus-visible` và giữ nguyên `.a4-paper-sheet` Times New Roman cùng `@media print`.
+      - Cô lập nguồn dữ liệu theo từng phiên: nạp file Excel / chọn nguồn trong kho / nạp bộ tham chiếu / sửa ngày chốt chỉ áp dụng cho phiên đang mở (`rebindSessionDataset`, `clearSessionDatasetBinding`, `updateDatasetAsOfDateForSession`, `getSessionLocalitiesBaseline`), hỗ trợ tạo phiên trống chưa gắn nguồn (`allowEmptySources`) hoặc kế thừa chính xác nguồn đang mở (`exactBindings`). Đồng bộ live Right Drawer `Cảnh báo`/`Truy vết` và liên thông nút `Kiểm toán nguồn`, hợp nhất ô xác nhận ngày chốt `REV` không bị lặp, bổ sung nút `×` xóa nhanh ô tìm kiếm và làm sạch code/DOM thừa từ kiến trúc 7 tab cũ.
+      - Kiểm chứng đầy đủ bằng **43/43 tests PASS** (bổ sung test 23 & 24 trong `tests/studio.spec.ts`) và chạy thử E2E thực tế bằng Microsoft Edge Headless trên `dist/index.html` (`0` boot errors, `0` runtime errors).
 - **Bằng chứng JSON xuất tự động từ runtime:** [`docs/data_checks/PH1_ACCEPTANCE_EVIDENCE_20261109.json`](../data_checks/PH1_ACCEPTANCE_EVIDENCE_20261109.json) (chứa bảng đối chiếu 14 dòng cho Phiên A 5 xã và Phiên B 7 phường cùng trạng thái từng mã `T01`–`T66`).
 - **Minh chứng Microsoft Edge Headless Offline (`file://`):**
   - [`docs/evidence/EDGE_HEADLESS_DOM_DUMP.html`](../evidence/EDGE_HEADLESS_DOM_DUMP.html) (2.04 MB DOM dump xác nhận khởi chạy JS & Document Studio hoàn chỉnh).

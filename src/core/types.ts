@@ -377,6 +377,7 @@ export interface ReportSession {
     DISB?: string;
     GPMB?: string;
   };
+  allowEmptySources?: boolean;
   benchmarkBindings: Record<string, BenchmarkConfig>;
   comparisonRules: ComparisonRuleConfig;
   settings: {

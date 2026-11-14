@@ -7,6 +7,7 @@ import {
   getNq11ProjectsForSession,
   UncompletedProject,
 } from '../core/uncompletedProjects';
+import { uiIcon } from './icons';
 
 export function formatReportCellValue(
   cell: EvaluatedReportCell | undefined,
@@ -90,7 +91,7 @@ export function renderUncompletedProjectsTableHtml(params: {
     }
     return `<div class="doc-appendix-projects-hidden no-print">
       <button type="button" class="btn btn-sm btn-outline-primary" id="btn-toggle-projects-table" title="Nhấp để hiện lại bảng danh mục chi tiết các dự án GPMB">
-        <span>👁</span> Hiện bảng chi tiết danh mục dự án GPMB (${projects.length} dự án)
+        ${uiIcon('eye', 14)} Hiện bảng chi tiết danh mục dự án GPMB (${projects.length} dự án)
       </button>
     </div>`;
   }
@@ -102,7 +103,7 @@ export function renderUncompletedProjectsTableHtml(params: {
         : `<td class="text-center no-print" style="width: 70px;">
             <button type="button" class="btn-action-edit-proj" data-project-id="${escapeHtmlUi(
               p.id
-            )}" title="Sửa tên, tỷ lệ, hạn hoàn thành">✎ Sửa</button>
+            )}" title="Sửa tên, tỷ lệ, hạn hoàn thành">${uiIcon('pencil', 12)} Sửa</button>
           </td>`;
 
       return `<tr>
@@ -135,10 +136,10 @@ export function renderUncompletedProjectsTableHtml(params: {
     ? ''
     : `<div class="projects-block-toolbar no-print">
         <button type="button" class="btn btn-sm btn-outline-primary" id="btn-add-custom-project" title="Thêm dự án vào danh sách">
-          <span>+</span> Thêm dự án
+          ${uiIcon('plus', 13)} Thêm dự án
         </button>
         <button type="button" class="btn btn-sm btn-outline-secondary" id="btn-toggle-projects-table" title="Ẩn bảng danh mục dự án">
-          <span>👁</span> Ẩn bảng chi tiết dự án
+          ${uiIcon('eye', 13)} Ẩn bảng chi tiết dự án
         </button>
       </div>`;
 
@@ -263,24 +264,15 @@ export function renderA4DocumentStudioHtml(params: {
 
   if (selectedLocalities.length === 0) {
     return `<div class="empty-studio-state">
-      <div class="empty-studio-icon">📄</div>
+      <div class="empty-studio-icon">${uiIcon('logo-doc', 34)}</div>
       <h3 class="empty-studio-title">Phiên báo cáo "${escapeHtmlUi(session.name)}" đang có 0 địa phương được chọn</h3>
       <p class="empty-studio-desc">
         Theo chuẩn hành chính MASTER V2.2, phiên báo cáo mới khởi tạo rỗng (không mặc định xã/phường).
-        Hãy chọn địa phương để xem ngay báo cáo tính toán thật trên khổ A4 ngang.
+        Hãy tích chọn địa phương ở danh sách bên trái để xem báo cáo trên khổ A4 ngang.
       </p>
       <div class="empty-studio-presets">
-        <button type="button" class="btn btn-primary" data-nav-tab="LOCALITIES">
-          <span class="btn-icon">📋</span> Mở Danh mục chọn địa phương (114 đơn vị)
-        </button>
-        <button type="button" class="btn btn-secondary" id="btn-empty-preset-5-xa">
-          <span class="btn-icon">⚡</span> Xem nhanh mẫu 5 xã
-        </button>
-        <button type="button" class="btn btn-secondary" id="btn-empty-preset-7-phuong">
-          <span class="btn-icon">⚡</span> Xem nhanh mẫu 7 phường
-        </button>
-        <button type="button" class="btn btn-secondary" id="btn-empty-preset-11-xa">
-          <span class="btn-icon">⚡</span> Xem mẫu 11 xã (từ file mẫu)
+        <button type="button" class="btn btn-primary" id="btn-empty-open-localities" data-action="open-localities-picker">
+          ${uiIcon('map-pin', 14)} Chọn địa phương (${baselineLocalities.length} đơn vị)
         </button>
       </div>
     </div>`;

@@ -15,6 +15,12 @@ import {
   createReportSession,
   setSessionLocalities,
   cloneReportSession,
+  renameReportSession,
+  rebindSessionDataset,
+  clearSessionDatasetBinding,
+  updateDatasetAsOfDateForSession,
+  getSessionLocalitiesBaseline,
+  resolveSessionDatasets,
   migrateLegacySessionLabels,
   sanitizeWorkspace,
   syncReportLabelsWithDatasetDates,
@@ -1889,5 +1895,258 @@ describe('KTXH Offline – A4 Report Studio & WYSIWYG Architecture Suite', () =>
       includeAppendix: false,
     });
     expect(a3PrintHtml).toContain('@page { size: A3 landscape; margin: 5mm 8mm; }');
+  });
+
+  it('23. Per-session data source isolation: uploading, rebinding, clearing, and updating asOfDate in Session B leaves Session A untouched', () => {
+    const ws = createEmptyWorkspace();
+    registerDatasetInWorkspace(ws, disbDataset, baselineLocalities);
+    registerDatasetInWorkspace(ws, revDataset);
+    registerDatasetInWorkspace(ws, gpmbDataset);
+
+    const sessionA = createReportSession(ws, { name: 'Phiên A (Bộ 15.10)' });
+    const sessionB = createReportSession(ws, {
+      name: 'Phiên B (Bộ nguồn độc lập)',
+      inheritEmptySources: true,
+    });
+
+    // Session B created with inheritEmptySources must start unbound while Session A stays bound
+    expect(sessionA.dataBindings.DISB).toBe(disbDataset.id);
+    expect(sessionA.dataBindings.REV).toBe(revDataset.id);
+    expect(sessionA.dataBindings.GPMB).toBe(gpmbDataset.id);
+    expect(sessionB.allowEmptySources).toBe(true);
+    expect(sessionB.dataBindings.DISB).toBeUndefined();
+    expect(sessionB.dataBindings.REV).toBeUndefined();
+    expect(sessionB.dataBindings.GPMB).toBeUndefined();
+
+    // Build an alternate DISB_PHAN_CAP_XA_V1 workbook with 2 communes and a different cutoff date
+    const altDisbBytes = buildSingleSheetXlsx('Tong_hop', [
+      [1, [['A', 'BÁO CÁO TÌNH HÌNH GIẢI NGÂN ĐẾN NGÀY 20/11/2026']]],
+      [3, [['C', 'Kế hoạch vốn'], ['G', 'Giải ngân'], ['K', 'Tỷ lệ']]],
+      [
+        7,
+        [
+          ['B', 'TỔNG SỐ'],
+          ['C', 300],
+          ['D', 100],
+          ['E', 100],
+          ['F', 100],
+          ['G', 210],
+          ['H', 70],
+          ['I', 70],
+          ['J', 70],
+          ['K', 0.7],
+        ],
+      ],
+      [
+        8,
+        [
+          ['A', 1],
+          ['B', 'Xã Nam Sách'],
+          ['C', 100],
+          ['D', 40],
+          ['E', 30],
+          ['F', 30],
+          ['G', 80],
+          ['H', 30],
+          ['I', 25],
+          ['J', 25],
+          ['K', 0.8],
+        ],
+      ],
+      [
+        9,
+        [
+          ['A', 2],
+          ['B', 'Xã Thái Tân'],
+          ['C', 200],
+          ['D', 60],
+          ['E', 70],
+          ['F', 70],
+          ['G', 130],
+          ['H', 40],
+          ['I', 45],
+          ['J', 45],
+          ['K', 0.65],
+        ],
+      ],
+    ]);
+
+    // Upload via KtxhOfflineApp while Session B is active
+    ws.activeSessionId = sessionB.id;
+    const mockApp: Record<string, any> = Object.assign(Object.create(KtxhOfflineApp.prototype), {
+      workspace: ws,
+      statusBannerMessage: '',
+      statusBannerType: 'info',
+      triggerAutosave: () => {},
+      render: () => {},
+    });
+    mockApp.handleWorkbookBytesUpload(altDisbBytes, 'giai_ngan_phien_B_20_11.xlsx');
+
+    // Verify Session B now binds the newly imported DISB dataset while Session A still binds original DISB
+    expect(sessionB.dataBindings.DISB).toBeDefined();
+    expect(sessionB.dataBindings.DISB).not.toBe(disbDataset.id);
+    expect(sessionA.dataBindings.DISB).toBe(disbDataset.id);
+
+    const dsMapA = resolveSessionDatasets(ws, sessionA);
+    const dsMapB = resolveSessionDatasets(ws, sessionB);
+    expect(dsMapA.DISB?.id).toBe(disbDataset.id);
+    expect(dsMapB.DISB?.sourceFilename).toBe('giai_ngan_phien_B_20_11.xlsx');
+    expect(dsMapB.DISB?.asOfDate).toBe('2026-11-20');
+    expect(dsMapA.DISB?.asOfDate).toBe(disbDataset.asOfDate);
+
+    // Baseline localities for Session B reflect only Session B's DISB (2 communes) vs Session A's 114
+    const baselineA = getSessionLocalitiesBaseline(ws, sessionA, dsMapA);
+    const baselineB = getSessionLocalitiesBaseline(ws, sessionB, dsMapB);
+    expect(baselineA.length).toBe(114);
+    expect(baselineB.map((l) => l.displayName)).toEqual(['Xã Nam Sách', 'Xã Thái Tân']);
+
+    // Rebind REV to Session B, then edit asOfDate on Session B: must auto-clone dataset without mutating Session A
+    rebindSessionDataset(ws, sessionB.id, 'REV', revDataset.id);
+    expect(sessionB.dataBindings.REV).toBe(revDataset.id);
+    const originalRevDate = revDataset.asOfDate;
+    const updatedBRev = updateDatasetAsOfDateForSession(
+      ws,
+      sessionB.id,
+      revDataset.id,
+      '2026-11-25',
+      'Test per-session date fork'
+    );
+    expect(updatedBRev.asOfDate).toBe('2026-11-25');
+    expect(sessionB.dataBindings.REV).toBe(updatedBRev.id);
+    expect(sessionB.dataBindings.REV).not.toBe(revDataset.id);
+    expect(revDataset.asOfDate).toBe(originalRevDate);
+    expect(resolveSessionDatasets(ws, sessionA).REV?.asOfDate).toBe(originalRevDate);
+
+    // Clear REV binding in Session B leaves Session A unaffected
+    clearSessionDatasetBinding(ws, sessionB.id, 'REV');
+    expect(sessionB.dataBindings.REV).toBeUndefined();
+    expect(sessionA.dataBindings.REV).toBe(revDataset.id);
+
+    // Creating Session C from partial Session B with exactBindings keeps REV/GPMB unbound
+    const sessionC = createReportSession(ws, {
+      name: 'Phiên C kế thừa chính xác từ Phiên B',
+      dataBindings: { ...sessionB.dataBindings },
+      exactBindings: true,
+    });
+    expect(sessionC.dataBindings.DISB).toBe(sessionB.dataBindings.DISB);
+    expect(sessionC.dataBindings.REV).toBeUndefined();
+    expect(sessionC.dataBindings.GPMB).toBeUndefined();
+    expect(sessionC.allowEmptySources).toBe(true);
+  });
+
+  it('24. Option 5 Dual-Pane Live Studio shell: collapsible left sidebar toggle, pruned unused fields, inline SVG icons, and offline guarantees', () => {
+    const mainTsSrc = fs.readFileSync(path.join(rootDir, 'src/app/main.ts'), 'utf-8');
+    const mainCssSrc = fs.readFileSync(path.join(rootDir, 'src/styles/main.css'), 'utf-8');
+    const reportStudioSrc = fs.readFileSync(path.join(rootDir, 'src/ui/reportStudio.ts'), 'utf-8');
+
+    // 1. Pruned unused title/signature fields must not exist in UI shell
+    for (const removedId of [
+      'setting-agency-name',
+      'setting-sub-agency-name',
+      'setting-title-align',
+      'setting-title-size',
+      'setting-title-uppercase',
+      'setting-show-signatures',
+    ]) {
+      expect(mainTsSrc).not.toContain(removedId);
+    }
+
+    // 2. Zero external CDN/network URLs in app shell & styles
+    expect(mainTsSrc).not.toMatch(/https?:\/\//i);
+    expect(mainCssSrc).not.toMatch(/https?:\/\//i);
+    expect(reportStudioSrc).not.toMatch(/https?:\/\//i);
+
+    // 3. No emojis in redesigned main shell & studio controls
+    for (const emoji of ['🏛️', '📊', '🖨️', '📄', '📁', '📥', '📍', '⚙️', '🔍', '📤', 'ℹ️', '✏️']) {
+      expect(mainTsSrc).not.toContain(emoji);
+    }
+
+    // 4. CSS preserves @media print hiding for dual-sidebar and modals, and defines :focus-visible
+    expect(mainCssSrc).toContain('.dual-sidebar');
+    expect(mainCssSrc).toContain(':focus-visible');
+    const printBlock = mainCssSrc.slice(mainCssSrc.indexOf('@media print'));
+    expect(printBlock).toContain('.dual-sidebar');
+    expect(printBlock).toContain('.proj-modal-backdrop');
+
+    // 5. Exercise Dual-Pane render helpers & sidebar collapse toggle on mock app state
+    const ws = createEmptyWorkspace();
+    registerDatasetInWorkspace(ws, disbDataset, baselineLocalities);
+    registerDatasetInWorkspace(ws, revDataset);
+    registerDatasetInWorkspace(ws, gpmbDataset);
+    const session = createReportSession(ws, { name: 'Phiên Studio P5' });
+    setSessionLocalities(ws, session.id, [baselineLocalities[0].id]);
+
+    const mockApp: Record<string, any> = Object.assign(Object.create(KtxhOfflineApp.prototype), {
+      workspace: ws,
+      isSidebarCollapsed: false,
+      rightPanelMode: 'NONE',
+      sidebarSectionsOpen: { sources: true, localities: true, settings: true },
+      showNewSessionModal: false,
+      showCoverageModal: false,
+      showIndicatorsModal: false,
+      localitySearchQuery: '',
+      localityTypeFilter: 'ALL',
+      localityCoverageFilter: 'ALL',
+      localitySortOption: 'SELECTED_FIRST',
+      isSaving: false,
+      lastSavedTimestamp: '10:00:00',
+      zoomScale: 1,
+    });
+
+    const datasets = { DISB: disbDataset, REV: revDataset, GPMB: gpmbDataset };
+    const topOpen = mockApp.renderTopBar(session);
+    const sideOpen = mockApp.renderLeftControlSidebar(session, datasets, baselineLocalities);
+    const evaluated = evaluateSessionReport({
+      session,
+      baselineLocalities,
+      datasets,
+    });
+    const centerOpen = mockApp.renderCenterCanvasArea(session, evaluated, datasets, baselineLocalities);
+
+    expect(topOpen).toContain('id="btn-toggle-sidebar"');
+    expect(topOpen).toContain('id="btn-topbar-rename-session"');
+    expect(topOpen).toContain('aria-expanded="true"');
+    expect(topOpen).toContain('id="btn-download-backup-json"');
+    expect(topOpen).toContain('<svg');
+
+    expect(sideOpen).toContain('1. NGUỒN DỮ LIỆU PHIÊN');
+    expect(sideOpen).toContain('2. ĐỊA PHƯƠNG CHỌN');
+    expect(sideOpen).toContain('3. TÙY CHỈNH BẢNG GỌN');
+    expect(sideOpen).toContain('select-session-dataset');
+    expect(sideOpen).toContain('input-slot-xlsx');
+    expect(sideOpen).not.toContain('dual-sidebar no-print collapsed');
+    expect(centerOpen).not.toContain('id="btn-canvas-expand-sidebar"');
+
+    // Pruned quick presets & duplicate chip list; inline reorder controls & no redundant type badge
+    expect(sideOpen).not.toContain('preset-chips-row');
+    expect(sideOpen).not.toContain('btn-preset-5-xa');
+    expect(sideOpen).not.toContain('selected-chips-grid');
+    expect(reportStudioSrc).not.toContain('btn-empty-preset-5-xa');
+    expect(sideOpen).toContain('row-col-order');
+    expect(sideOpen).toContain('row-reorder-inline-btns');
+    expect(sideOpen).toContain('btn-row-move');
+    expect(sideOpen).not.toContain('<span class="badge badge-xs badge-neutral">Xã</span>');
+    expect(sideOpen).not.toContain('<span class="badge badge-xs badge-neutral">P</span>');
+
+    // When toggled collapsed -> only the topbar toggle button remains (no duplicate canvas toggle button)
+    mockApp.isSidebarCollapsed = true;
+    const topCollapsed = mockApp.renderTopBar(session);
+    const sideCollapsed = mockApp.renderLeftControlSidebar(session, datasets, baselineLocalities);
+    const centerCollapsed = mockApp.renderCenterCanvasArea(
+      session,
+      evaluated,
+      datasets,
+      baselineLocalities
+    );
+
+    expect(topCollapsed).toContain('aria-expanded="false"');
+    expect(sideCollapsed).toContain('dual-sidebar no-print collapsed');
+    expect(centerCollapsed).not.toContain('id="btn-canvas-expand-sidebar"');
+
+    // Renaming session preserves dataBindings & localities and logs audit entry
+    const renamed = renameReportSession(ws, session.id, 'Phiên KTXH Tháng 11');
+    expect(renamed.name).toBe('Phiên KTXH Tháng 11');
+    expect(renamed.selectedLocalityIds).toEqual([baselineLocalities[0].id]);
+    expect(ws.auditLog.some((a) => a.action === 'SESSION_RENAMED')).toBe(true);
   });
 });
