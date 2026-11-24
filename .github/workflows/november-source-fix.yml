@@ -20,8 +20,10 @@ jobs:
         run: python tools/verify_reference_files.py
       - run: npm install --no-audit --no-fund --no-package-lock
       - run: npm run typecheck
-      - run: npm test
+      - name: Install XLSX inspection dependency
+        run: python -m pip install openpyxl
       - run: npm run build
+      - run: npm test
       - uses: actions/upload-artifact@v4
         with:
           name: KTXH-offline-November-fix

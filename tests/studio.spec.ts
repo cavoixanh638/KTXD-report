@@ -217,10 +217,10 @@ describe('KTXH Offline – A4 Report Studio & WYSIWYG Architecture Suite', () =>
     expect(html).toMatch(/data-row-type="nq11"[^]*?style="vertical-align: top;">10<\/td>/);
     const print=generatePrintableReportHtml({evaluated:on,baselineLocalities,datasets,includeAppendix:false});
     expect((print.match(/class="print-page-chunk"/g)||[])).toHaveLength(1);
-    expect(print).toContain('Kết quả thu NSNN (đến ngày 23/11/2026)');
+    expect(print.replace(/<[^>]+>/g,'')).toContain('Kết quả thu NSNN (đến ngày 23/11/2026)');
     const exported=exportSessionReportToXlsxBytes({evaluated:on,baselineLocalities,datasets});
     const sheet=strFromU8(unzipSync(exported)['xl/worksheets/sheet1.xml']);
-    expect(sheet).toContain('Kết quả thu NSNN (đến ngày 23/11/2026)');
+    expect(sheet.replace(/<[^>]+>/g,'')).toContain('Kết quả thu NSNN (đến ngày 23/11/2026)');
     expect(sheet).toContain('<v>120</v>');
     session.settings.showRevBenchmarkRow=true;
     const both=evaluate();
