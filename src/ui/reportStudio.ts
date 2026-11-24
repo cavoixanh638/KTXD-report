@@ -8,7 +8,7 @@ import {
   UncompletedProject,
 } from '../core/uncompletedProjects';
 import { uiIcon } from './icons';
-import { reportMainStt, isSharedReportIndicator } from '../core/indicators';
+import { reportMainStt, isSharedReportIndicator, isReportBenchmarkRate } from '../core/indicators';
 
 export function formatReportCellValue(
   cell: EvaluatedReportCell | undefined,
@@ -440,7 +440,7 @@ function renderHorizontalPages(params: {
                 r.indicator.id
               )}" title="Nhấn để xem cách tính chi tiết và nguồn số liệu">
                 <div class="cell-content">
-                  <span class="cell-val">${renderReportCellValueHtml(formattedVal)}</span>
+                  <span class="cell-val${isReportBenchmarkRate(r.indicator.id) ? ' report-benchmark-value' : ''}">${renderReportCellValueHtml(formattedVal)}</span>
                 </div>
               </td>`;
             })
@@ -795,7 +795,7 @@ function renderVerticalPages(params: {
                 r.rowConfig.customLabel
               )}: ${escapeHtmlUi(formattedVal)}">
                 <div class="cell-content">
-                  <span class="cell-val">${renderReportCellValueHtml(formattedVal)}</span>
+                  <span class="cell-val${isReportBenchmarkRate(r.indicator.id) ? ' report-benchmark-value' : ''}">${renderReportCellValueHtml(formattedVal)}</span>
                 </div>
               </td>`;
             })

@@ -1,5 +1,5 @@
 import { EvaluatedSessionReport } from '../core/calculationTrace';
-import { isSharedReportIndicator } from '../core/indicators';
+import { isSharedReportIndicator, isReportBenchmarkRate } from '../core/indicators';
 import { Dataset, Locality } from '../core/types';
 import { escapeHtmlUi } from './cellInspector';
 import {
@@ -85,7 +85,7 @@ export function renderReportGridHtml(params: {
           )}" data-locality-id="${escapeHtmlUi(
             loc.id
           )}" data-indicator-id="${escapeHtmlUi(r.indicator.id)}">
-            <div class="cell-main-val">${renderReportCellValueHtml(formattedVal)} ${warnBadge}${noteBadge}</div>
+            <div class="cell-main-val${isReportBenchmarkRate(r.indicator.id) ? ' report-benchmark-value' : ''}">${renderReportCellValueHtml(formattedVal)} ${warnBadge}${noteBadge}</div>
           </td>`;
         })
         .join('');

@@ -67,7 +67,7 @@ export const DEFAULT_INDICATORS: Record<string, IndicatorDefinition> = {
     precision: 2,
     aggregationPolicy: 'BENCHMARK_RATIO_OF_SUMS',
     benchmarkPolicy:
-      'LOCALITIES_AVAILABLE_N (113/114 địa phương có dữ liệu; đủ 114/114 mới ghi toàn bộ 114)',
+      'LOCALITIES_AVAILABLE_N (độ phủ thực lưu ở trace; nhãn báo cáo cố định 114 địa phương)',
     datePolicy: 'STRICT_SAME_DATASET_AS_OF_DATE',
     defaultStt: '2',
   },
@@ -596,7 +596,7 @@ export function normalizeLocalityReportLabel(indicatorId: string, label: string)
   return base === pair[0] ? pair[1] + suffix : label;
 }
 
-/** Render the benchmark title using the source coverage, not selected columns. */
+/** Fixed report-facing title for the city's 114-locality universe. Actual source coverage remains in audit/trace; this is not a calculation-scope assertion. */
 export function formatBenchmarkReportLabel(params: {
   indicatorId: string;
   customLabel?: string;
@@ -621,13 +621,7 @@ export function formatBenchmarkReportLabel(params: {
     scopePattern.test(base.slice(prefix.length + 1))) || legacyGpmb;
   const dateVn = formatVnDateText(params.asOfDate);
   if (!generated) return dateVn && oldDate ? replaceDateInLabel(custom, dateVn) : custom;
-  const expected = params.expectedCount && params.expectedCount > 0 ? params.expectedCount : 114;
-  const count = typeof params.unitCount === 'number' && Number.isFinite(params.unitCount)
-    ? params.unitCount : undefined;
-  const scope = count === undefined
-    ? expected + ' địa phương'
-    : count < expected ? count + '/' + expected + ' địa phương có dữ liệu' : count + ' địa phương';
-  return prefix + ' trung bình của ' + scope + (dateVn ? ' (đến ngày ' + dateVn + ')' : oldDate);
+  return prefix + ' trung bình của 114 địa phương' + (dateVn ? ' (đến ngày ' + dateVn + ')' : oldDate);
 }
 
 export function formatRevBenchmarkRowLabel(params: {
@@ -655,4 +649,9 @@ export function formatRevRealizedRowLabel(params: {customLabel?:string; asOfDate
  * Use their shared trace but present only one value per page/table group. */
 export function isSharedReportIndicator(indicatorId: string): boolean {
   return indicatorId === 'REV_BENCHMARK_RATE' || indicatorId === 'GPMB_BENCHMARK_AREA_RATE';
+}
+
+/** Emphasize the three common benchmark percentages, independently of merging. */
+export function isReportBenchmarkRate(indicatorId: string): boolean {
+  return isSharedReportIndicator(indicatorId) || indicatorId === 'DISB_BENCHMARK_RATE';
 }

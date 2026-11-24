@@ -9,7 +9,7 @@ import {
   horizontalPageCapacity,
   horizontalFit,
 } from '../ui/reportStudio';
-import { reportMainStt, isSharedReportIndicator } from '../core/indicators';
+import { reportMainStt, isSharedReportIndicator, isReportBenchmarkRate } from '../core/indicators';
 import {
   getUncompletedProjectsForSession,
   getNq11ProjectsForSession,
@@ -88,7 +88,7 @@ export function generatePrintableReportHtml(params: {
                 session.settings.moneyUnit,
                 session.settings.areaUnit
               );
-              return `<td class="print-cell"${span}>${renderReportCellValueHtml(formattedVal)}</td>`;
+              return `<td class="print-cell${isReportBenchmarkRate(r.indicator.id) ? ' report-benchmark-value' : ''}"${span}>${renderReportCellValueHtml(formattedVal)}</td>`;
             })
             .join('');
           return `<tr class="${hasStt ? 'doc-row-primary' : 'doc-row-sub'}">

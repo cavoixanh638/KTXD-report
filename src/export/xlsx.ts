@@ -1,7 +1,7 @@
 import { zipSync, strToU8 } from 'fflate';
 import { EvaluatedSessionReport } from '../core/calculationTrace';
 import { analyzeSourceCoverage, filterCoverageForSession } from '../core/coverage';
-import { DEFAULT_INDICATORS, reportMainStt, isSharedReportIndicator } from '../core/indicators';
+import { DEFAULT_INDICATORS, reportMainStt, isSharedReportIndicator, isReportBenchmarkRate } from '../core/indicators';
 import { Dataset, Locality, ReportSession } from '../core/types';
 import { formatReportCellValue, horizontalPageCapacity } from '../ui/reportStudio';
 import {
@@ -109,6 +109,8 @@ const ST = {
   APPENDIX_LABEL_BOLD: 31,
   APPENDIX_TEXT_CENTER: 32,
   HEADER_SUBTABLE: 33,
+  BENCHMARK_PERCENT_NUM: 34,
+  BENCHMARK_PERCENT_ITALIC: 35,
 } as const;
 
 function sanitizeFontName(fontFamily?: string): string {
@@ -393,7 +395,7 @@ function buildStylesXml(settings: ReportSession['settings']): string {
     <numFmt numFmtId="165" formatCode="${areaFmt}"/>
     <numFmt numFmtId="166" formatCode="${pctFmt}"/>
   </numFmts>
-  <fonts count="7">
+  <fonts count="9">
     <font><sz val="${tableFontPt}"/><color rgb="FF000000"/><name val="${fontName}"/><family val="1"/></font>
     <font><b/><sz val="${titleFontPt}"/><color rgb="FF000000"/><name val="${fontName}"/><family val="1"/></font>
     <font><b/><sz val="${tableFontPt}"/><color rgb="FF000000"/><name val="${fontName}"/><family val="1"/></font>
@@ -401,6 +403,8 @@ function buildStylesXml(settings: ReportSession['settings']): string {
     <font><i/><sz val="${projFontPt}"/><color rgb="FF000000"/><name val="${fontName}"/><family val="1"/></font>
     <font><sz val="${projFontPt}"/><color rgb="FF000000"/><name val="${fontName}"/><family val="1"/></font>
     <font><i/><sz val="9"/><color rgb="FF334155"/><name val="${fontName}"/><family val="1"/></font>
+    <font><sz val="${tableFontPt + 1}"/><color rgb="FF000000"/><name val="${fontName}"/><family val="1"/></font>
+    <font><i/><sz val="${tableFontPt + 1}"/><color rgb="FF000000"/><name val="${fontName}"/><family val="1"/></font>
   </fonts>
   <fills count="3">
     <fill><patternFill patternType="none"/></fill>
@@ -427,7 +431,7 @@ function buildStylesXml(settings: ReportSession['settings']): string {
   <cellStyleXfs count="1">
     <xf numFmtId="0" fontId="0" fillId="0" borderId="0"/>
   </cellStyleXfs>
-  <cellXfs count="34">
+  <cellXfs count="36">
     <!-- 0: NORMAL -->
     <xf numFmtId="0" fontId="0" fillId="0" borderId="0" xfId="0"/>
     <!-- 1: TITLE -->
@@ -560,6 +564,14 @@ function buildStylesXml(settings: ReportSession['settings']): string {
     </xf>
     <!-- 33: HEADER_SUBTABLE -->
     <xf numFmtId="0" fontId="2" fillId="2" borderId="1" xfId="0" applyFont="1" applyFill="1" applyBorder="1" applyAlignment="1">
+      <alignment horizontal="center" vertical="center" wrapText="1"/>
+    </xf>
+    <!-- 34: BENCHMARK_PERCENT_NUM -->
+    <xf numFmtId="166" fontId="7" fillId="0" borderId="1" xfId="0" applyNumberFormat="1" applyFont="1" applyBorder="1" applyAlignment="1">
+      <alignment horizontal="center" vertical="center" wrapText="1"/>
+    </xf>
+    <!-- 35: BENCHMARK_PERCENT_ITALIC -->
+    <xf numFmtId="166" fontId="8" fillId="0" borderId="1" xfId="0" applyNumberFormat="1" applyFont="1" applyBorder="1" applyAlignment="1">
       <alignment horizontal="center" vertical="center" wrapText="1"/>
     </xf>
   </cellXfs>
@@ -842,7 +854,9 @@ export function exportSessionReportToXlsxBytes(params: {
       ) {
         let styleIdx: number;
         if (cellEval.excelFormatType === 'PERCENT_RATIO') {
-          styleIdx = hasStt ? ST.PRIMARY_PERCENT_NUM : ST.SUB_PERCENT_ITALIC;
+          styleIdx = isReportBenchmarkRate(r.indicator.id)
+            ? (hasStt ? ST.BENCHMARK_PERCENT_NUM : ST.BENCHMARK_PERCENT_ITALIC)
+            : (hasStt ? ST.PRIMARY_PERCENT_NUM : ST.SUB_PERCENT_ITALIC);
         } else if (cellEval.excelFormatType === 'AREA') {
           styleIdx = hasStt ? ST.PRIMARY_AREA_NUM : ST.SUB_AREA_ITALIC_NUM;
         } else {

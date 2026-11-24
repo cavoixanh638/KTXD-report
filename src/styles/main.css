@@ -4113,3 +4113,10 @@ code {
 .print-table[data-fit-columns="dense"] .val-note {
   white-space:normal!important;overflow-wrap:anywhere;max-width:100%;
 }
+
+/* Slightly emphasize report benchmark numbers, including in print. Keep the
+   surrounding table, labels, ordinary locality figures and merged cells intact. */
+.report-benchmark-value > .val-primary,
+.report-benchmark-value > .val-text {
+  font-size: 1.1em;
+}
