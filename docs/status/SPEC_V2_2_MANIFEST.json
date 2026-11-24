@@ -10,7 +10,7 @@
       "phase": "PH1",
       "path": "docs/plans/PHASE_1_RESULT_TEMPLATE.md",
       "sha256": "9752424b2e379edb55d1395991b7f6edafb6512bd2dc3d85a115ab223255a8a1",
-      "status": "UPDATED_20261124_QA_PENDING"
+      "status": "NOVEMBER_UPDATE_CI_VERIFIED_USER_ACCEPTANCE_PENDING"
     },
     {
       "phase": "PH2",
@@ -88,7 +88,7 @@
     "T66"
   ],
   "testCount": 66,
-  "runtimeTestStatus": "BASELINE_PH1_PASS_64_DEFERRED_2; NOVEMBER_UPDATE_QA_PENDING",
+  "runtimeTestStatus": "BASELINE_PH1_PASS_64_DEFERRED_2; NOVEMBER_CI_46_OF_46_PASS",
   "runtimeEvidence": "docs/data_checks/PH1_ACCEPTANCE_EVIDENCE_20261109.json",
   "originalWorkbooks": "data/reference/MANIFEST.json",
   "originalWorkbooksCommitted": true,
@@ -111,6 +111,16 @@
       "NOV_FIX_03"
     ],
     "ciRun": "https://github.com/cavoixanh638/KTXD-report/actions/runs/45343442429",
-    "status": "QA_PENDING"
+    "status": "CI_PASS_WINDOWS_PRINT_NOT_RUN",
+    "results": {
+      "workbooks": "4/4 PASS",
+      "typecheck": "PASS",
+      "build": "PASS",
+      "testSuites": "3/3 PASS",
+      "tests": "46/46 PASS",
+      "windowsPrint": "NOT_RUN",
+      "userAcceptance": "PENDING",
+      "jobId": 138272250471
+    }
   }
 }
