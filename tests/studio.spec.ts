@@ -233,6 +233,60 @@ describe('KTXH Offline – A4 Report Studio & WYSIWYG Architecture Suite', () =>
     expect(()=>importRevenueWorkbook(buildSingleSheetXlsx('Sheet đổi tên',rows),'ambiguous.xlsx')).toThrow();
   });
 
+  it('NOV_FIX_03: merges only the shared REV/GPMB benchmark rows and keeps source audit off the report body', () => {
+    const ws = createEmptyWorkspace();
+    registerDatasetInWorkspace(ws, disbDataset, baselineLocalities);
+    registerDatasetInWorkspace(ws, revDataset);
+    registerDatasetInWorkspace(ws, gpmbDataset);
+    const session = createReportSession(ws, { name: 'Shared benchmark rows' });
+    const datasets = { REV: revDataset, DISB: disbDataset, GPMB: gpmbDataset };
+    session.settings.showRevBenchmarkRow = true;
+    session.settings.showBenchmarkRows = true;
+    session.settings.tableLayoutMode = 'HORIZONTAL';
+    const evaluate = () => evaluateSessionReport({ session, baselineLocalities, datasets });
+    const targets = ['REV_BENCHMARK_RATE', 'GPMB_BENCHMARK_AREA_RATE'];
+    for (const n of [1, 9, 11, 12]) {
+      session.selectedLocalityIds = baselineLocalities.slice(0, n).map(l => l.id);
+      const evaluated = evaluate();
+      const args = { evaluated, baselineLocalities, datasets };
+      const html = renderA4DocumentStudioHtml(args);
+      const printed = generatePrintableReportHtml({ ...args, includeAppendix: false });
+      const count = (s: string, token: string) => s.split(token).length - 1;
+      const firstGroup = Math.min(11, n);
+      if (n > 1) {
+        expect(count(html, 'colspan="' + firstGroup + '"')).toBe(2);
+        expect(count(printed, 'colspan="' + firstGroup + '"')).toBe(2);
+      } else {
+        expect(html).not.toContain('colspan="1"');
+        expect(printed).not.toContain('colspan="1"');
+      }
+      const archive = unzipSync(exportSessionReportToXlsxBytes(args));
+      const reportXml = strFromU8(archive['xl/worksheets/sheet1.xml']);
+      const auditXml = strFromU8(archive['xl/worksheets/sheet2.xml']);
+      const traceXml = strFromU8(archive['xl/worksheets/sheet4.xml']);
+      const displayRows = evaluated.rows.filter(r => r.indicator.id !== 'DISB_PLAN_VS_AVG_COMMENT');
+      for (const id of targets) {
+        const idx = displayRows.findIndex(r => r.indicator.id === id);
+        expect(idx).toBeGreaterThanOrEqual(0);
+        const rowNum = idx + 3;
+        const lastColumn = String.fromCharCode(66 + n);
+        if (n > 1) expect(reportXml).toContain('<mergeCell ref="C' + rowNum + ':' + lastColumn + rowNum + '"/>');
+        const rowXml = reportXml.split('<row r="' + rowNum + '"')[1].split('</row>')[0];
+        expect(count(rowXml, '<v>')).toBe(1);
+        expect(traceXml).toContain(id === 'REV_BENCHMARK_RATE' ? 'REV_RATE_Y' : id);
+      }
+      expect(reportXml).not.toContain('Ghi chú nguồn:');
+      expect(auditXml).toContain('Tổng hợp phạm vi nguồn');
+    }
+    session.selectedLocalityIds = baselineLocalities.slice(0, 9).map(l => l.id);
+    session.settings.tableLayoutMode = 'VERTICAL';
+    const vertical = renderA4DocumentStudioHtml({ evaluated: evaluate(), baselineLocalities, datasets });
+    expect((vertical.match(/rowspan="9"/g) || [])).toHaveLength(2);
+    session.settings.showBenchmarkRows = false;
+    const hidden = renderA4DocumentStudioHtml({ evaluated: evaluate(), baselineLocalities, datasets });
+    expect(hidden).not.toContain('rowspan="9"');
+  });
+
   it('1. Auto Layout Algorithm on A4 Landscape: picks Horizontal for <= 11 localities on A4 landscape', () => {
     const ws = createEmptyWorkspace();
     const session = createReportSession(ws, { name: 'Phiên kiểm tra bố cục' });

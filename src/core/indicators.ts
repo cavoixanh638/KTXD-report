@@ -609,3 +609,9 @@ export function formatRevRealizedRowLabel(params: {customLabel?:string; asOfDate
   const date=formatVnDateText(params.asOfDate);
   return label+(date?' (đến ngày '+date+')':' (chưa xác nhận ngày chốt)');
 }
+
+/** These two benchmark indicators are scope-level values, not locality values.
+ * Use their shared trace but present only one value per page/table group. */
+export function isSharedReportIndicator(indicatorId: string): boolean {
+  return indicatorId === 'REV_BENCHMARK_RATE' || indicatorId === 'GPMB_BENCHMARK_AREA_RATE';
+}

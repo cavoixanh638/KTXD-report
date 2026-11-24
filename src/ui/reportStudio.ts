@@ -8,7 +8,7 @@ import {
   UncompletedProject,
 } from '../core/uncompletedProjects';
 import { uiIcon } from './icons';
-import { reportMainStt } from '../core/indicators';
+import { reportMainStt, isSharedReportIndicator } from '../core/indicators';
 
 export function formatReportCellValue(
   cell: EvaluatedReportCell | undefined,
@@ -412,11 +412,13 @@ function renderHorizontalPages(params: {
       const displayRows = rows.filter((r) => r.indicator.id !== 'DISB_PLAN_VS_AVG_COMMENT');
       const bodyRowsHtml = displayRows
         .map((r) => {
-          const cellsHtml = chunk
+          const shared = isSharedReportIndicator(r.indicator.id);
+          const span = shared && chunk.length > 1 ? ` colspan="${chunk.length}"` : '';
+          const cellsHtml = (shared ? chunk.slice(0, 1) : chunk)
             .map((loc) => {
               const cell = r.cellsByLocalityId[loc.id];
               if (!cell) {
-                return `<td class="doc-td doc-cell-missing">Chưa có số liệu</td>`;
+                return `<td class="doc-td doc-cell-missing"${span}>Chưa có số liệu</td>`;
               }
               const isSelected = activeTraceId === cell.traceId;
               const formattedVal = formatReportCellValue(
@@ -430,7 +432,7 @@ function renderHorizontalPages(params: {
                 cell.state
               )} quality-${escapeHtmlUi(cell.qualityStatus)} ${cell.hasWarning ? 'has-warning' : ''} ${cell.officialNote ? 'has-note' : ''} ${
                 isSelected ? 'doc-cell-active' : ''
-              }" tabindex="0" role="button" data-trace-id="${escapeHtmlUi(
+              }"${span} tabindex="0" role="button" data-trace-id="${escapeHtmlUi(
                 cell.traceId
               )}" data-locality-id="${escapeHtmlUi(
                 loc.id
@@ -766,9 +768,12 @@ function renderVerticalPages(params: {
           const globalStt = (pageIdx * maxRowsPerPage) + locIdx + 1;
           const cellsHtml = displayRows
             .map((r) => {
+              const shared = isSharedReportIndicator(r.indicator.id);
+              if (shared && locIdx > 0) return '';
+              const span = shared && chunk.length > 1 ? ` rowspan="${chunk.length}"` : '';
               const cell = r.cellsByLocalityId[loc.id];
               if (!cell) {
-                return `<td class="doc-td doc-cell-missing">-</td>`;
+                return `<td class="doc-td doc-cell-missing"${span}>-</td>`;
               }
               const isSelected = activeTraceId === cell.traceId;
               const formattedVal = formatReportCellValue(
@@ -780,13 +785,13 @@ function renderVerticalPages(params: {
 
               return `<td class="doc-td doc-cell state-${escapeHtmlUi(
                 cell.state
-              )} quality-${escapeHtmlUi(cell.qualityStatus)} ${cell.hasWarning ? 'has-warning' : ''} ${cell.officialNote ? 'has-note' : ''} ${isSelected ? 'doc-cell-active' : ''}" tabindex="0" role="button" data-trace-id="${escapeHtmlUi(
+              )} quality-${escapeHtmlUi(cell.qualityStatus)} ${cell.hasWarning ? 'has-warning' : ''} ${cell.officialNote ? 'has-note' : ''} ${isSelected ? 'doc-cell-active' : ''}"${span} tabindex="0" role="button" data-trace-id="${escapeHtmlUi(
                 cell.traceId
               )}" data-locality-id="${escapeHtmlUi(
                 loc.id
               )}" data-indicator-id="${escapeHtmlUi(
                 r.indicator.id
-              )}" title="${escapeHtmlUi(loc.displayName)} — ${escapeHtmlUi(
+              )}" title="${escapeHtmlUi(shared ? 'Phạm vi chung của nguồn' : loc.displayName)} — ${escapeHtmlUi(
                 r.rowConfig.customLabel
               )}: ${escapeHtmlUi(formattedVal)}">
                 <div class="cell-content">

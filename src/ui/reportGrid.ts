@@ -1,6 +1,6 @@
 import { EvaluatedSessionReport } from '../core/calculationTrace';
-import { analyzeSourceCoverage } from '../core/coverage';
-import { Dataset, formatDisbRange, getDisbSchemaProfile, Locality } from '../core/types';
+import { isSharedReportIndicator } from '../core/indicators';
+import { Dataset, Locality } from '../core/types';
 import { escapeHtmlUi } from './cellInspector';
 import {
   formatReportCellValue,
@@ -14,7 +14,7 @@ export function renderReportGridHtml(params: {
   datasets: { REV?: Dataset; DISB?: Dataset; GPMB?: Dataset };
   activeTraceId?: string;
 }): string {
-  const { evaluated, baselineLocalities, datasets, activeTraceId } = params;
+  const { evaluated, activeTraceId } = params;
   const { session, selectedLocalities, rows } = evaluated;
 
   if (selectedLocalities.length === 0) {
@@ -53,11 +53,13 @@ export function renderReportGridHtml(params: {
           ? '%'
           : 'nhận xét';
 
-      const cellsHtml = selectedLocalities
+      const shared = isSharedReportIndicator(r.indicator.id);
+      const span = shared && selectedLocalities.length > 1 ? ` colspan="${selectedLocalities.length}"` : '';
+      const cellsHtml = (shared ? selectedLocalities.slice(0, 1) : selectedLocalities)
         .map((loc) => {
           const cell = r.cellsByLocalityId[loc.id];
           if (!cell) {
-            return `<td class="report-cell cell-missing">Chưa có số liệu</td>`;
+            return `<td class="report-cell cell-missing"${span}>Chưa có số liệu</td>`;
           }
           const isSelected = activeTraceId === cell.traceId;
           const warnBadge = cell.hasWarning
@@ -78,7 +80,7 @@ export function renderReportGridHtml(params: {
             cell.state
           )} quality-${escapeHtmlUi(cell.qualityStatus)} ${
             isSelected ? 'cell-selected' : ''
-          }" tabindex="0" role="button" data-trace-id="${escapeHtmlUi(
+          }"${span} tabindex="0" role="button" data-trace-id="${escapeHtmlUi(
             cell.traceId
           )}" data-locality-id="${escapeHtmlUi(
             loc.id
@@ -100,26 +102,6 @@ export function renderReportGridHtml(params: {
       </tr>`;
     })
     .join('');
-
-  const { bySource } = analyzeSourceCoverage(baselineLocalities, datasets);
-  const revMissingNames =
-    bySource.REV?.missingLocalities.map((m) => m.localityName).join(', ') ||
-    'Không';
-  const gpmbMissingNames =
-    bySource.GPMB?.missingLocalities.map((m) => m.localityName).join(', ') ||
-    'Không';
-
-  const revDate = datasets.REV?.asOfDate || 'Chưa xác nhận';
-  const disbDate = datasets.DISB?.asOfDate || '15/10/2026';
-  const gpmbDate = datasets.GPMB?.asOfDate || '26/10/2026';
-
-  const disbProfile = getDisbSchemaProfile(datasets.DISB?.schemaFingerprint);
-  const disbUnitCount = datasets.DISB?.unitCount ?? 114;
-  const disbFormulaExpr = `SUM(${formatDisbRange(
-    disbProfile.disbCol,
-    disbProfile,
-    disbUnitCount
-  )})/SUM(${formatDisbRange(disbProfile.planCol, disbProfile, disbUnitCount)})`;
 
   return `<div class="report-grid-wrapper" style="font-family:${escapeHtmlUi(
     session.settings.fontFamily
@@ -143,30 +125,5 @@ export function renderReportGridHtml(params: {
       </table>
     </div>
 
-    <div class="report-footnotes">
-      <h4>Chú thích Nguồn, Ngày chốt độc lập &amp; Địa phương chưa có bản ghi nguồn (R06):</h4>
-      <ul>
-        <li><strong>Giải ngân ĐTC (${escapeHtmlUi(
-          disbDate
-        )}):</strong> Phạm vi <strong>${disbUnitCount}/114 địa phương</strong>${
-          disbProfile.isPhanCapXa ? ' (vốn phân cấp cấp xã)' : ''
-        } (mốc chuẩn ${disbUnitCount} địa phương = <strong>${escapeHtmlUi(
-          evaluated.benchmarks?.disbRateBenchmark?.displayedText || '67,10%'
-        )}</strong> từ ${disbFormulaExpr}; vốn giao bình quân = <strong>${escapeHtmlUi(
-          evaluated.benchmarks?.disbPlanAvg?.displayedText || '136,41 tỷ đồng'
-        )}/địa phương</strong>).</li>
-        <li><strong>Thu NSNN (kỳ 10 tháng/2026, ngày chốt: ${escapeHtmlUi(
-          revDate
-        )}):</strong> Phạm vi <strong>113/114 địa phương</strong> (mốc tham khảo 113 địa phương = <strong>111,30%</strong>). Địa phương chưa có bản ghi (` +
-    `<code>NO_LOCALITY_RECORD</code>): <strong>${escapeHtmlUi(
-      revMissingNames
-    )}</strong>.</li>
-        <li><strong>Giải phóng mặt bằng (${escapeHtmlUi(
-          gpmbDate
-        )}):</strong> Phạm vi <strong>108/114 địa bàn</strong> (422 dòng dự án, tỷ lệ diện tích đã ghi nhận = <strong>72,13%</strong> <code>PARTIAL_AGGREGATE</code>; còn 3 dự án dòng 107, 173, 365 thiếu I với tổng D = 11.459 m²). Sáu địa phương chưa có bản ghi (<code>NO_LOCALITY_RECORD</code>): <strong>${escapeHtmlUi(
-    gpmbMissingNames
-  )}</strong>.</li>
-      </ul>
-    </div>
   </div>`;
 }

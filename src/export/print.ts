@@ -9,7 +9,7 @@ import {
   horizontalPageCapacity,
   horizontalFit,
 } from '../ui/reportStudio';
-import { reportMainStt } from '../core/indicators';
+import { reportMainStt, isSharedReportIndicator } from '../core/indicators';
 import {
   getUncompletedProjectsForSession,
   getNq11ProjectsForSession,
@@ -26,7 +26,7 @@ function escapeHtml(str: string): string {
 
 /**
  * Generates clean, paginated print/PDF HTML for any number of selected localities
- * (e.g. 5 localities in 1 page, 20 localities split across 3 horizontal page chunks of 8 localities each so no column is lost or shrunk to unreadable size - T18, T65).
+ * (e.g. 5 localities in 1 page, 20 localities split across horizontal page chunks of at most 11 localities on A4 landscape so no column is lost or shrunk to unreadable size - T18, T65).
  */
 export function generatePrintableReportHtml(params: {
   evaluated: EvaluatedSessionReport;
@@ -77,7 +77,9 @@ export function generatePrintableReportHtml(params: {
       const bodyRows = displayRows
         .map((r) => {
           const hasStt = Boolean(r.rowConfig.sttLabel && r.rowConfig.sttLabel.trim());
-          const cells = chunk
+          const shared = isSharedReportIndicator(r.indicator.id);
+          const span = shared && chunk.length > 1 ? ` colspan="${chunk.length}"` : '';
+          const cells = (shared ? chunk.slice(0, 1) : chunk)
             .map((loc) => {
               const c = r.cellsByLocalityId[loc.id];
               const formattedVal = formatReportCellValue(
@@ -86,7 +88,7 @@ export function generatePrintableReportHtml(params: {
                 session.settings.moneyUnit,
                 session.settings.areaUnit
               );
-              return `<td class="print-cell">${renderReportCellValueHtml(formattedVal)}</td>`;
+              return `<td class="print-cell"${span}>${renderReportCellValueHtml(formattedVal)}</td>`;
             })
             .join('');
           return `<tr class="${hasStt ? 'doc-row-primary' : 'doc-row-sub'}">

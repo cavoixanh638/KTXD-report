@@ -1,10 +1,9 @@
 import { zipSync, strToU8 } from 'fflate';
 import { EvaluatedSessionReport } from '../core/calculationTrace';
 import { analyzeSourceCoverage, filterCoverageForSession } from '../core/coverage';
-import { DEFAULT_INDICATORS, reportMainStt } from '../core/indicators';
+import { DEFAULT_INDICATORS, reportMainStt, isSharedReportIndicator } from '../core/indicators';
 import { Dataset, Locality, ReportSession } from '../core/types';
-import { formatReportCellValue } from '../ui/reportStudio';
-import { formatVnDate } from '../core/sessions';
+import { formatReportCellValue, horizontalPageCapacity } from '../ui/reportStudio';
 import {
   getUncompletedProjectsForSession,
   getNq11ProjectsForSession,
@@ -702,13 +701,7 @@ export function exportSessionReportToXlsxBytes(params: {
   const { evaluated, baselineLocalities, datasets } = params;
   const { session, selectedLocalities, rows, tracesById } = evaluated;
 
-  // Enforce §7 Rule 6: cannot disable scope footnotes when exporting mixed-period datasets
-  if (!session.settings.showScopeFootnotes) {
-    throw new Error(
-      'BLOCKER_UNEXPLAINED_EXPORT: Báo cáo kết hợp nhiều nguồn có kỳ/ngày chốt khác nhau, không được tắt chú thích nguồn và phạm vi khi xuất chính thức.'
-    );
-  }
-
+  // Sheet 1 is intentionally clean; the mandatory audit sheets retain source/scope evidence.
   const fontFamily = sanitizeFontName(session.settings.fontFamily);
   const titleFontPt = Math.max(
     12,
@@ -814,7 +807,12 @@ export function exportSessionReportToXlsxBytes(params: {
       },
     ];
 
-    for (const loc of selectedLocalities) {
+    const shared = isSharedReportIndicator(r.indicator.id);
+    const reportRowNum = sheet1Rows.length + 1;
+    if (shared && selectedLocalities.length > 1) {
+      sheet1Merges.push(`C${reportRowNum}:${lastColLetter}${reportRowNum}`);
+    }
+    for (const loc of (shared ? selectedLocalities.slice(0, 1) : selectedLocalities)) {
       const cellEval = r.cellsByLocalityId[loc.id];
       if (!cellEval) {
         rowCells.push({
@@ -872,6 +870,13 @@ export function exportSessionReportToXlsxBytes(params: {
       }
     }
 
+    // Keep borders/styles across the merged range without copying the value.
+    if (shared && selectedLocalities.length > 1) {
+      const anchorStyle = rowCells[2]?.styleIndex ?? ST.PRIMARY_TEXT_CENTER;
+      for (let i = 1; i < selectedLocalities.length; i++) {
+        rowCells.push({ type: 's', value: '', styleIndex: anchorStyle });
+      }
+    }
     sheet1Rows.push(rowCells);
     sheet1RowOpts.push({ minHeightPt: 21, fontSizePt: tableFontPt, padPt: 6 });
   }
@@ -1025,51 +1030,7 @@ export function exportSessionReportToXlsxBytes(params: {
     }
   }
 
-  // Footnote row on Sheet 1 (merged cleanly across full table width)
-  sheet1Rows.push([]);
-  sheet1RowOpts.push({ minHeightPt: 10 });
-  const footnoteRowNum = sheet1Rows.length + 1;
-  sheet1Merges.push(`A${footnoteRowNum}:${lastColLetter}${footnoteRowNum}`);
-  const revDate = datasets.REV?.asOfDate
-    ? formatVnDate(datasets.REV.asOfDate)
-    : 'chưa xác nhận';
-  const disbDate = datasets.DISB?.asOfDate
-    ? formatVnDate(datasets.DISB.asOfDate)
-    : '15/10/2026';
-  const gpmbDate = datasets.GPMB?.asOfDate
-    ? formatVnDate(datasets.GPMB.asOfDate)
-    : '26/10/2026';
-  const gpmbUnits = datasets.GPMB?.unitCount || 108;
-  const gpmbProjects = datasets.GPMB?.projectRowCount || 422;
-  const coverage = analyzeSourceCoverage(baselineLocalities,datasets).bySource;
-  const revMissing=coverage.REV?.missingLocalities.map(x=>x.localityName).join(', ');
-  const expected=baselineLocalities.length;
-  const revPeriod=datasets.REV?.periodLabel || 'chưa xác định kỳ';
-  const footnoteBody = `Thu NSNN: ${revPeriod} (ngày chốt: ${revDate}, phạm vi ${datasets.REV?.unitCount??0}/${expected} địa phương${revMissing?', thiếu '+revMissing:''}); Giải ngân: ${disbDate} (${datasets.DISB?.unitCount??0}/${expected} địa phương); GPMB: ${gpmbDate} (${gpmbUnits}/${expected} địa bàn, ${gpmbProjects} dự án, chỉ tính theo diện tích SUM(I)/SUM(D)).`;
-  sheet1Rows.push([
-    {
-      type: 's',
-      value: `Ghi chú nguồn: ${footnoteBody}`,
-      styleIndex: ST.FOOTNOTE_TEXT,
-      richRuns: [
-        {
-          text: 'Ghi chú nguồn: ',
-          bold: true,
-          italic: false,
-          sizePt: 9,
-          colorHex: 'FF1E293B',
-        },
-        {
-          text: footnoteBody,
-          bold: false,
-          italic: true,
-          sizePt: 9,
-          colorHex: 'FF334155',
-        },
-      ],
-    },
-  ]);
-  sheet1RowOpts.push({ minHeightPt: 22, fontSizePt: 9, lineHeightPt: 12.5, padPt: 6 });
+  // Source metadata is recorded in sheet 2, not in the report body.
 
   // Column widths mirroring Webapp proportions (preserving col B = 46 at default 240px for PH1 test gate)
   const sttColWidth = 6;
@@ -1093,12 +1054,12 @@ export function exportSessionReportToXlsxBytes(params: {
         : session.settings.paperSize === 'A3'
         ? 275
         : 190;
-    const maxPerPage = session.settings.paperSize === 'A3' ? 12 : 7;
+    const maxPerPage = horizontalPageCapacity(session);
     const colsOnPage = Math.max(1, Math.min(selectedLocalities.length, maxPerPage));
     const availablePerCol = Math.floor(
       (pageBudget - sttColWidth - indColWidth) / colsOnPage
     );
-    locColWidth = Math.max(20, Math.min(32, availablePerCol));
+    locColWidth = Math.max(colsOnPage > 7 ? 9 : 20, Math.min(32, availablePerCol));
   }
 
   const sheet1ColWidths: number[] = [
@@ -1186,6 +1147,22 @@ export function exportSessionReportToXlsxBytes(params: {
     ]);
   }
 
+  // Preserve dynamic scope/date metadata independently of whether a source has missing rows.
+  sheet2Rows.push([]);
+  for (const kind of ['REV', 'DISB', 'GPMB'] as const) {
+    const ds = datasets[kind];
+    if (!ds) continue;
+    sheet2Rows.push([
+      { type: 's', value: 'Tổng hợp phạm vi nguồn', styleIndex: ST.TEXT_LEFT_MID },
+      { type: 's', value: kind, styleIndex: ST.PRIMARY_TEXT_CENTER },
+      { type: 's', value: 'Toàn bộ nguồn', styleIndex: ST.TEXT_LEFT_MID },
+      { type: 's', value: ds.asOfStatus || 'Chưa xác nhận', styleIndex: ST.PRIMARY_TEXT_CENTER },
+      { type: 's', value: ds.sourceFilename, styleIndex: ST.TEXT_LEFT_MID },
+      { type: 's', value: `Phạm vi ${ds.unitCount ?? 0}/${baselineLocalities.length} địa phương; ${ds.periodLabel || 'Kỳ theo nguồn'}`, styleIndex: ST.TEXT_LEFT_MID },
+      { type: 's', value: ds.asOfDate || 'Chưa xác nhận', styleIndex: ST.PRIMARY_TEXT_CENTER },
+      { type: 's', value: kind === 'GPMB' ? 'SUM(I ghi nhận)/SUM(D); không bình quân tỷ lệ dự án' : 'Phép tính theo trường nguồn đã xác minh; xem Nhật ký phép tính', styleIndex: ST.TEXT_LEFT_MID },
+    ]);
+  }
   const sheet2Xml = buildWorksheetXml({
     rows: sheet2Rows,
     colWidths: [24, 12, 22, 22, 22, 50, 14, 38],
