@@ -1135,7 +1135,7 @@ export function evaluateLocalityIndicator(params: {
         result:{...sourceTrace.result,exactDecimal:null,displayedText,state:bad.state},
         formula:{...sourceTrace.formula,formulaId:indicator.id,readableExpression:'Không tính: trường '+invalidField+' chưa có giá trị hợp lệ',method:'INVALID_OR_MISSING_INPUT'},
         population:{...sourceTrace.population,includedCount:0,excludedCount:1,includedRecordIds:[],excludedRecordIds:[rec.id]},
-        exclusions:[{recordId:rec.id,affectedOperand:invalidField,reasonCode:bad.state==='FORMULA_ERROR'?'FORMULA_ERROR':'MISSING_INPUT',explanation:'Không chuyển giá trị thiếu/lỗi thành 0.',sourceCell:bad.provenance.cell,sourceValue:bad.raw}],
+        exclusions:[{recordId:rec.id,affectedOperand:invalidField,reasonCode:bad.state==='FORMULA_ERROR'?'FORMULA_ERROR':'MISSING_INPUT',explanation:'Không chuyển giá trị thiếu/lỗi thành 0.',sourceCell:bad.provenance.cell,sourceValue:bad.raw==null?null:String(bad.raw)}],
         quality:{status:qualityStatus,warningIds:[]},
       };
       return {traceId,indicatorId:indicator.id,localityId:locality.id,localityName:locality.canonicalNameNFC,exactDecimal:null,numericValueForExcel:null,excelFormatType:'TEXT',displayedText,unitLabel:'',state:bad.state,qualityStatus,hasWarning:true,warningCount:1,trace};
