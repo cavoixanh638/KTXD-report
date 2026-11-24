@@ -4092,3 +4092,24 @@ code {
 
 
 
+
+/* Dense 8–11 locality columns: fit horizontally, wrap labels/numbers rather
+   than clipping cells or scaling the entire document down. */
+.doc-table-horizontal[data-fit-columns="dense"],
+.print-table[data-fit-columns="dense"] {
+  width:100%;max-width:100%;table-layout:fixed;
+}
+.doc-table-horizontal[data-fit-columns="dense"] th,
+.doc-table-horizontal[data-fit-columns="dense"] td,
+.print-table[data-fit-columns="dense"] th,
+.print-table[data-fit-columns="dense"] td {
+  padding-left:2pt!important;padding-right:2pt!important;
+  overflow-wrap:anywhere;word-break:normal;white-space:normal;
+}
+.doc-table-horizontal[data-fit-columns="dense"] .val-primary,
+.doc-table-horizontal[data-fit-columns="dense"] .val-note,
+.doc-table-horizontal[data-fit-columns="dense"] .doc-loc-name,
+.print-table[data-fit-columns="dense"] .val-primary,
+.print-table[data-fit-columns="dense"] .val-note {
+  white-space:normal!important;overflow-wrap:anywhere;max-width:100%;
+}

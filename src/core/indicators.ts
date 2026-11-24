@@ -1,4 +1,4 @@
-import { TemplateRowCustomConfig } from './types';
+import { TemplateRowCustomConfig, ReportSession } from './types';
 
 export interface IndicatorDefinition {
   id: string;
@@ -44,15 +44,15 @@ export const DEFAULT_INDICATORS: Record<string, IndicatorDefinition> = {
   },
   REV_REALIZED: {
     id: 'REV_REALIZED',
-    label: 'Tổng thu NSNN lũy kế',
+    label: 'Kết quả thu NSNN',
     sourceType: 'REV',
-    fieldOrFormula: 'I / 1000',
+    fieldOrFormula: 'Tổng thu NSNN lũy kế (đọc theo tiêu đề nguồn; triệu đồng / 1000 khi hiển thị tỷ đồng)',
     numeratorField: 'actual_total_revenue',
     originalUnit: 'million_vnd',
     displayUnit: 'billion_vnd',
     precision: 2,
     aggregationPolicy: 'DIRECT_UNIT_CONVERSION',
-    benchmarkPolicy: 'SUM(I) across available 113 localities',
+    benchmarkPolicy: 'SUM(actual_total_revenue) theo phạm vi có dữ liệu',
     datePolicy: 'STRICT_SAME_DATASET_AS_OF_DATE',
   },
   REV_BENCHMARK_RATE: {
@@ -105,14 +105,14 @@ export const DEFAULT_INDICATORS: Record<string, IndicatorDefinition> = {
     id: 'REV_LAND_RATE_Y',
     label: 'Trong đó: tỷ lệ thu tiền sử dụng đất (so dự toán năm)',
     sourceType: 'REV',
-    fieldOrFormula: '(R / D) * 100',
+    fieldOrFormula: 'actual_land_revenue / annual_land_budget * 100',
     numeratorField: 'actual_land_revenue',
     denominatorField: 'annual_land_budget',
     originalUnit: 'ratio',
     displayUnit: 'percent',
     precision: 2,
     aggregationPolicy: 'RATIO_OF_SUMS',
-    benchmarkPolicy: 'SUM(R) / SUM(D) including D=0 rows (R04)',
+    benchmarkPolicy: 'SUM(actual_land_revenue) / SUM(annual_land_budget), gồm mẫu số 0 (R04)',
     datePolicy: 'STRICT_SAME_DATASET_AS_OF_DATE',
     templateRowNumber: 5,
     defaultStt: '',
@@ -121,28 +121,28 @@ export const DEFAULT_INDICATORS: Record<string, IndicatorDefinition> = {
     id: 'REV_LAND_RATE_P',
     label: 'Tỷ lệ thu tiền sử dụng đất so với kế hoạch kỳ',
     sourceType: 'REV',
-    fieldOrFormula: '(R / G) * 100',
+    fieldOrFormula: 'actual_land_revenue / period_land_plan * 100',
     numeratorField: 'actual_land_revenue',
     denominatorField: 'period_land_plan',
     originalUnit: 'ratio',
     displayUnit: 'percent',
     precision: 2,
     aggregationPolicy: 'RATIO_OF_SUMS',
-    benchmarkPolicy: 'SUM(R) / SUM(G) including G=0 rows (R04)',
+    benchmarkPolicy: 'SUM(actual_land_revenue) / SUM(period_land_plan), gồm mẫu số 0 (R04)',
     datePolicy: 'STRICT_SAME_DATASET_AS_OF_DATE',
   },
   REV_NONLAND_RATE_Y: {
     id: 'REV_NONLAND_RATE_Y',
     label: 'Tỷ lệ thu không gồm tiền sử dụng đất (so dự toán năm)',
     sourceType: 'REV',
-    fieldOrFormula: '(W / E) * 100',
+    fieldOrFormula: 'actual_nonland_revenue / annual_nonland_budget * 100',
     numeratorField: 'actual_nonland_revenue',
     denominatorField: 'annual_nonland_budget',
     originalUnit: 'ratio',
     displayUnit: 'percent',
     precision: 2,
     aggregationPolicy: 'RATIO_OF_SUMS',
-    benchmarkPolicy: 'SUM(W) / SUM(E) (113 localities available)',
+    benchmarkPolicy: 'SUM(actual_nonland_revenue) / SUM(annual_nonland_budget)',
     datePolicy: 'STRICT_SAME_DATASET_AS_OF_DATE',
     templateRowNumber: 6,
     defaultStt: '',
@@ -151,14 +151,14 @@ export const DEFAULT_INDICATORS: Record<string, IndicatorDefinition> = {
     id: 'REV_NONLAND_RATE_P',
     label: 'Tỷ lệ thu không gồm đất so với kế hoạch kỳ',
     sourceType: 'REV',
-    fieldOrFormula: '(W / H) * 100',
+    fieldOrFormula: 'actual_nonland_revenue / period_nonland_plan * 100',
     numeratorField: 'actual_nonland_revenue',
     denominatorField: 'period_nonland_plan',
     originalUnit: 'ratio',
     displayUnit: 'percent',
     precision: 2,
     aggregationPolicy: 'RATIO_OF_SUMS',
-    benchmarkPolicy: 'SUM(W) / SUM(H) (113 localities available)',
+    benchmarkPolicy: 'SUM(actual_nonland_revenue) / SUM(period_nonland_plan)',
     datePolicy: 'STRICT_SAME_DATASET_AS_OF_DATE',
   },
   DISB_PLAN: {
@@ -596,4 +596,16 @@ export function formatRevBenchmarkRowLabel(params: {
   }
   const dateSuffix = dateVn ? ` (đến ngày ${dateVn})` : '';
   return `Tỷ lệ thu NSNN chung của các địa phương${dateSuffix}`;
+}
+
+/** Optional realized revenue row is a presentation toggle; numbering of the
+ * base template is never mutated, so old sessions and backup data remain valid. */
+export function reportMainStt(session: ReportSession, baseStt: string): string {
+  return session.settings.showRevRealizedRow && /^\d+$/.test(baseStt) && Number(baseStt)>=2
+    ? String(Number(baseStt)+1) : baseStt;
+}
+export function formatRevRealizedRowLabel(params: {customLabel?:string; asOfDate?:string}): string {
+  const label=(params.customLabel || 'Kết quả thu NSNN').replace(/\s*\((?:tính\s+)?đến ngày[^)]*\)|\s*\(chưa xác nhận ngày chốt\)/gi,'').trim();
+  const date=formatVnDateText(params.asOfDate);
+  return label+(date?' (đến ngày '+date+')':' (chưa xác nhận ngày chốt)');
 }

@@ -59,6 +59,8 @@ import {
 } from '../core/types';
 import {
   formatRevBenchmarkRowLabel,
+  formatRevRealizedRowLabel,
+  reportMainStt,
   TEMPLATE_14_ROWS_DEFAULT,
 } from '../core/indicators';
 import {
@@ -597,6 +599,14 @@ export class KtxhOfflineApp {
     return getSessionLocalitiesBaseline(this.workspace, activeSession, datasets);
   }
 
+  private legacyImportNeedsReview(datasets:{REV?:Dataset;DISB?:Dataset;GPMB?:Dataset}):string[] {
+    const warnings:string[]=[];
+    const rev=datasets.REV,disb=datasets.DISB;
+    if (rev && rev.mappingVersion==='REV_ADAPTER_V2.2' && rev.workbookSha256!=='b41227d1444c581e6f3b65d761fad8918b65aedfbd8114443e6dee9d4938356f') warnings.push('Thu NSNN: cần nhập lại Excel để kiểm tra tiêu đề cột thay vì cột R/W cũ.');
+    if (disb && disb.schemaFingerprint==='DISB_V1' && disb.unitCount===109) warnings.push('Giải ngân: cần nhập lại Excel để kiểm tra đủ 114 địa phương và cấu trúc cột.');
+    return warnings;
+  }
+
   private evaluateActiveContext(): {
     activeSession: ReportSession | undefined;
     datasets: { REV?: Dataset; DISB?: Dataset; GPMB?: Dataset };
@@ -607,7 +617,7 @@ export class KtxhOfflineApp {
     const activeSession = this.getActiveSession();
     const datasets = this.getLatestDatasetsMap();
     const effectiveLocalities = this.getEffectiveBaselineLocalities(activeSession, datasets);
-    const hasAllThreeSources = Boolean(datasets.DISB && datasets.REV && datasets.GPMB);
+    const hasAllThreeSources = Boolean(datasets.DISB && datasets.REV && datasets.GPMB && !this.legacyImportNeedsReview(datasets).length);
     let evaluatedReport: EvaluatedSessionReport | null = null;
     if (activeSession && hasAllThreeSources) {
       evaluatedReport = evaluateSessionReport({
@@ -1233,21 +1243,25 @@ export class KtxhOfflineApp {
               <div class="setting-group-heading">Bật / tắt dòng hiển thị</div>
 
               <label class="toggle-switch-row">
-                <span>Dòng Tỷ lệ thu NSNN chung (STT 2)</span>
+                <span>Kết quả thu NSNN lũy kế (STT 2)</span>
+                <input type="checkbox" id="setting-show-rev-realized-row" class="chk-live-setting" ${s.showRevRealizedRow ? 'checked' : ''} />
+              </label>
+              <label class="toggle-switch-row">
+                <span>Dòng Tỷ lệ thu NSNN chung (STT ${reportMainStt(activeSession,'2')})</span>
                 <input type="checkbox" id="setting-show-rev-benchmark-row" class="chk-live-setting" ${
                   s.showRevBenchmarkRow ? 'checked' : ''
                 } />
               </label>
 
               <label class="toggle-switch-row">
-                <span>So sánh KHV ĐTC đầu năm (Dòng 3)</span>
+                <span>So sánh KHV ĐTC đầu năm (Dòng ${reportMainStt(activeSession,'3')})</span>
                 <input type="checkbox" id="setting-show-disb-adjustment" class="chk-live-setting" ${
                   s.showDisbPlanAdjustmentComparison !== false ? 'checked' : ''
                 } />
               </label>
 
               <label class="toggle-switch-row">
-                <span>Dòng 8: Dự án GPMB chưa hoàn thành</span>
+                <span>Dòng ${reportMainStt(activeSession,'8')}: Dự án GPMB chưa hoàn thành</span>
                 <input type="checkbox" id="setting-show-uncompleted-summary" class="chk-live-setting" ${
                   s.showUncompletedSummaryRow !== false ? 'checked' : ''
                 } />
@@ -1261,7 +1275,7 @@ export class KtxhOfflineApp {
               </label>
 
               <label class="toggle-switch-row">
-                <span>Dòng 9: Dự án theo NQ 11</span>
+                <span>Dòng ${reportMainStt(activeSession,'9')}: Dự án theo NQ 11</span>
                 <input type="checkbox" id="setting-show-nq11-row" class="chk-live-setting" ${
                   s.showNq11Row !== false ? 'checked' : ''
                 } />
@@ -1334,6 +1348,8 @@ export class KtxhOfflineApp {
     }
 
     if (!evaluatedReport) {
+      const stale=this.legacyImportNeedsReview(datasets);
+      if (stale.length) return `<div class="studio-canvas-scroll"><div class="card empty-state-card"><h3>Cần nhập lại nguồn Excel trước khi xuất báo cáo</h3><p>${escapeHtmlUi(stale.join(' '))}</p><p>Dữ liệu cũ được giữ nguyên; hãy chọn lại tệp nguồn ở thanh bên trái để nhận diện đúng.</p></div></div>`;
       const missingList = (['DISB', 'REV', 'GPMB'] as const)
         .filter((t) => !datasets[t])
         .map((t) =>
@@ -2275,6 +2291,17 @@ export class KtxhOfflineApp {
         const activeSession = this.getActiveSession();
         if (!activeSession) return;
 
+        if (indId === 'REV_REALIZED') {
+          const currentLabel=formatRevRealizedRowLabel({customLabel:activeSession.settings.revRealizedRowCustomLabel,asOfDate:datasets.REV?.asOfDate});
+          const nextLabel=window.prompt('Đổi tên hiển thị dòng kết quả thu NSNN:',currentLabel);
+          if (nextLabel?.trim()) {
+            activeSession.settings.revRealizedRowCustomLabel=nextLabel.trim();
+            this.triggerAutosave();
+            this.render();
+          }
+          return;
+        }
+
         if (indId === 'REV_BENCHMARK_RATE') {
           const { effectiveLocalities } = this.evaluateActiveContext();
           const revDs = datasets.REV;
@@ -2583,6 +2610,7 @@ export class KtxhOfflineApp {
 
     // Topbar Print / PDF
     document.getElementById('btn-topbar-print')?.addEventListener('click', () => {
+      if(!this.evaluateActiveContext().evaluatedReport){this.setStatus('Chưa có báo cáo hợp lệ; hãy nhập lại hoặc bổ sung nguồn Excel.','warning');return;}
       window.print();
     });
 
@@ -2798,6 +2826,12 @@ export class KtxhOfflineApp {
       applyLiveTitleAndTextSettings();
     });
 
+    document.getElementById('setting-show-rev-realized-row')?.addEventListener('change',(e)=>{
+      if (!activeSession) return;
+      activeSession.settings.showRevRealizedRow=(e.target as HTMLInputElement).checked;
+      this.triggerAutosave();
+      this.render();
+    });
     document.getElementById('setting-show-rev-benchmark-row')?.addEventListener('change', (e) => {
       if (!activeSession) return;
       activeSession.settings.showRevBenchmarkRow = (e.target as HTMLInputElement).checked;

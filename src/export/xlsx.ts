@@ -1,7 +1,7 @@
 import { zipSync, strToU8 } from 'fflate';
 import { EvaluatedSessionReport } from '../core/calculationTrace';
 import { analyzeSourceCoverage, filterCoverageForSession } from '../core/coverage';
-import { DEFAULT_INDICATORS } from '../core/indicators';
+import { DEFAULT_INDICATORS, reportMainStt } from '../core/indicators';
 import { Dataset, Locality, ReportSession } from '../core/types';
 import { formatReportCellValue } from '../ui/reportStudio';
 import { formatVnDate } from '../core/sessions';
@@ -885,7 +885,7 @@ export function exportSessionReportToXlsxBytes(params: {
 
     // Dòng STT 8: Số dự án chưa hoàn thành GPMB (bold, top-aligned, white fill)
     const row8Cells: Array<XlsxCellInput | null> = [
-      { type: 's', value: '8', styleIndex: ST.ROW8_STT_BOLD_TOP },
+      { type: 's', value: reportMainStt(session,'8'), styleIndex: ST.ROW8_STT_BOLD_TOP },
       {
         type: 's',
         value:
@@ -948,7 +948,7 @@ export function exportSessionReportToXlsxBytes(params: {
       selectedLocalities,
     });
     const row9Cells: Array<XlsxCellInput | null> = [
-      { type: 's', value: '9', styleIndex: ST.ROW9_STT_BOLD_TOP },
+      { type: 's', value: reportMainStt(session,'9'), styleIndex: ST.ROW9_STT_BOLD_TOP },
       {
         type: 's',
         value:

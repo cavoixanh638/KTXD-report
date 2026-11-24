@@ -27,6 +27,8 @@ import {
 import {
   DEFAULT_INDICATORS,
   formatRevBenchmarkRowLabel,
+  formatRevRealizedRowLabel,
+  reportMainStt,
   IndicatorDefinition,
 } from './indicators';
 import { getUncompletedProjectsForSession } from './uncompletedProjects';
@@ -1115,6 +1117,29 @@ export function evaluateLocalityIndicator(params: {
       };
     }
 
+    // Do not turn a blank/error numerator or denominator into numeric zero.
+    const requiredFields = [indicator.numeratorField,indicator.denominatorField].filter((x):x is string=>Boolean(x));
+    const invalidField = requiredFields.find(field=>{
+      const m=rec.metrics[field];
+      return !m || (m.state!=='VALUE'&&m.state!=='ZERO') || m.normalizedDecimal===null;
+    });
+    if (invalidField && rec.metrics[invalidField]) {
+      const bad=rec.metrics[invalidField];
+      const sourceTrace=buildSourceValueTrace(rev,rec,invalidField);
+      const qualityStatus:CalculationQuality=bad.state==='FORMULA_ERROR'||bad.state==='INVALID'?'SOURCE_ERROR':'INSUFFICIENT_COMPONENTS';
+      const displayedText=bad.state==='FORMULA_ERROR'?'Lỗi công thức nguồn':'Chưa có số liệu';
+      const traceId='TRACE_'+indicator.id+'_'+locality.id+'_'+rev.id+'_INVALID_INPUT';
+      const trace:CalculationTrace={
+        ...sourceTrace, traceId,indicatorId:indicator.id,
+        resultKind:'CALCULATED',
+        result:{...sourceTrace.result,exactDecimal:null,displayedText,state:bad.state},
+        formula:{...sourceTrace.formula,formulaId:indicator.id,readableExpression:'Không tính: trường '+invalidField+' chưa có giá trị hợp lệ',method:'INVALID_OR_MISSING_INPUT'},
+        population:{...sourceTrace.population,includedCount:0,excludedCount:1,includedRecordIds:[],excludedRecordIds:[rec.id]},
+        exclusions:[{recordId:rec.id,affectedOperand:invalidField,reasonCode:bad.state==='FORMULA_ERROR'?'FORMULA_ERROR':'MISSING_INPUT',explanation:'Không chuyển giá trị thiếu/lỗi thành 0.',sourceCell:bad.provenance.cell,sourceValue:bad.raw}],
+        quality:{status:qualityStatus,warningIds:[]},
+      };
+      return {traceId,indicatorId:indicator.id,localityId:locality.id,localityName:locality.canonicalNameNFC,exactDecimal:null,numericValueForExcel:null,excelFormatType:'TEXT',displayedText,unitLabel:'',state:bad.state,qualityStatus,hasWarning:true,warningCount:1,trace};
+    }
     // Direct money indicator (REV_BUDGET_Y, REV_REALIZED)
     if (indicator.aggregationPolicy === 'DIRECT_UNIT_CONVERSION' && indicator.numeratorField) {
       const mCell = rec.metrics[indicator.numeratorField];
@@ -2989,6 +3014,18 @@ export function evaluateSessionReport(params: {
     } else {
       evalRowConfigs.unshift(revBmConfig);
     }
+  }
+
+  if (session.settings.showRevRealizedRow) {
+    evalRowConfigs=evalRowConfigs.filter(r=>r.indicatorId!=='REV_REALIZED').map(r=>({...r,sttLabel:reportMainStt(session,r.sttLabel)}));
+    const realized:TemplateRowCustomConfig={
+      rowNumber:31,indicatorId:'REV_REALIZED',sttLabel:'2',
+      customLabel:formatRevRealizedRowLabel({customLabel:session.settings.revRealizedRowCustomLabel,asOfDate:datasets.REV?.asOfDate}),
+      groupName:'I. Thu ngân sách nhà nước',visible:true,order:1.25,
+    };
+    const budgetIndex=evalRowConfigs.findIndex(r=>r.indicatorId==='REV_BUDGET_Y');
+    const rateIndex=evalRowConfigs.findIndex(r=>r.indicatorId==='REV_BENCHMARK_RATE'||r.indicatorId==='REV_RATE_Y');
+    evalRowConfigs.splice(budgetIndex>=0?budgetIndex+1:Math.max(0,rateIndex),0,realized);
   }
 
   const rows: EvaluatedReportRow[] = [];

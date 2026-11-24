@@ -1371,7 +1371,7 @@ export function importRevenueWorkbook(
   if (!semanticMapping && !isOriginalReference) {
     throw new Error('BLOCKER_MAPPING_REQUIRED: Không nhận diện duy nhất tiêu đề các cột dự toán/kế hoạch/thực hiện/thu tiền đất/thu trừ tiền đất; không được lấy theo cột R/W cố định.');
   }
-  const mappingVersion = semanticMapping ? 'REV_HEADER_SEMANTIC_V3' : 'REV_ADAPTER_V2.2';
+  const mappingVersion = isOriginalReference ? 'REV_ADAPTER_V2.2' : 'REV_HEADER_SEMANTIC_V3';
   const legacyMap: Record<string, string> = {
     C: 'annual_total_budget',
     D: 'annual_land_budget',
@@ -1395,7 +1395,7 @@ export function importRevenueWorkbook(
     AC: 'source_rate_nonland_p',
   };
 
-  const colMap = semanticMapping?.colMap ?? legacyMap;
+  const colMap = isOriginalReference ? legacyMap : semanticMapping!.colMap;
   const issues: QualityIssue[] = [];
   if (!asOfDate) {
     issues.push({
