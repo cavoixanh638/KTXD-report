@@ -30,3 +30,7 @@
 ## KHỞI TẠO
 
 Repository: `cavoixanh638/KTXD-report` (Private). Sản phẩm tên KTXH Offline. Hiện `MASTER_V2.2_PLAN_ONLY / PH1_NOT_STARTED / PH2_NOT_STARTED`. Bốn workbook đã có ở `data/reference/`; test source audit không tương đương test app runtime.
+
+## Bổ sung bàn giao cuối ngày 24/11/2026
+
+Bảy tên chỉ tiêu tại mục 3 của cập nhật PH1 trong MASTER là chuẩn bắt buộc. Không hoàn nguyên tên cũ, không hardcode 114/ngày chốt khi nguồn không đủ. Giữ nhãn riêng của người dùng, migration nhãn mặc định, công thức tổng/tổng, trace và ô gộp REV/GPMB. Chạy `NOV_FIX_04` cùng toàn bộ test khi sửa phần này.

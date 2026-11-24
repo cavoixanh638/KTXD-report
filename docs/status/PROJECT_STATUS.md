@@ -36,7 +36,7 @@
 ## KẾT QUẢ KIỂM THỬ RUNTIME (`T01`–`T66` & STUDIO SUITE)
 
 - **Lệnh kiểm thử:** `npm run typecheck; npm test; npm run build` (kèm kiểm chứng Edge Headless CDP trên `file:///.../dist/index.html`)
-- **Bộ kiểm thử runtime:** 3 test suites, **43/43 tests PASS** (`tests/ph1.spec.ts` 18 tests, `tests/studio.spec.ts` 24 tests, `tests/export-evidence.spec.ts` 1 test).
+- **Bộ kiểm thử runtime tại checkpoint 14/11 (lịch sử):** 3 test suites, **43/43 tests PASS** (`tests/ph1.spec.ts` 18 tests, `tests/studio.spec.ts` 24 tests, `tests/export-evidence.spec.ts` 1 test).
 - **Tinh chỉnh giao diện, tìm kiếm và công thức tính đã hoàn thiện:**
   1. Loại bỏ hoàn toàn khối cơ quan chủ quản (Sở KH&ĐT), quốc hiệu tiêu ngữ và dòng ngày chốt số liệu meta ở đầu trang báo cáo.
   2. Loại bỏ phụ đề và huy hiệu phiên ở đầu báo cáo; căn giữa tiêu đề chính `TÌNH HÌNH THỰC HIỆN MỘT SỐ CHỈ TIÊU KINH TẾ - XÃ HỘI CỦA CÁC ĐỊA PHƯƠNG`.
@@ -146,3 +146,10 @@
 - Gộp 2 benchmark REV/GPMB (colspan nhóm, rowspan Studio dọc, merge Excel). Bỏ footer nguồn trên bảng chính; sheet 2 giữ metadata phạm vi động, không xóa audit. Kiểm thử mới NOV_FIX_03.
 - [CI 45343442429](https://github.com/cavoixanh638/KTXD-report/actions/runs/45343442429): SUCCESS (job 138272250471): 4/4 workbook SHA/ZIP PASS, typecheck PASS, build PASS, 3/3 suites và 46/46 tests PASS, artifact dist/index.html đã được upload. Bằng chứng chỉ áp dụng SHA mã `b4288a96dcfb55e72e632d19bd9c56cea6cf7295`; commit tài liệu `278932808c8ab7d2acdb4212d30ed58a0823f798` không đổi runtime. Windows Chrome/Edge in thực tế: NOT_RUN. Không đổi dữ liệu tham chiếu/SHA workbook; không đưa tệp tháng 11 vào repo.
 - PH2 không bắt đầu; nghiệm thu chính thức PH1 vẫn cần chủ dự án kiểm tra.
+
+### 24/11/2026 — Chốt bảy tên chỉ tiêu và đồng bộ tài liệu
+
+- Nhánh `ai/november-source-report-fix-20261124`; SHA mã nguồn đã kiểm thử `ee22c0a29d997d4ccd6861bad7997ec845168d90`. Đổi tên bảy chỉ tiêu theo MASTER mục 3; migration phiên cũ, giữ nhãn tùy chỉnh, ngày và độ phủ động; không sửa công thức. Files runtime: indicators.ts, sessions.ts, calculationTrace.ts, main.ts, tests/studio.spec.ts.
+- [CI 45344789386](https://github.com/cavoixanh638/KTXD-report/actions/runs/45344789386), job 138276626023: **47/47 tests PASS**, 3/3 suites, typecheck/build PASS, 4/4 source workbooks SHA/ZIP PASS; artifact `KTXH-offline-November-fix` ID 14897019361 đã upload. NOV_FIX_04 kiểm thử nhãn và ba đầu ra, không xác nhận độ phủ của file tháng 11 thực tế (fixture metadata mô phỏng).
+- Đồng bộ MASTER/PH1, checksum manifest, từ điển, quy tắc tính, test cases, hướng dẫn, UI/UX, AGENTS và mục lục. Các checkpoint, review và bằng chứng cũ giữ nguyên tính lịch sử. Commit tài liệu nối tiếp SHA trên không thay đổi runtime; không kế thừa PASS cho thay đổi runtime về sau.
+- Windows Chrome/Edge in trực tiếp và nghiệm thu với workbook tháng 11 thực tế: NOT_RUN trong lần CI này. Không đổi/commit thêm workbook. PH2 chưa bắt đầu, chưa merge main.

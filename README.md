@@ -81,3 +81,7 @@ Bốn workbook gốc không chỉnh sửa lưu tại [data/reference](data/refer
 - `data/reference/Bc thu 10 thang-19.10-BC (1)(1).xlsx` (SHA-256: `b41227...`) — 113 địa phương.
 - `data/reference/PL01_Tổng hợp DA_26.12.26(1).xlsx` (SHA-256: `d393c3...`) — 108 địa bàn, 422 dự án.
 - `data/reference/Kết quả Tổng hợp chỉ tiêu KTXH 11 xã.xlsx` (SHA-256: `bd19d2...`) — Mẫu chuẩn 14 dòng.
+
+## Bản cập nhật PH1 ngày 24/11/2026
+
+Các thay đổi nguồn tháng 11, 11 cột A4 ngang, dòng thực thu NSNN tùy chọn, ô gộp REV/GPMB, bỏ footer nguồn và bảy tên chỉ tiêu chuẩn mới được quy định trong [MASTER V2.2 hiện hành](docs/specs/KTXH_OFFLINE_MASTER_SPEC_V2_2_CURRENT.md). Xem [PROJECT_STATUS](docs/status/PROJECT_STATUS.md) để biết commit và kết quả CI thực tế. Nhánh cập nhật: `ai/november-source-report-fix-20261124`.

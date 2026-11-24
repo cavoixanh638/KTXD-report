@@ -235,5 +235,6 @@ Mọi kết quả kiểm thử trong Cổng PH1 đều được đối soát bit
 | NOV_FIX_01 | Compact DISB nhận đủ 114 dòng 8–121, F/I/M/N đúng vai trò, ngày 22/11, không áp cửa sổ legacy | tests/studio.spec.ts |
 | NOV_FIX_02 | REV có cột chèn vẫn nhận đúng I/S/X theo vai trò, reject duplicate; ngày 23/11; Kết quả thu NSNN mặc định ẩn, STT đồng bộ, 11 cột A4 | tests/studio.spec.ts |
 | NOV_FIX_03 | 1/9/11/12 địa phương: gộp chính xác hai benchmark REV/GPMB mỗi nhóm ngang; rowspan dọc Studio, Excel merge đúng và 1 giá trị numeric; không còn footer nguồn trên báo cáo, sheet audit/trace còn | tests/studio.spec.ts |
+| NOV_FIX_04 | Bảy nhãn chuẩn; migration phiên cũ; ngày chốt và độ phủ đủ/thiếu động; bảo toàn nhãn riêng; đồng nhất Studio/PDF/XLSX. Metadata độ phủ 114 là fixture mô phỏng riêng để kiểm thử nhãn, không phải bằng chứng workbook tháng 11 thực tế | tests/studio.spec.ts |
 
 T01–T66 là baseline lịch sử, không dùng kết quả cũ để kết luận PASS cho SHA mới. Kiểm tra PDF/Excel trên Windows bằng dữ liệu thực người dùng nhập; không commit workbook mới.

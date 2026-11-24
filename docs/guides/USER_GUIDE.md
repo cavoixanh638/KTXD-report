@@ -105,7 +105,7 @@ Mỗi phiên làm việc có thể sử dụng các file Excel hoàn toàn riên
 ### 6.2. Bật / Tắt các dòng chỉ tiêu linh hoạt
 Để tờ báo cáo ngắn gọn, vừa vặn với mục đích cuộc họp, bạn có thể tích chọn bật hoặc tắt các dòng:
 - **Kết quả thu NSNN (đến ngày …)**: mặc định ẩn; bật để hiện sau dự toán, STT 2, các STT tiếp theo tự dịch.
-- **Tỷ lệ thu NSNN chung**: bật nếu cần; hai tỷ lệ chung REV/GPMB gộp ô toàn bộ địa phương và hiển thị một lần mỗi nhóm.
+- **Tỷ lệ thu NSNN trung bình**: bật nếu cần; hai tỷ lệ chung REV/GPMB gộp ô toàn bộ địa phương và hiển thị một lần mỗi nhóm.
 - **Số dự án chưa hoàn thành GPMB** và **Dự án NQ 11**: có thể ẩn/hiện; STT phụ thuộc dòng thu thực hiện.
 
 ### 6.3. Căn chỉnh thẩm mỹ trang in
@@ -164,3 +164,19 @@ Mỗi phiên làm việc có thể sử dụng các file Excel hoàn toàn riên
 ## Lưu ý khi chuyển sang dữ liệu tháng 11/2026
 
 Nhập lại file giải ngân 22/11 và thu NSNN 23/11 trong đúng phiên, kiểm tra độ phủ và ngày chốt ở Khối 1. Dữ liệu đã nhập bằng bộ ánh xạ cũ có thể sai tỷ lệ thu đất/không đất hoặc thiếu 5 địa phương; không chỉnh tay tỷ lệ để bù lỗi nguồn. Khi cần giải trình, bấm vào ô số liệu hoặc mở các sheet kiểm toán; không còn ghi chú nguồn cuối bảng chính.
+
+### Tên bảy chỉ tiêu hiện hành
+
+| Mã chỉ tiêu | Nhãn chuẩn minh họa khi nguồn đủ 114 địa phương |
+|---|---|
+| `REV_BENCHMARK_RATE` | Tỷ lệ thu NSNN trung bình của 114 địa phương (đến ngày 23/11/2026) |
+| `REV_RATE_Y` | Tỷ lệ thu NSNN của từng địa phương so với dự toán |
+| `DISB_PLAN` | Kế hoạch vốn đầu tư công của từng địa phương sau điều chỉnh, bổ sung |
+| `DISB_BENCHMARK_RATE` | Tỷ lệ giải ngân trung bình của 114 địa phương (đến ngày 22/11/2026) |
+| `GPMB_BUDGET` | Kinh phí phân bổ GPMB cho từng địa phương |
+| `GPMB_AREA_PLAN` | Diện tích phải GPMB của từng địa phương |
+| `GPMB_BENCHMARK_AREA_RATE` | Tỷ lệ GPMB trung bình của 114 địa phương (đến ngày 24/11/2026) |
+
+Ngày chốt và số địa phương là dữ liệu động theo nguồn của phiên, không cố định các ngày minh họa hoặc 114. Nếu chỉ có N/M địa phương có dữ liệu, nhãn chuẩn ghi `trung bình của N/M địa phương có dữ liệu` (ví dụ REV 113/114, GPMB 108/114 ở nguồn tham chiếu tháng 10). Số lượng này thể hiện độ phủ nguồn, không phải số cột đang chọn hay xác nhận mọi trường đều đủ. Phương pháp vẫn tổng/tổng, không AVERAGE tỷ lệ; mọi cảnh báo chất lượng và trace vẫn giữ nguyên. Khi bật REV_BENCHMARK_RATE, REV_RATE_Y là dòng con không lặp ngày; khi không bật, dòng tỷ lệ từng địa phương giữ ngày chốt như trước. Chỉ di chuyển các tên mặc định/nhãn cũ đã nhận diện; bảo toàn nhãn riêng do người dùng đặt.
+
+Sau khi pull và build, mở lại phiên cũ để tên mặc định tự chuyển sang mẫu mới; không cần tạo phiên lại. Nếu đã tự đặt tên khác, tên riêng vẫn được giữ.

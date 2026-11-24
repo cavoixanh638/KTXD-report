@@ -3,13 +3,13 @@
   "repository": "cavoixanh638/KTXD-report",
   "specVersion": "2.2 CURRENT",
   "masterSpec": "docs/specs/KTXH_OFFLINE_MASTER_SPEC_V2_2_CURRENT.md",
-  "masterSha256": "d82366d2e8ba04f2f359a81ac31a292bd472f64c370fcd3b9c7dec3eb3e6a177",
-  "masterLines": 833,
+  "masterSha256": "2fc20f3df288e8c1a5d857c3bcfeb81029f81102e38310bcb7f7641f6822f552",
+  "masterLines": 849,
   "subplans": [
     {
       "phase": "PH1",
       "path": "docs/plans/PHASE_1_RESULT_TEMPLATE.md",
-      "sha256": "9752424b2e379edb55d1395991b7f6edafb6512bd2dc3d85a115ab223255a8a1",
+      "sha256": "ac0354580e755468dd5a6906fbe001ba685410a8228d8d4a6791067b960487dc",
       "status": "NOVEMBER_UPDATE_CI_VERIFIED_USER_ACCEPTANCE_PENDING"
     },
     {
@@ -88,7 +88,7 @@
     "T66"
   ],
   "testCount": 66,
-  "runtimeTestStatus": "BASELINE_PH1_PASS_64_DEFERRED_2; NOVEMBER_CI_46_OF_46_PASS",
+  "runtimeTestStatus": "BASELINE_PH1_PASS_64_DEFERRED_2; NOVEMBER_CI_47_OF_47_PASS",
   "runtimeEvidence": "docs/data_checks/PH1_ACCEPTANCE_EVIDENCE_20261109.json",
   "originalWorkbooks": "data/reference/MANIFEST.json",
   "originalWorkbooksCommitted": true,
@@ -104,23 +104,25 @@
   "novemberUpdate": {
     "date": "2026-11-24",
     "branch": "ai/november-source-report-fix-20261124",
-    "implementationSha": "b4288a96dcfb55e72e632d19bd9c56cea6cf7295",
+    "implementationSha": "ee22c0a29d997d4ccd6861bad7997ec845168d90",
     "tests": [
       "NOV_FIX_01",
       "NOV_FIX_02",
-      "NOV_FIX_03"
+      "NOV_FIX_03",
+      "NOV_FIX_04"
     ],
-    "ciRun": "https://github.com/cavoixanh638/KTXD-report/actions/runs/45343442429",
+    "ciRun": "https://github.com/cavoixanh638/KTXD-report/actions/runs/45344789386",
     "status": "CI_PASS_WINDOWS_PRINT_NOT_RUN",
     "results": {
       "workbooks": "4/4 PASS",
       "typecheck": "PASS",
       "build": "PASS",
       "testSuites": "3/3 PASS",
-      "tests": "46/46 PASS",
+      "tests": "47/47 PASS",
       "windowsPrint": "NOT_RUN",
       "userAcceptance": "PENDING",
-      "jobId": 138272250471
+      "jobId": 138276626023,
+      "artifactId": 14897019361
     }
   }
 }
