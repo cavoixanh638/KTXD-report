@@ -27,6 +27,8 @@ import {
 import {
   DEFAULT_INDICATORS,
   formatRevBenchmarkRowLabel,
+  formatBenchmarkReportLabel,
+  normalizeLocalityReportLabel,
   formatRevRealizedRowLabel,
   reportMainStt,
   IndicatorDefinition,
@@ -2974,7 +2976,18 @@ export function evaluateSessionReport(params: {
     })
     .sort((a, b) => a.order - b.order);
 
-  let evalRowConfigs: TemplateRowCustomConfig[] = sortedTemplateRows.map((r) => ({ ...r }));
+  let evalRowConfigs: TemplateRowCustomConfig[] = sortedTemplateRows.map((r) => {
+    let customLabel = normalizeLocalityReportLabel(r.indicatorId, r.customLabel);
+    if (r.indicatorId === 'DISB_BENCHMARK_RATE' || r.indicatorId === 'GPMB_BENCHMARK_AREA_RATE') {
+      const ds = r.indicatorId === 'DISB_BENCHMARK_RATE' ? datasets.DISB : datasets.GPMB;
+      customLabel = formatBenchmarkReportLabel({
+        indicatorId: r.indicatorId, customLabel,
+        unitCount: ds?.unitCount, expectedCount: baselineLocalities.length || 114,
+        asOfDate: ds?.asOfDate,
+      });
+    }
+    return { ...r, customLabel };
+  });
   if (
     session.settings.showRevBenchmarkRow &&
     datasets.REV &&

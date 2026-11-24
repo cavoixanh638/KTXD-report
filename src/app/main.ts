@@ -1247,7 +1247,7 @@ export class KtxhOfflineApp {
                 <input type="checkbox" id="setting-show-rev-realized-row" class="chk-live-setting" ${s.showRevRealizedRow ? 'checked' : ''} />
               </label>
               <label class="toggle-switch-row">
-                <span>Dòng Tỷ lệ thu NSNN chung (STT ${reportMainStt(activeSession,'2')})</span>
+                <span>Dòng Tỷ lệ thu NSNN trung bình (STT ${reportMainStt(activeSession,'2')})</span>
                 <input type="checkbox" id="setting-show-rev-benchmark-row" class="chk-live-setting" ${
                   s.showRevBenchmarkRow ? 'checked' : ''
                 } />

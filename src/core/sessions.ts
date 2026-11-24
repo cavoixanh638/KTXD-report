@@ -11,6 +11,8 @@ import { createLocalityFromName } from './localities';
 import {
   formatVnDateText,
   replaceDateInLabel,
+  normalizeLocalityReportLabel,
+  formatBenchmarkReportLabel,
   TEMPLATE_14_ROWS_DEFAULT,
 } from './indicators';
 
@@ -152,18 +154,25 @@ export function syncReportLabelsWithDatasetDates(workspace: Workspace): void {
       GPMB_BENCHMARK_AREA_RATE: formatVnDate(datasets.GPMB?.asOfDate),
     };
 
+    const expectedCount = getSessionLocalitiesBaseline(workspace, session, datasets).length || 114;
     for (const r of session.templateRows) {
+      r.customLabel = normalizeLocalityReportLabel(r.indicatorId, r.customLabel);
       const dateVn = dateByIndicator[r.indicatorId];
-      if (dateVn) {
-        r.customLabel = replaceDateInLabel(r.customLabel, dateVn);
+      if (dateVn) r.customLabel = replaceDateInLabel(r.customLabel, dateVn);
+      if (r.indicatorId === 'DISB_BENCHMARK_RATE' || r.indicatorId === 'GPMB_BENCHMARK_AREA_RATE') {
+        const ds = r.indicatorId === 'DISB_BENCHMARK_RATE' ? datasets.DISB : datasets.GPMB;
+        r.customLabel = formatBenchmarkReportLabel({
+          indicatorId: r.indicatorId, customLabel: r.customLabel,
+          unitCount: ds?.unitCount, expectedCount, asOfDate: ds?.asOfDate,
+        });
       }
     }
-
-    if (session.settings.revBenchmarkRowCustomLabel && dateByIndicator.REV_RATE_Y) {
-      session.settings.revBenchmarkRowCustomLabel = replaceDateInLabel(
-        session.settings.revBenchmarkRowCustomLabel,
-        dateByIndicator.REV_RATE_Y
-      );
+    if (session.settings.revBenchmarkRowCustomLabel) {
+      session.settings.revBenchmarkRowCustomLabel = formatBenchmarkReportLabel({
+        indicatorId: 'REV_BENCHMARK_RATE',
+        customLabel: session.settings.revBenchmarkRowCustomLabel,
+        unitCount: datasets.REV?.unitCount, expectedCount, asOfDate: datasets.REV?.asOfDate,
+      });
     }
   }
 }
@@ -236,20 +245,20 @@ export function migrateLegacySessionLabels(workspace: Workspace): void {
   const legacyToNewMap: Record<string, string> = {
     'Dự toán thu NSNN năm': 'Dự toán thu NSNN giao từng địa phương tại QĐ 5055',
     'Tỷ lệ thu NSNN so với dự toán':
-      'Tỷ lệ thu NSNN của từng xã so với dự toán (đến ngày 19/10/2026)',
+      'Tỷ lệ thu NSNN của từng địa phương so với dự toán (đến ngày 19/10/2026)',
     'Kế hoạch vốn đầu tư công sau điều chỉnh':
-      'Kế hoạch vốn đầu tư công sau điều chỉnh, bổ sung',
+      'Kế hoạch vốn đầu tư công của từng địa phương sau điều chỉnh, bổ sung',
     'Kế hoạch vốn đầu tư công sau NQ điều chỉnh, bổ sung của HĐND':
-      'Kế hoạch vốn đầu tư công sau điều chỉnh, bổ sung',
+      'Kế hoạch vốn đầu tư công của từng địa phương sau điều chỉnh, bổ sung',
     'Tỷ lệ giải ngân chung của 114 địa phương':
-      'Tỷ lệ giải ngân chung của các địa phương (đến ngày 15/10/2026)',
+      'Tỷ lệ giải ngân trung bình của 114 địa phương (đến ngày 15/10/2026)',
     'Tỷ lệ giải ngân của địa phương': 'Tỷ lệ giải ngân của từng địa phương',
     'Nhận xét tỷ lệ giải ngân':
       'Kết quả giải ngân so với tỷ lệ trung bình',
-    'Kinh phí phân bổ GPMB': 'Kinh phí phân bổ GPMB cho từng xã',
-    'Diện tích phải GPMB': 'Diện tích phải GPMB của từng xã',
+    'Kinh phí phân bổ GPMB': 'Kinh phí phân bổ GPMB cho từng địa phương',
+    'Diện tích phải GPMB': 'Diện tích phải GPMB của từng địa phương',
     'Tỷ lệ GPMB của danh mục địa bàn có dữ liệu (108/114 địa bàn)':
-      'Tỷ lệ GPMB trung bình của các địa phương (đến ngày 26/10/2026)',
+      'Tỷ lệ GPMB trung bình của 114 địa phương (đến ngày 26/10/2026)',
     'Tỷ lệ GPMB địa phương theo diện tích':
       'Tỷ lệ GPMB của từng địa phương',
     'Đánh giá GPMB':
@@ -258,14 +267,6 @@ export function migrateLegacySessionLabels(workspace: Workspace): void {
 
   for (const s of workspace.sessions) {
     if (!s || !s.settings) continue;
-    if (
-      s.settings.revBenchmarkRowCustomLabel &&
-      /^Tỷ lệ thu NSNN chung của \d+\/\d+ địa phương có dữ liệu/i.test(
-        s.settings.revBenchmarkRowCustomLabel.trim()
-      )
-    ) {
-      delete s.settings.revBenchmarkRowCustomLabel;
-    }
     if (!Array.isArray(s.templateRows)) continue;
     for (const r of s.templateRows) {
       if (
@@ -278,8 +279,8 @@ export function migrateLegacySessionLabels(workspace: Workspace): void {
           .replace(/^Tỷ lệ thu NSNN so với dự toán/i, '')
           .trim();
         r.customLabel = rest
-          ? `Tỷ lệ thu NSNN của từng xã so với dự toán ${rest}`
-          : 'Tỷ lệ thu NSNN của từng xã so với dự toán (đến ngày 19/10/2026)';
+          ? `Tỷ lệ thu NSNN của từng địa phương so với dự toán ${rest}`
+          : 'Tỷ lệ thu NSNN của từng địa phương so với dự toán (đến ngày 19/10/2026)';
       } else if (r.customLabel && legacyToNewMap[r.customLabel]) {
         r.customLabel = legacyToNewMap[r.customLabel];
       }
@@ -289,7 +290,7 @@ export function migrateLegacySessionLabels(workspace: Workspace): void {
           r.customLabel === 'Kế hoạch vốn đầu tư công sau NQ điều chỉnh, bổ sung của HĐND' ||
           !r.customLabel)
       ) {
-        r.customLabel = 'Kế hoạch vốn đầu tư công sau điều chỉnh, bổ sung';
+        r.customLabel = 'Kế hoạch vốn đầu tư công của từng địa phương sau điều chỉnh, bổ sung';
       }
     }
     if (

@@ -287,6 +287,70 @@ describe('KTXH Offline – A4 Report Studio & WYSIWYG Architecture Suite', () =>
     expect(hidden).not.toContain('rowspan="9"');
   });
 
+  it('NOV_FIX_04: migrates seven titles, keeps source dates and coverage, preserves custom labels', () => {
+    const ws = createEmptyWorkspace();
+    // Coverage metadata is simulated solely to test labels, not numeric correctness.
+    const fullRev: Dataset = { ...revDataset, id: revDataset.id + '_TITLE_TEST', unitCount: 114, asOfDate: '2026-11-23' };
+    const fullDisb: Dataset = { ...disbDataset, id: disbDataset.id + '_TITLE_TEST', asOfDate: '2026-11-22' };
+    const fullGpmb: Dataset = { ...gpmbDataset, id: gpmbDataset.id + '_TITLE_TEST', unitCount: 114, asOfDate: '2026-11-24' };
+    registerDatasetInWorkspace(ws, fullDisb, baselineLocalities);
+    registerDatasetInWorkspace(ws, fullRev);
+    registerDatasetInWorkspace(ws, fullGpmb);
+    const session = createReportSession(ws, { name: 'New title migration' });
+    session.settings.showRevBenchmarkRow = true;
+    session.settings.showBenchmarkRows = true;
+    session.settings.tableLayoutMode = 'HORIZONTAL';
+    session.settings.revBenchmarkRowCustomLabel = 'Tỷ lệ thu NSNN chung của các địa phương (đến ngày 19/10/2026)';
+    setSessionLocalities(ws, session.id, baselineLocalities.slice(0, 9).map(l => l.id));
+    const oldLabels: Record<string, string> = {
+      REV_RATE_Y: 'Tỷ lệ thu NSNN của từng xã so với dự toán (đến ngày 19/10/2026)',
+      DISB_PLAN: 'Kế hoạch vốn đầu tư công sau điều chỉnh, bổ sung',
+      DISB_BENCHMARK_RATE: 'Tỷ lệ giải ngân chung của các địa phương (đến ngày 15/10/2026)',
+      GPMB_BUDGET: 'Kinh phí phân bổ GPMB cho từng xã',
+      GPMB_AREA_PLAN: 'Diện tích phải GPMB của từng xã',
+      GPMB_BENCHMARK_AREA_RATE: 'Tỷ lệ GPMB trung bình của các địa phương (đến ngày 26/10/2026)',
+    };
+    for (const row of session.templateRows) if (oldLabels[row.indicatorId]) row.customLabel = oldLabels[row.indicatorId];
+    const datasets = { REV: fullRev, DISB: fullDisb, GPMB: fullGpmb };
+    const evaluate = () => evaluateSessionReport({ session, baselineLocalities, datasets });
+    const labels: Record<string, string> = {
+      REV_BENCHMARK_RATE: 'Tỷ lệ thu NSNN trung bình của 114 địa phương (đến ngày 23/11/2026)',
+      REV_RATE_Y: 'Tỷ lệ thu NSNN của từng địa phương so với dự toán',
+      DISB_PLAN: 'Kế hoạch vốn đầu tư công của từng địa phương sau điều chỉnh, bổ sung',
+      DISB_BENCHMARK_RATE: 'Tỷ lệ giải ngân trung bình của 114 địa phương (đến ngày 22/11/2026)',
+      GPMB_BUDGET: 'Kinh phí phân bổ GPMB cho từng địa phương',
+      GPMB_AREA_PLAN: 'Diện tích phải GPMB của từng địa phương',
+      GPMB_BENCHMARK_AREA_RATE: 'Tỷ lệ GPMB trung bình của 114 địa phương (đến ngày 24/11/2026)',
+    };
+    migrateLegacySessionLabels(ws);
+    const evaluated = evaluate();
+    for (const [id, label] of Object.entries(labels)) {
+      expect(evaluated.rows.find(r => r.indicator.id === id)?.rowConfig.customLabel).toBe(label);
+    }
+    const args = { evaluated, baselineLocalities, datasets };
+    const studio = renderA4DocumentStudioHtml(args).replace(/<[^>]+>/g, '');
+    const printed = generatePrintableReportHtml({ ...args, includeAppendix: false }).replace(/<[^>]+>/g, '');
+    const sheet = strFromU8(unzipSync(exportSessionReportToXlsxBytes(args))['xl/worksheets/sheet1.xml']).replace(/<[^>]+>/g, '');
+    for (const label of Object.values(labels)) {
+      expect(studio).toContain(label);
+      expect(printed).toContain(label);
+      expect(sheet).toContain(label);
+    }
+    fullRev.unitCount = 113;
+    fullGpmb.unitCount = 108;
+    fullGpmb.asOfDate = '2026-11-25';
+    syncReportLabelsWithDatasetDates(ws);
+    const partial = evaluate();
+    expect(partial.rows.find(r => r.indicator.id === 'REV_BENCHMARK_RATE')?.rowConfig.customLabel)
+      .toBe('Tỷ lệ thu NSNN trung bình của 113/114 địa phương có dữ liệu (đến ngày 23/11/2026)');
+    expect(partial.rows.find(r => r.indicator.id === 'GPMB_BENCHMARK_AREA_RATE')?.rowConfig.customLabel)
+      .toBe('Tỷ lệ GPMB trung bình của 108/114 địa phương có dữ liệu (đến ngày 25/11/2026)');
+    const plan = session.templateRows.find(r => r.indicatorId === 'DISB_PLAN')!;
+    plan.customLabel = 'Kế hoạch riêng do người dùng đặt';
+    migrateLegacySessionLabels(ws);
+    expect(evaluate().rows.find(r => r.indicator.id === 'DISB_PLAN')?.rowConfig.customLabel).toBe('Kế hoạch riêng do người dùng đặt');
+  });
+
   it('1. Auto Layout Algorithm on A4 Landscape: picks Horizontal for <= 11 localities on A4 landscape', () => {
     const ws = createEmptyWorkspace();
     const session = createReportSession(ws, { name: 'Phiên kiểm tra bố cục' });
@@ -584,13 +648,13 @@ describe('KTXH Offline – A4 Report Studio & WYSIWYG Architecture Suite', () =>
 
     // 4. Check renamed indicators & as-of date bolding
     const row4 = evalReport.rows.find((r) => r.rowConfig.rowNumber === 4)!;
-    expect(row4.rowConfig.customLabel).toContain('Tỷ lệ thu NSNN của từng xã so với dự toán (đến ngày');
+    expect(row4.rowConfig.customLabel).toContain('Tỷ lệ thu NSNN của từng địa phương so với dự toán (đến ngày');
     const row9 = evalReport.rows.find((r) => r.rowConfig.rowNumber === 9)!;
-    expect(row9.rowConfig.customLabel).toContain('Tỷ lệ giải ngân chung của các địa phương (đến ngày');
+    expect(row9.rowConfig.customLabel).toContain('Tỷ lệ giải ngân trung bình của 114 địa phương (đến ngày');
     const row11 = evalReport.rows.find((r) => r.rowConfig.rowNumber === 11)!;
     expect(row11.rowConfig.customLabel).toBe('Kết quả giải ngân so với tỷ lệ trung bình');
     const row14Renamed = evalReport.rows.find((r) => r.rowConfig.rowNumber === 14)!;
-    expect(row14Renamed.rowConfig.customLabel).toContain('Tỷ lệ GPMB trung bình của các địa phương (đến ngày');
+    expect(row14Renamed.rowConfig.customLabel).toContain('Tỷ lệ GPMB trung bình của 108/114 địa phương có dữ liệu (đến ngày');
     const row15 = evalReport.rows.find((r) => r.rowConfig.rowNumber === 15)!;
     expect(row15.rowConfig.customLabel).toBe('Tỷ lệ GPMB của từng địa phương');
     const row16 = evalReport.rows.find((r) => r.rowConfig.rowNumber === 16)!;
@@ -629,7 +693,7 @@ describe('KTXH Offline – A4 Report Studio & WYSIWYG Architecture Suite', () =>
 
     // 7. Check updated row 7 name
     const row7 = evalReport.rows.find((r) => r.rowConfig.rowNumber === 7)!;
-    expect(row7.rowConfig.customLabel).toBe('Kế hoạch vốn đầu tư công sau điều chỉnh, bổ sung');
+    expect(row7.rowConfig.customLabel).toBe('Kế hoạch vốn đầu tư công của từng địa phương sau điều chỉnh, bổ sung');
 
     // 8. Check GPMB comparison format (>X,XX%) or (<X,XX%)
     const row16Comp = evalReport.rows.find((r) => r.rowConfig.rowNumber === 16)!;
@@ -670,9 +734,9 @@ describe('KTXH Offline – A4 Report Studio & WYSIWYG Architecture Suite', () =>
     prevRevBudgetRow.customLabel = 'Dự toán thu NSNN năm';
 
     migrateLegacySessionLabels(ws);
-    expect(legacyRow.customLabel).toBe('Kế hoạch vốn đầu tư công sau điều chỉnh, bổ sung');
+    expect(legacyRow.customLabel).toBe('Kế hoạch vốn đầu tư công của từng địa phương sau điều chỉnh, bổ sung');
     expect(prevRevRateRow.customLabel).toBe(
-      'Tỷ lệ thu NSNN của từng xã so với dự toán (đến ngày 09/11/2026)'
+      'Tỷ lệ thu NSNN của từng địa phương so với dự toán (đến ngày 09/11/2026)'
     );
     expect(prevRevBudgetRow.customLabel).toBe('Dự toán thu NSNN giao từng địa phương tại QĐ 5055');
 
@@ -705,7 +769,7 @@ describe('KTXH Offline – A4 Report Studio & WYSIWYG Architecture Suite', () =>
     expect(cleanPrintHtml).not.toContain('Phiên:');
     expect(cleanPrintHtml).not.toContain('Ngày chốt độc lập');
     expect(cleanPrintHtml).not.toContain('Trang 1 / 1');
-    expect(cleanPrintHtml).toContain('Kế hoạch vốn đầu tư công sau điều chỉnh, bổ sung');
+    expect(cleanPrintHtml).toContain('Kế hoạch vốn đầu tư công của từng địa phương sau điều chỉnh, bổ sung');
   });
 
   it('9. Automatic recognition of flat-table GPMB data (.csv) and correct locality grouping', () => {
@@ -792,9 +856,9 @@ describe('KTXH Offline – A4 Report Studio & WYSIWYG Architecture Suite', () =>
     // Synchronize labels
     syncReportLabelsWithDatasetDates(ws);
 
-    expect(rowDisb.customLabel).toBe('Tỷ lệ giải ngân chung của các địa phương (đến ngày 25/10/2026)');
-    expect(rowRev.customLabel).toBe('Tỷ lệ thu NSNN của từng xã so với dự toán (đến ngày 31/10/2026)');
-    expect(rowGpmb.customLabel).toBe('Tỷ lệ GPMB trung bình của các địa phương (đến ngày 05/11/2026)');
+    expect(rowDisb.customLabel).toBe('Tỷ lệ giải ngân trung bình của 114 địa phương (đến ngày 25/10/2026)');
+    expect(rowRev.customLabel).toBe('Tỷ lệ thu NSNN của từng địa phương so với dự toán (đến ngày 31/10/2026)');
+    expect(rowGpmb.customLabel).toBe('Tỷ lệ GPMB trung bình của 108/114 địa phương có dữ liệu (đến ngày 05/11/2026)');
 
     // Verify rendered HTML on Document Studio bolds the new date
     setSessionLocalities(ws, session.id, [baselineLocalities[0].id]);
@@ -1686,7 +1750,7 @@ describe('KTXH Offline – A4 Report Studio & WYSIWYG Architecture Suite', () =>
     // Indicator row title dynamically synchronized to 08/11/2026
     const row4Benchmark = evaluated.rows.find((r) => r.indicator.id === 'DISB_BENCHMARK_RATE')!;
     expect(row4Benchmark.rowConfig.customLabel).toBe(
-      'Tỷ lệ giải ngân chung của các địa phương (đến ngày 08/11/2026)'
+      'Tỷ lệ giải ngân trung bình của 2 địa phương (đến ngày 08/11/2026)'
     );
     expect(evaluated.benchmarks?.disbRateBenchmark?.displayedText).toBe('90,13%');
 
@@ -1751,7 +1815,7 @@ describe('KTXH Offline – A4 Report Studio & WYSIWYG Architecture Suite', () =>
     const defaultRevRateRow = evalDefault.rows.find((r) => r.indicator.id === 'REV_RATE_Y')!;
     expect(defaultRevRateRow.rowConfig.sttLabel).toBe('2');
     expect(defaultRevRateRow.rowConfig.customLabel).toBe(
-      'Tỷ lệ thu NSNN của từng xã so với dự toán (đến ngày 19/10/2026)'
+      'Tỷ lệ thu NSNN của từng địa phương so với dự toán (đến ngày 19/10/2026)'
     );
 
     // Enable optional REV benchmark row -> placed right before REV_RATE_Y with STT "2", while REV_RATE_Y loses STT
@@ -1772,17 +1836,17 @@ describe('KTXH Offline – A4 Report Studio & WYSIWYG Architecture Suite', () =>
     const revRateRowWithBm = evalWithRevBm.rows[rateYIdx];
     expect(revBmRow.rowConfig.sttLabel).toBe('2');
     expect(revBmRow.rowConfig.customLabel).toBe(
-      'Tỷ lệ thu NSNN chung của các địa phương (đến ngày 19/10/2026)'
+      'Tỷ lệ thu NSNN trung bình của 113/114 địa phương có dữ liệu (đến ngày 19/10/2026)'
     );
     expect(revRateRowWithBm.rowConfig.sttLabel).toBe('');
     expect(revRateRowWithBm.rowConfig.customLabel).toBe(
-      'Tỷ lệ thu NSNN của từng xã so với dự toán'
+      'Tỷ lệ thu NSNN của từng địa phương so với dự toán'
     );
     // Verify templateRows on session were not mutated in-place
     const rawSessionRevRateRow = session.templateRows.find((r) => r.indicatorId === 'REV_RATE_Y')!;
     expect(rawSessionRevRateRow.sttLabel).toBe('2');
     expect(rawSessionRevRateRow.customLabel).toBe(
-      'Tỷ lệ thu NSNN của từng xã so với dự toán (đến ngày 19/10/2026)'
+      'Tỷ lệ thu NSNN của từng địa phương so với dự toán (đến ngày 19/10/2026)'
     );
 
     const cell = revBmRow.cellsByLocalityId[baselineLocalities[0].id];
@@ -1796,9 +1860,9 @@ describe('KTXH Offline – A4 Report Studio & WYSIWYG Architecture Suite', () =>
       baselineLocalities,
       datasets: { DISB: disbDataset, REV: revDsLocal, GPMB: gpmbDataset },
     });
-    expect(studioHtml).toContain('Tỷ lệ thu NSNN chung của các địa phương');
-    expect(studioHtml).toContain('Tỷ lệ thu NSNN của từng xã so với dự toán');
-    expect(studioHtml).not.toContain('Tỷ lệ thu NSNN của từng xã so với dự toán (đến ngày');
+    expect(studioHtml).toContain('Tỷ lệ thu NSNN trung bình của 113/114 địa phương có dữ liệu');
+    expect(studioHtml).toContain('Tỷ lệ thu NSNN của từng địa phương so với dự toán');
+    expect(studioHtml).not.toContain('Tỷ lệ thu NSNN của từng địa phương so với dự toán (đến ngày');
     expect(studioHtml).toContain(
       '<tr class="doc-row doc-row-primary" data-row-number="30">\n            <td class="doc-td doc-td-stt">2</td>'
     );
@@ -1813,8 +1877,8 @@ describe('KTXH Offline – A4 Report Studio & WYSIWYG Architecture Suite', () =>
       datasets: { DISB: disbDataset, REV: revDsLocal, GPMB: gpmbDataset },
       includeAppendix: false,
     });
-    expect(printHtml).toContain('Tỷ lệ thu NSNN chung của các địa phương');
-    expect(printHtml).not.toContain('Tỷ lệ thu NSNN của từng xã so với dự toán (đến ngày');
+    expect(printHtml).toContain('Tỷ lệ thu NSNN trung bình của 113/114 địa phương có dữ liệu');
+    expect(printHtml).not.toContain('Tỷ lệ thu NSNN của từng địa phương so với dự toán (đến ngày');
     expect(printHtml).toContain('111,30%');
 
     const xlsxBytes = exportSessionReportToXlsxBytes({
@@ -1824,8 +1888,8 @@ describe('KTXH Offline – A4 Report Studio & WYSIWYG Architecture Suite', () =>
     });
     const sheet1Xml = strFromU8(unzipSync(xlsxBytes)['xl/worksheets/sheet1.xml']);
     const sheet3Xml = strFromU8(unzipSync(xlsxBytes)['xl/worksheets/sheet3.xml']);
-    expect(sheet1Xml).toContain('Tỷ lệ thu NSNN chung của các địa phương');
-    expect(sheet1Xml).not.toContain('Tỷ lệ thu NSNN của từng xã so với dự toán (đến ngày');
+    expect(sheet1Xml).toContain('Tỷ lệ thu NSNN trung bình của 113/114 địa phương có dữ liệu');
+    expect(sheet1Xml).not.toContain('Tỷ lệ thu NSNN của từng địa phương so với dự toán (đến ngày');
     expect(sheet1Xml).toContain('s="5"><v>1.113022333245347</v>');
     expect(sheet3Xml).toContain('REV_BENCHMARK_RATE');
 
@@ -1840,7 +1904,7 @@ describe('KTXH Offline – A4 Report Studio & WYSIWYG Architecture Suite', () =>
     const restoredRevRateRow = evalRestored.rows.find((r) => r.indicator.id === 'REV_RATE_Y')!;
     expect(restoredRevRateRow.rowConfig.sttLabel).toBe('2');
     expect(restoredRevRateRow.rowConfig.customLabel).toBe(
-      'Tỷ lệ thu NSNN của từng xã so với dự toán (đến ngày 19/10/2026)'
+      'Tỷ lệ thu NSNN của từng địa phương so với dự toán (đến ngày 19/10/2026)'
     );
   });
 
@@ -1897,7 +1961,7 @@ describe('KTXH Offline – A4 Report Studio & WYSIWYG Architecture Suite', () =>
 
     // Primary STT rows vs italic sub-rows & clean placeholder '-' (no leading apostrophe)
     expect(sheet1Xml).toContain('s="13"><is><t xml:space="preserve">1</t>');
-    expect(sheet1Xml).toContain('s="16"><is><t xml:space="preserve">Tỷ lệ thu NSNN của từng xã so với dự toán</t>');
+    expect(sheet1Xml).toContain('s="16"><is><t xml:space="preserve">Tỷ lệ thu NSNN của từng địa phương so với dự toán</t>');
     expect(sheet1Xml).toContain('<t xml:space="preserve">-</t>');
     expect(sheet1Xml).not.toContain("<t xml:space=\"preserve\">'-</t>");
 

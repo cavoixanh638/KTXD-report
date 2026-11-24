@@ -57,7 +57,7 @@ export const DEFAULT_INDICATORS: Record<string, IndicatorDefinition> = {
   },
   REV_BENCHMARK_RATE: {
     id: 'REV_BENCHMARK_RATE',
-    label: 'Tỷ lệ thu NSNN chung của các địa phương (đến ngày 19/10/2026)',
+    label: 'Tỷ lệ thu NSNN trung bình của 114 địa phương (đến ngày 19/10/2026)',
     sourceType: 'REV',
     fieldOrFormula: 'SUM(actual_total_revenue) / SUM(annual_total_budget) * 100',
     numeratorField: 'actual_total_revenue',
@@ -73,7 +73,7 @@ export const DEFAULT_INDICATORS: Record<string, IndicatorDefinition> = {
   },
   REV_RATE_Y: {
     id: 'REV_RATE_Y',
-    label: 'Tỷ lệ thu NSNN của từng xã so với dự toán (đến ngày 19/10/2026)',
+    label: 'Tỷ lệ thu NSNN của từng địa phương so với dự toán (đến ngày 19/10/2026)',
     sourceType: 'REV',
     fieldOrFormula: 'actual_total_revenue / annual_total_budget * 100',
     numeratorField: 'actual_total_revenue',
@@ -163,7 +163,7 @@ export const DEFAULT_INDICATORS: Record<string, IndicatorDefinition> = {
   },
   DISB_PLAN: {
     id: 'DISB_PLAN',
-    label: 'Kế hoạch vốn đầu tư công sau điều chỉnh, bổ sung',
+    label: 'Kế hoạch vốn đầu tư công của từng địa phương sau điều chỉnh, bổ sung',
     sourceType: 'DISB',
     fieldOrFormula: 'F / 1000',
     numeratorField: 'adjusted_total_plan',
@@ -206,7 +206,7 @@ export const DEFAULT_INDICATORS: Record<string, IndicatorDefinition> = {
   },
   DISB_BENCHMARK_RATE: {
     id: 'DISB_BENCHMARK_RATE',
-    label: 'Tỷ lệ giải ngân chung của các địa phương (đến ngày 15/10/2026)',
+    label: 'Tỷ lệ giải ngân trung bình của 114 địa phương (đến ngày 15/10/2026)',
     sourceType: 'DISB',
     fieldOrFormula: 'SUM(I13:I126) / SUM(F13:F126) * 100',
     numeratorField: 'disbursed_total',
@@ -280,7 +280,7 @@ export const DEFAULT_INDICATORS: Record<string, IndicatorDefinition> = {
   },
   GPMB_BUDGET: {
     id: 'GPMB_BUDGET',
-    label: 'Kinh phí phân bổ GPMB cho từng xã',
+    label: 'Kinh phí phân bổ GPMB cho từng địa phương',
     sourceType: 'GPMB',
     fieldOrFormula: 'SUM(G_project) / 1e9',
     numeratorField: 'gpmb_allocated_budget',
@@ -322,7 +322,7 @@ export const DEFAULT_INDICATORS: Record<string, IndicatorDefinition> = {
   },
   GPMB_AREA_PLAN: {
     id: 'GPMB_AREA_PLAN',
-    label: 'Diện tích phải GPMB của từng xã',
+    label: 'Diện tích phải GPMB của từng địa phương',
     sourceType: 'GPMB',
     fieldOrFormula: 'SUM(D_project)',
     numeratorField: 'gpmb_declared_area',
@@ -350,7 +350,7 @@ export const DEFAULT_INDICATORS: Record<string, IndicatorDefinition> = {
   },
   GPMB_BENCHMARK_AREA_RATE: {
     id: 'GPMB_BENCHMARK_AREA_RATE',
-    label: 'Tỷ lệ GPMB trung bình của các địa phương (đến ngày 26/10/2026)',
+    label: 'Tỷ lệ GPMB trung bình của 114 địa phương (đến ngày 26/10/2026)',
     sourceType: 'GPMB',
     fieldOrFormula: 'SUM(I_422_projects_recorded) / SUM(D_422_projects) * 100',
     numeratorField: 'gpmb_recorded_area',
@@ -444,7 +444,7 @@ export const TEMPLATE_14_ROWS_DEFAULT: TemplateRowCustomConfig[] = [
     rowNumber: 4,
     indicatorId: 'REV_RATE_Y',
     sttLabel: '2',
-    customLabel: 'Tỷ lệ thu NSNN của từng xã so với dự toán (đến ngày 19/10/2026)',
+    customLabel: 'Tỷ lệ thu NSNN của từng địa phương so với dự toán (đến ngày 19/10/2026)',
     groupName: 'I. Thu ngân sách nhà nước',
     visible: true,
     order: 2,
@@ -471,7 +471,7 @@ export const TEMPLATE_14_ROWS_DEFAULT: TemplateRowCustomConfig[] = [
     rowNumber: 7,
     indicatorId: 'DISB_PLAN',
     sttLabel: '3',
-    customLabel: 'Kế hoạch vốn đầu tư công sau điều chỉnh, bổ sung',
+    customLabel: 'Kế hoạch vốn đầu tư công của từng địa phương sau điều chỉnh, bổ sung',
     groupName: 'II. Giải ngân vốn đầu tư công',
     visible: true,
     order: 5,
@@ -489,7 +489,7 @@ export const TEMPLATE_14_ROWS_DEFAULT: TemplateRowCustomConfig[] = [
     rowNumber: 9,
     indicatorId: 'DISB_BENCHMARK_RATE',
     sttLabel: '4',
-    customLabel: 'Tỷ lệ giải ngân chung của các địa phương (đến ngày 15/10/2026)',
+    customLabel: 'Tỷ lệ giải ngân trung bình của 114 địa phương (đến ngày 15/10/2026)',
     groupName: 'II. Giải ngân vốn đầu tư công',
     visible: true,
     order: 7,
@@ -516,7 +516,7 @@ export const TEMPLATE_14_ROWS_DEFAULT: TemplateRowCustomConfig[] = [
     rowNumber: 12,
     indicatorId: 'GPMB_BUDGET',
     sttLabel: '5',
-    customLabel: 'Kinh phí phân bổ GPMB cho từng xã',
+    customLabel: 'Kinh phí phân bổ GPMB cho từng địa phương',
     groupName: 'III. Công tác giải phóng mặt bằng (GPMB)',
     visible: true,
     order: 10,
@@ -525,7 +525,7 @@ export const TEMPLATE_14_ROWS_DEFAULT: TemplateRowCustomConfig[] = [
     rowNumber: 13,
     indicatorId: 'GPMB_AREA_PLAN',
     sttLabel: '6',
-    customLabel: 'Diện tích phải GPMB của từng xã',
+    customLabel: 'Diện tích phải GPMB của từng địa phương',
     groupName: 'III. Công tác giải phóng mặt bằng (GPMB)',
     visible: true,
     order: 11,
@@ -534,7 +534,7 @@ export const TEMPLATE_14_ROWS_DEFAULT: TemplateRowCustomConfig[] = [
     rowNumber: 14,
     indicatorId: 'GPMB_BENCHMARK_AREA_RATE',
     sttLabel: '7',
-    customLabel: 'Tỷ lệ GPMB trung bình của các địa phương (đến ngày 26/10/2026)',
+    customLabel: 'Tỷ lệ GPMB trung bình của 114 địa phương (đến ngày 26/10/2026)',
     groupName: 'III. Công tác giải phóng mặt bằng (GPMB)',
     visible: true,
     order: 12,
@@ -580,22 +580,63 @@ export function replaceDateInLabel(label: string, dateVn: string): string {
   return `${label} (đến ngày ${dateVn})`;
 }
 
-/** Builds display label for the optional common revenue rate row (matches report convention without claiming 114 when incomplete). */
+/** Replace only known old default titles; keep genuinely custom labels. */
+export function normalizeLocalityReportLabel(indicatorId: string, label: string): string {
+  const trimmed = (label || '').trim();
+  const aliases: Record<string, [string, string]> = {
+    REV_RATE_Y: ['Tỷ lệ thu NSNN của từng xã so với dự toán', 'Tỷ lệ thu NSNN của từng địa phương so với dự toán'],
+    DISB_PLAN: ['Kế hoạch vốn đầu tư công sau điều chỉnh, bổ sung', 'Kế hoạch vốn đầu tư công của từng địa phương sau điều chỉnh, bổ sung'],
+    GPMB_BUDGET: ['Kinh phí phân bổ GPMB cho từng xã', 'Kinh phí phân bổ GPMB cho từng địa phương'],
+    GPMB_AREA_PLAN: ['Diện tích phải GPMB của từng xã', 'Diện tích phải GPMB của từng địa phương'],
+  };
+  const pair = aliases[indicatorId];
+  if (!pair) return label;
+  const suffix = trimmed.match(/\s*\(đến ngày[^)]*\)$/i)?.[0] || '';
+  const base = suffix ? trimmed.slice(0, -suffix.length).trimEnd() : trimmed;
+  return base === pair[0] ? pair[1] + suffix : label;
+}
+
+/** Render the benchmark title using the source coverage, not selected columns. */
+export function formatBenchmarkReportLabel(params: {
+  indicatorId: string;
+  customLabel?: string;
+  unitCount?: number;
+  expectedCount?: number;
+  asOfDate?: string;
+}): string {
+  const prefixes: Record<string, string> = {
+    REV_BENCHMARK_RATE: 'Tỷ lệ thu NSNN',
+    DISB_BENCHMARK_RATE: 'Tỷ lệ giải ngân',
+    GPMB_BENCHMARK_AREA_RATE: 'Tỷ lệ GPMB',
+  };
+  const prefix = prefixes[params.indicatorId];
+  const custom = params.customLabel?.trim() || '';
+  if (!prefix) return custom;
+  const oldDate = custom.match(/\s*\(đến ngày[^)]*\)$/i)?.[0] || '';
+  const base = oldDate ? custom.slice(0, -oldDate.length).trimEnd() : custom;
+  const scopePattern = /^(?:chung|trung bình) của (?:các địa phương|\d+(?:\/\d+)? địa phương(?: có dữ liệu)?)$/i;
+  const legacyGpmb = params.indicatorId === 'GPMB_BENCHMARK_AREA_RATE' &&
+    /^Tỷ lệ GPMB của danh mục địa bàn có dữ liệu \(\d+\/\d+ địa bàn\)$/i.test(base);
+  const generated = !base || (base.startsWith(prefix + ' ') &&
+    scopePattern.test(base.slice(prefix.length + 1))) || legacyGpmb;
+  const dateVn = formatVnDateText(params.asOfDate);
+  if (!generated) return dateVn && oldDate ? replaceDateInLabel(custom, dateVn) : custom;
+  const expected = params.expectedCount && params.expectedCount > 0 ? params.expectedCount : 114;
+  const count = typeof params.unitCount === 'number' && Number.isFinite(params.unitCount)
+    ? params.unitCount : undefined;
+  const scope = count === undefined
+    ? expected + ' địa phương'
+    : count < expected ? count + '/' + expected + ' địa phương có dữ liệu' : count + ' địa phương';
+  return prefix + ' trung bình của ' + scope + (dateVn ? ' (đến ngày ' + dateVn + ')' : oldDate);
+}
+
 export function formatRevBenchmarkRowLabel(params: {
   customLabel?: string;
   unitCount?: number;
   expectedCount?: number;
   asOfDate?: string;
 }): string {
-  const { customLabel, asOfDate } = params;
-  const dateVn = formatVnDateText(asOfDate);
-  if (customLabel && customLabel.trim()) {
-    return dateVn && /\(đến ngày[^\)]*\)/i.test(customLabel)
-      ? replaceDateInLabel(customLabel.trim(), dateVn)
-      : customLabel.trim();
-  }
-  const dateSuffix = dateVn ? ` (đến ngày ${dateVn})` : '';
-  return `Tỷ lệ thu NSNN chung của các địa phương${dateSuffix}`;
+  return formatBenchmarkReportLabel({ ...params, indicatorId: 'REV_BENCHMARK_RATE' });
 }
 
 /** Optional realized revenue row is a presentation toggle; numbering of the
