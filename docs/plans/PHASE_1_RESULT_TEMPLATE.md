@@ -85,3 +85,7 @@ Cho ẩn/hiện và thay thứ tự 14 dòng, tạo nhóm và sao chép/đổi n
 Bộ test gốc T01–T58 dùng lại, với T05/T35/T45 được sửa theo Master V2.2; các ca mới T59–T66 nằm ở Master. **Không tự công bố PH1 DONE** khi chỉ có giao diện hoặc số liệu copy từ bảng mẫu. Báo cáo nghiệm thu PH1 cần bảng đối chiếu 14 dòng, số liệu 5/7 địa phương, bằng chứng QA xuất và log runtime; các bài test đòi mapping động hay formula editor tự do chuyển kiểm ở PH2 và ghi rõ `DEFERRED_BY_SCOPE`, không ghi PASS giả. Mọi lỗi tính toán, thiếu nguồn, mốc sai phạm vi, trace thiếu, mất session, offline không chạy đều là `BLOCKER` của PH1.
 
 **Điều kiện chuyển PH2:** người dùng đã có sản phẩm theo mẫu và bằng chứng nghiệm thu PH1 trên commit SHA cụ thể; PH2 phát triển trên nền PH1, không dựng lại các phần đã PASS trừ khi thay đổi có ảnh hưởng và kiểm chứng hồi quy.
+
+## 24/11/2026 — Điều chỉnh PH1 đã chốt
+
+Tuân thủ mục **Cập nhật quy phạm PH1 ngày 24/11/2026** trong MASTER hiện hành. Không dùng mô tả R/W và dòng 13–126 của file tháng 10 làm mặc định cho file tháng 11. PH1 hỗ trợ REV nhận diện tiêu đề ngữ nghĩa, DISB_TOTAL_LOCALITY_V2, ngày chốt độc lập, dòng Kết quả thu NSNN tùy chọn mặc định ẩn/đánh lại STT, A4 ngang tối đa 11 địa phương/cụm, ô gộp hai benchmark REV/GPMB và bỏ footer nguồn bảng chính. Các sheet kiểm toán và trace vẫn bắt buộc. Các test NOV_FIX_01…03 bổ sung cho T01–T66; nghiệm thu theo SHA mới, không kế thừa PASS cũ. Mẫu 14 dòng là cơ sở, tùy chọn có thể tăng/giảm dòng hiển thị. Không triển khai PH2 trong đợt này.

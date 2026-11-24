@@ -256,3 +256,7 @@ Khi người dùng nhấn vào bất kỳ ô nào trên Bảng báo cáo 14 dòn
    - Danh sách các địa phương tham gia tính toán và danh sách địa phương bị loại trừ (nêu rõ từng nguyên nhân).
    - Danh sách các địa phương phát sinh thu ngoài kế hoạch/dự toán (`zeroDenominatorContributors`).
    - Nút sao chép nội dung Trace dưới định dạng JSON phục vụ kiểm toán và lưu trữ độc lập.
+
+## 24/11/2026 — Công thức theo vai trò nguồn
+
+Công thức tiền đất và không đất phải dùng trường `actual_land_revenue`, `actual_nonland_revenue` từ header mapping; tháng 10 lần lượt R/W, tháng 11 lần lượt S/X. Mẫu tháng 11: tỷ lệ năm I/C, S/D, X/E; tỷ lệ kỳ I/F, S/G, X/H. Các chỉ số trên là tỷ số (×100 khi hiển thị %). `REV_REALIZED` = actual_total_revenue / 1.000 (triệu sang tỷ). Giải ngân = disbursed_total / adjusted_total_plan (I/F ở tổng hợp tháng 11; J/F ở phân cấp V2). Benchmark REV/GPMB giữ tổng/tổng toàn phạm vi đủ điều kiện, không dùng AVERAGE, không suy ngược số tiền từ tỷ lệ hiển thị. GPMB = SUM(I ghi nhận)/SUM(D), không thay đổi. Hai benchmark REV/GPMB dùng một ô gộp và một trace chung; số liệu gốc, cảnh báo, included/excluded, mẫu số 0, thiếu I và kiểm toán vẫn như quy tắc MASTER. Các trị số ví dụ tháng 10 ở trên chỉ là fixture lịch sử.

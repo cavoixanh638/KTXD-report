@@ -1,8 +1,8 @@
 # CHECKPOINT — WebApp KTXH Offline (MASTER V2.2)
 
-- **Ngày cập nhật:** 2026-11-14
+- **Ngày cập nhật:** 2026-11-24
 - **Repository:** `cavoixanh638/KTXD-report` (Private)
-- **Nhánh triển khai:** `gemini` (Dual-Pane Live Studio Phương án 5, cô lập nguồn dữ liệu theo từng phiên, tổ chức hệ thống tài liệu chuẩn hóa)
+- **Nhánh triển khai hiện tại:** `ai/november-source-report-fix-20261124` (kế thừa `gemini`; không merge main)
 - **Tài liệu có hiệu lực:** [`MASTER V2.2`](../specs/KTXH_OFFLINE_MASTER_SPEC_V2_2_CURRENT.md), [`PH1`](../plans/PHASE_1_RESULT_TEMPLATE.md), [`PH2`](../plans/PHASE_2_EXTENSIBILITY.md).
 - **Trạng thái tổng:** `MASTER_V2.2 / PH1_DOCUMENT_STUDIO_WYSIWYG_IMPLEMENTED / PH2_NOT_STARTED`.
 - **Hệ thống Tài liệu Mới:**
@@ -137,4 +137,12 @@
 
 - Người dùng phát hiện 109/114 địa phương và hai tỷ lệ thu đất/không đất sai vì ánh xạ cột mẫu tháng 10. Đã thêm nhận diện cấu trúc tổng hợp giải ngân tháng 11 và ánh xạ REV theo ngữ nghĩa tiêu đề; chặn schema không rõ thay vì suy đoán. Không commit hai workbook mới do chưa được phép; chỉ thêm fixture tổng hợp giả lập.
 - A4 ngang 11 địa phương, co cột có giới hạn, xuất/in cùng quy tắc; tùy chọn `showRevRealizedRow` mặc định tắt, dòng số 2 lấy thực thu lũy kế và đánh lại số thứ tự trên cả ba đầu ra. Dữ liệu cũ có nguy cơ phải nhập lại, không âm thầm sửa giá trị nguồn.
-- Bằng chứng kiểm thử: workflow `november-source-fix.yml` trên nhánh riêng. Trạng thái tại commit này: QA_PENDING; không đánh dấu nghiệm thu PH1/PH2.
+- Bằng chứng kiểm thử nhánh trước chỉnh sửa ô gộp: SHA `2a4606ad652dc1b3c89514ed99fa209f096e4523`, [workflow 45323195268](https://github.com/cavoixanh638/KTXD-report/actions/runs/45323195268) SUCCESS. Không coi là PASS cho SHA mới.
+
+### 24/11/2026 — Cập nhật bảng và tài liệu hệ thống
+
+- Mã thay đổi: `b4288a96dcfb55e72e632d19bd9c56cea6cf7295`, nhánh `ai/november-source-report-fix-20261124`.
+- Files: src/core/indicators.ts, src/ui/reportStudio.ts, src/ui/reportGrid.ts, src/export/print.ts, src/export/xlsx.ts, tests/studio.spec.ts; đồng bộ MASTER, PH1, SOURCE_MAPPINGS, CALCULATION_RULES, DATA_DICTIONARY, TEST_CASES, hướng dẫn, design, manifest và AGENTS.
+- Gộp 2 benchmark REV/GPMB (colspan nhóm, rowspan Studio dọc, merge Excel). Bỏ footer nguồn trên bảng chính; sheet 2 giữ metadata phạm vi động, không xóa audit. Kiểm thử mới NOV_FIX_03.
+- [CI 45343442429](https://github.com/cavoixanh638/KTXD-report/actions/runs/45343442429): tại thời điểm ghi checkpoint đang chạy; QA_PENDING, không đánh dấu PASS trước kết quả. Windows Chrome/Edge in thực tế: NOT_RUN. Không đổi dữ liệu tham chiếu/SHA workbook; không đưa tệp tháng 11 vào repo.
+- PH2 không bắt đầu; nghiệm thu chính thức PH1 vẫn cần chủ dự án kiểm tra.

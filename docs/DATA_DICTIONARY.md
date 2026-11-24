@@ -132,3 +132,11 @@ Dưới đây là cấu hình chi tiết cho 14 dòng báo cáo chuẩn kế th�
 1. **Tuyệt đối không có chỉ tiêu bình quân tỷ lệ dự án M:** Toàn bộ hệ thống UI, menu cấu hình, template, file xuất Excel và in PDF không chứa bất kỳ chỉ tiêu hoặc lựa chọn nào liên quan đến bình quân tỷ lệ dự án ($M$). Cột $M$ chỉ được dùng để phát hiện sai lệch chất lượng dữ liệu nguồn (`GPMB_M_SOURCE_MISMATCH`) ở cấp dòng dự án.
 2. **Không tự động suy đoán nguồn:** Danh sách địa phương thiếu nguồn (REV thiếu Bạch Long Vĩ; GPMB thiếu 6 địa bàn) phải được giữ nguyên trạng thái `NO_LOCALITY_RECORD`, không tự ý bổ sung dòng hay gán số 0.
 3. **Tính minh bạch:** Mỗi ô trên bảng báo cáo đều liên kết với một `CalculationTrace` duy nhất, cho phép người dùng truy xuất nguồn gốc từng ô Excel, công thức và lý do loại trừ (nếu có).
+
+## Mở rộng 24/11/2026
+
+- `REV_HEADER_SEMANTIC_V3`: ánh xạ fieldId theo tiêu đề, không khóa địa chỉ. actual_total_revenue (I mẫu 23/11), actual_land_revenue (S), actual_nonland_revenue (X); dùng provenance.cell của bản nhập.
+- `DISB_TOTAL_LOCALITY_V2` / `DISB_TOTAL_LOCALITY_HEADERS_V2`: tổng điều chỉnh F, tổng đã giải ngân I, tỷ lệ M, officialNote N; phạm vi tổng hợp địa phương, khác profile vốn phân cấp.
+- `showRevRealizedRow`: boolean, mặc định false; `revRealizedRowCustomLabel`: nhãn tùy chỉnh có hậu tố ngày REV. `showRevBenchmarkRow` là tùy chọn độc lập; STT được dẫn xuất khi render, không sửa template.
+- `REV_BENCHMARK_RATE`, `GPMB_BENCHMARK_AREA_RATE`: giá trị cấp phạm vi, hiển thị ô gộp, giữ traceId chung; không ghi nhiều giá trị trong Sheet Báo cáo. `showScopeFootnotes` là cấu hình legacy, không dùng để bắt buộc footer hay chặn xuất; kiểm toán vẫn luôn được lưu.
+- Các giá trị độ phủ, ngày chốt, schema và mappingVersion ở dataset/trace phải lấy từ nguồn tương ứng, không dùng hằng số mẫu cũ.

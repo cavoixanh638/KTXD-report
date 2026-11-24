@@ -104,13 +104,12 @@ Mỗi phiên làm việc có thể sử dụng các file Excel hoàn toàn riên
 
 ### 6.2. Bật / Tắt các dòng chỉ tiêu linh hoạt
 Để tờ báo cáo ngắn gọn, vừa vặn với mục đích cuộc họp, bạn có thể tích chọn bật hoặc tắt các dòng:
-- **Dòng 2**: *Tổng số vốn đã phân bổ theo kế hoạch năm*.
-- **Dòng 3**: *Tổng số vốn giải ngân*.
-- **Dòng 8**: *Số dự án chưa hoàn thành công tác GPMB*.
-- **Dòng 9**: *Danh sách các dự án chưa hoàn thành công tác GPMB*.
+- **Kết quả thu NSNN (đến ngày …)**: mặc định ẩn; bật để hiện sau dự toán, STT 2, các STT tiếp theo tự dịch.
+- **Tỷ lệ thu NSNN chung**: bật nếu cần; hai tỷ lệ chung REV/GPMB gộp ô toàn bộ địa phương và hiển thị một lần mỗi nhóm.
+- **Số dự án chưa hoàn thành GPMB** và **Dự án NQ 11**: có thể ẩn/hiện; STT phụ thuộc dòng thu thực hiện.
 
 ### 6.3. Căn chỉnh thẩm mỹ trang in
-- **Độ rộng cột địa phương**: Điều chỉnh độ rộng cột (mặc định `88px`). Khi chọn ít xã, bạn có thể tăng độ rộng; khi chọn nhiều xã, có thể giảm để bảng không bị tràn lề.
+- **Độ rộng cột địa phương**: Khổ A4 ngang tự co tối đa 11 địa phương/cụm; nếu vượt giới hạn, dùng AUTO (dọc) hoặc chọn ngang để chia nhóm. Danh sách dự án dài có thể phát sinh trang theo chiều cao.
 - **Cỡ chữ chi tiết dự án (Dòng 9)**: Cho phép chuyển đổi giữa `10px` và `11px` để danh sách dự án hiển thị gọn gàng, đẹp mắt.
 - **Ngắt danh sách dự án sang Trang 2**: Khi danh sách dự án tại Dòng 9 quá dài, hãy tích chọn mục này. Hệ thống sẽ tự động chuyển toàn bộ Dòng 8 & 9 sang Trang 2 độc lập khi in hoặc xuất PDF, giữ cho Trang 1 nguyên vẹn 7 chỉ tiêu tài chính đầu tiên.
 
@@ -145,11 +144,11 @@ Mỗi phiên làm việc có thể sử dụng các file Excel hoàn toàn riên
 ### 8.2. Xuất bảng tính Excel (.xlsx) 5 Sheet Kiểm toán
 1. Nhấn nút **`Xuất Excel`** trên Topbar.
 2. Hệ thống sẽ tự động tạo và tải về file `.xlsx` gồm **5 sheet chuyên biệt**:
-   - **Sheet 1 (`BaoCaoKTXH`)**: Toàn bộ bảng báo cáo tổng hợp 14 dòng đúng như đang nhìn thấy trên màn hình.
-   - **Sheet 2 (`GiaiNgan_DISB`)**: Trích xuất chi tiết số liệu kế hoạch vốn và giải ngân từng xã.
-   - **Sheet 3 (`ThuNganSach_REV`)**: Trích xuất số liệu thu ngân sách nhà nước và tỷ lệ đạt kế hoạch.
-   - **Sheet 4 (`GiaiPhongMatBang_GPMB`)**: Danh mục dự án, diện tích bàn giao (I) và diện tích thu hồi (D).
-   - **Sheet 5 (`Trace_KiemToan`)**: Nhật ký đối soát toàn bộ công thức và vết tính toán của từng ô.
+   - **Sheet 1 (`Báo cáo`)**: Bảng chính theo tùy chọn hiển thị, gộp hai tỷ lệ chung, không có ghi chú nguồn cuối bảng.
+   - **Sheet 2 (`Nguồn thiếu & lý do`)**: Phạm vi nguồn, kỳ chốt, tên file, danh sách thiếu và lý do.
+   - **Sheet 3 (`Danh mục công thức`)**: Công thức, đơn vị, quy tắc tính.
+   - **Sheet 4 (`Nhật ký phép tính`)**: Trace và giá trị trước/sau tính, tử/mẫu, nguồn ô, kỳ.
+   - **Sheet 5 (`Bản ghi không tính`)**: Bản ghi loại trừ, cảnh báo và lý do.
 
 ---
 
@@ -161,3 +160,7 @@ Mỗi phiên làm việc có thể sử dụng các file Excel hoàn toàn riên
 | **Bảng bị tràn sang ngang khi in** | Số lượng xã chọn quá nhiều so với khổ giấy A4 | Điều chỉnh độ rộng cột ở Khối 3 xuống `75px` hoặc `80px` |
 | **Cảnh báo ngày chốt màu vàng ở Nguồn REV** | File thu ngân sách không ghi rõ ngày chốt số liệu tự động | Nhập ngày chốt thực tế (ví dụ: `19/10/2026`) vào ô cảnh báo và nhấn `Xác nhận ngày` |
 | **Tờ báo cáo bị thu nhỏ quá mức** | Sidebar bên trái đang chiếm chỗ | Nhấn nút `[|] Bật/tắt điều khiển` trên Topbar để đóng Sidebar |
+
+## Lưu ý khi chuyển sang dữ liệu tháng 11/2026
+
+Nhập lại file giải ngân 22/11 và thu NSNN 23/11 trong đúng phiên, kiểm tra độ phủ và ngày chốt ở Khối 1. Dữ liệu đã nhập bằng bộ ánh xạ cũ có thể sai tỷ lệ thu đất/không đất hoặc thiếu 5 địa phương; không chỉnh tay tỷ lệ để bù lỗi nguồn. Khi cần giải trình, bấm vào ô số liệu hoặc mở các sheet kiểm toán; không còn ghi chú nguồn cuối bảng chính.

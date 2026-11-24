@@ -162,3 +162,7 @@ Bất kỳ AI hoặc lập trình viên nào phát triển tiếp đều **bắt
 3. Đọc dữ liệu nhị phân thông qua `parseXlsxBytes` trong `src/core/sourceReaders.ts`.
 4. Trích xuất tên xã/phường, chuẩn hóa tên thông qua `canonicalName` và `searchKey` trong `src/core/localities.ts`.
 5. Đăng ký adapter vào luồng nạp dữ liệu trong `src/app/main.ts`.
+
+## Bảo trì PH1 — 24/11/2026
+
+Xem mục cập nhật quy phạm trong MASTER. `resolveRevenueHeader` và `DISB_SCHEMA_PROFILES.DISB_TOTAL_LOCALITY_V2` thay logic cố định khi nhận mẫu mới. Không bỏ provenance hoặc bỏ kiểm tra duplicate. `reportMainStt`, `formatRevRealizedRowLabel` điều khiển dòng thực thu. `horizontalPageCapacity` và `horizontalFit` dùng chung giữa Studio/print. `isSharedReportIndicator` là nguồn duy nhất của chính sách gộp hai benchmark; dùng trong reportGrid, reportStudio, print, xlsx. Không ghi đè số liệu tính để phục vụ gộp. Sheet 2 lưu thông tin nguồn chuyển khỏi footer; bốn sheet audit giữ nguyên. Kiểm thử NOV_FIX_01–03; workflow November source and report fixes chạy typecheck/build/test; báo QA theo SHA.

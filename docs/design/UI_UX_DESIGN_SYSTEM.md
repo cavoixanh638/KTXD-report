@@ -110,3 +110,7 @@ Khi người dùng nhấn `In / Lưu PDF` hoặc ấn `Ctrl + P`, mã CSS in ấ
   - Cột đầu tiên (Nội dung chỉ tiêu) tự động co giãn tỷ lệ hợp lý, các cột địa phương phân bổ đều nhau.
   - Đường kẻ bảng `border: 1px solid #000000` sắc nét trên bản in thật và bản PDF xuất ra.
 - **Tùy chọn ngắt Trang 2:** Khi bật tùy chọn *Ngắt danh sách dự án sang Trang 2*, hệ thống tự động chèn thuộc tính `page-break-before: always` trước Dòng 8 và 9, giúp bản in 2 trang vô cùng ngăn nắp và sạch sẽ.
+
+## Điều chỉnh bố cục 24/11/2026
+
+A4 ngang tối đa 11 cột địa phương/cụm, co bề rộng tự động; 1 địa phương dùng ô thường. Hai dòng tỷ lệ chung REV/GPMB gộp toàn bộ cột địa phương trong nhóm và căn giữa; Studio dọc gộp các hàng địa phương trong nhóm. Nhãn chỉ tiêu, STT và các dòng số liệu cá thể giữ nguyên. Ô gộp vẫn mở inspector theo trace chung. Bỏ đoạn ghi chú nguồn cuối bảng ở mọi đầu ra bảng chính; thông tin nguồn chuyển sang khối quản lý nguồn và sheet/phụ lục kiểm toán riêng. Dòng thực thu NSNN tùy chọn đặt sau dự toán, STT tự tính; không thay đổi template cũ.

@@ -79,3 +79,7 @@ docs/
 4. **Benchmark mọi tỷ lệ = SUM/SUM**: Tất cả các chỉ tiêu tỷ lệ toàn huyện/toàn thành phố đều bằng tổng các tử số chia tổng các mẫu số. Không tính `AVERAGE` tỷ lệ của các xã.
 5. **Nguồn thiếu phải có tên**: Phân định rõ ràng các trạng thái `NO_LOCALITY_RECORD`, `FIELD_MISSING`, `PARTIAL_AGGREGATE`, `ZERO_VALID`, `ERROR`.
 6. **Mọi ô số liệu phải có `CalculationTrace`**: Phải giải trình được nguồn gốc dữ liệu, công thức, tử số, mẫu số và lý do đưa vào hoặc loại trừ.
+
+## Cập nhật 24/11/2026
+
+Đọc phần **Cập nhật quy phạm PH1 ngày 24/11/2026** trong [MASTER V2.2](specs/KTXH_OFFLINE_MASTER_SPEC_V2_2_CURRENT.md) trước khi sửa mã. Các bảng tham chiếu tháng 10 chỉ là baseline. SOURCE_MAPPINGS, CALCULATION_RULES, DATA_DICTIONARY, TEST_CASES, hướng dẫn và UI Design System đã đồng bộ thay đổi. Xem PROJECT_STATUS để biết SHA và kết quả QA thực chạy.

@@ -249,3 +249,25 @@ Công thức: $\Delta = M - \left(100 \times \frac{I}{D}\right)$. Phát cảnh b
 | **N** | `statusText` | Trạng thái dự án | String | - | Hoàn thành, đang thực hiện, vướng mắc... |
 | **O** | `resolution11` | Phân loại Nghị quyết 11 | String / Null | - | Tiêu chí phân nhóm nghị quyết HĐND. |
 | **P** | `projectGroup` | Nhóm dự án | String / Null | - | Dự án trọng điểm, nhóm A, B, C... |
+
+## Bổ sung nguồn tháng 11/2026
+
+Các bảng ánh xạ phía trên là **file tham chiếu gốc tháng 10**, không áp dụng vị trí tuyệt đối cho mọi workbook.
+
+| Vai trò | REV tháng 10 (gốc SHA đã xác minh) | REV đến 23/11/2026 |
+|---|---|---|
+| Dự toán năm tổng/đất/không đất | C/D/E | C/D/E |
+| Kế hoạch kỳ tổng/đất/không đất | F/G/H | F/G/H |
+| Lũy kế tổng/đất/không đất | I/R/W | I/S/X |
+| Tỷ lệ nguồn (chỉ đối chiếu) | X:AC | Nhận diện nhóm tiêu đề sau lũy kế trừ đất |
+
+`REV_HEADER_SEMANTIC_V3` nhận vai trò qua tiêu đề, nhóm kế hoạch/thực hiện và thứ tự tương đối; nếu chèn cột, tiếp tục tìm cột đúng. Chỉ file gốc byte-identical dùng `REV_ADAPTER_V2.2`. Trùng/thiếu vai trò bắt buộc → BLOCKER_MAPPING_REQUIRED. Ngày chốt cụ thể trong tiêu đề hoặc người dùng xác nhận; không dựa tên sheet.
+
+| Profile DISB | Kế hoạch sau điều chỉnh | Giải ngân | Tỷ lệ đối chiếu | Ghi chú | Dòng địa phương |
+|---|---|---|---|---|---|
+| DISB_V1 (gốc) | F | I | O | Q | 13–126 |
+| DISB_TOTAL_LOCALITY_V2 | F | I | M | N | thường 8–121 |
+| DISB_PHAN_CAP_XA_V1 | C | G | K | L | thường 8–121 |
+| DISB_PHAN_CAP_XA_V2 | F | J | N | O | thường 8–121 |
+
+DISB_TOTAL_LOCALITY_V2 chỉ có tổng C/F/I và hai thành phần tương ứng D+E/G+H/J+K; không áp dụng quy tắc I=L+M+N của mẫu gốc. Không đọc 109 địa phương do bỏ 5 dòng đầu; không lấy dòng tổng giả, không dùng L/M/N làm tiền xây dựng/GPMB/khác. Truy vết địa chỉ thực, tính phạm vi thực, không ghi cứng 114 nếu nguồn thiếu.
