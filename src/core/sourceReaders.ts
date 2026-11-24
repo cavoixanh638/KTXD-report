@@ -929,9 +929,8 @@ export function importDisbursementWorkbook(
     targetSheet = wb.sheets.find((s) => s.name === options.manualSheetName);
     if (targetSheet) {
       const detected = detectSheetFingerprint(targetSheet);
-      if (isDisbFingerprint(detected)) {
-        targetFp = detected;
-      }
+      if (!isDisbFingerprint(detected)) throw new Error('BLOCKER_MAPPING_REQUIRED: Sheet giải ngân chọn tay không khớp cấu trúc đã xác minh.');
+      targetFp = detected;
     }
     importSelectionMode = 'MANUAL_CONFIRMED';
   } else {

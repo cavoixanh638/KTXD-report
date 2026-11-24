@@ -34,6 +34,8 @@ import { generatePrintableReportHtml } from '../src/export/print';
 import { exportSessionReportToXlsxBytes } from '../src/export/xlsx';
 import {
   computeAutoLayoutMode,
+  horizontalFit,
+  horizontalPageCapacity,
   renderA4DocumentStudioHtml,
   formatReportCellValue,
   renderReportCellValueHtml,
@@ -133,7 +135,105 @@ describe('KTXH Offline – A4 Report Studio & WYSIWYG Architecture Suite', () =>
     gpmbDataset = gpmbImported.dataset;
   });
 
-  it('1. Auto Layout Algorithm on A4 Landscape: picks Horizontal for <= 7 localities and Vertical for > 7 localities', () => {
+
+  it('NOV_FIX_01: maps November compact DISB to all 114 locality rows, not the legacy row 13 window',()=>{
+    const data:Array<[number,Array<[string,string|number]>]>=[
+      [1,[['A','TÌNH HÌNH GIẢI NGÂN KẾ HOẠCH VỐN ĐẦU TƯ CÔNG NĂM 2026 ĐẾN HẾT NGÀY 22/11/2026']]],
+      [3,[['A','Đơn vị: Triệu đồng']]],
+      [4,[['A','Stt'],['B','Chủ đầu tư'],['C','Kế hoạch vốn năm 2026'],['F','Kế hoạch vốn năm 2026 giao sau khi điều chỉnh'],['I','Giải ngân đến hết ngày 22/11/2026 theo báo cáo của Kho bạc Nhà nước'],['L','Tỷ lệ giao đầu năm'],['M','Tỷ lệ sau điều chỉnh'],['N','Ghi chú']]],
+      [5,[['C','Tổng số'],['D','Dự án khối TP'],['E','Phân cấp cho cấp xã'],['F','Tổng số'],['G','Dự án khối TP'],['H','Phân cấp cho cấp xã'],['I','Tổng số'],['J','Dự án khối TP'],['K','Phân cấp cho cấp xã']]],
+      [7,[['A',1],['B',2],['C','3=4+5'],['F','6=7+8'],['I','9=10+11']]],
+    ];
+    for(let i=0;i<114;i++) data.push([8+i,[['A',i+1],['B','Xã Kiểm thử '+(i+1)],['C',100],['D',60],['E',40],['F',120],['G',70],['H',50],['I',90],['J',50],['K',40],['L',.9],['M',.75],['N','Ghi chú thử']]]);
+    const bytes=buildSingleSheetXlsx('Tên sheet bất kỳ',data);
+    const {dataset,localities}=importDisbursementWorkbook(bytes,'fake.xlsx');
+    expect(dataset.schemaFingerprint).toBe('DISB_TOTAL_LOCALITY_V2');
+    expect(dataset.unitCount).toBe(114);
+    expect(localities).toHaveLength(114);
+    expect(dataset.records[0].sourceRow).toBe(8);
+    expect(dataset.records[113].sourceRow).toBe(121);
+    expect(dataset.records[0].metrics.adjusted_total_plan.normalizedDecimal).toBe('120');
+    expect(dataset.records[0].metrics.disbursed_total.normalizedDecimal).toBe('90');
+    expect(dataset.records[0].metrics.source_disbursed_rate.provenance.cell).toBe('M8');
+    expect(dataset.records[0].officialNote).toBe('Ghi chú thử');
+    expect(dataset.summaryRecord).toBeUndefined();
+    expect(dataset.asOfDate).toBe('2026-11-22');
+    expect(dataset.identityChecks?.every(x=>x.status==='PASS_COMPLETE')).toBe(true);
+  });
+
+  it('NOV_FIX_02: semantic REV header mapping follows an inserted column; refuses duplicate actual headers',()=>{
+    const name=baselineLocalities.find(l=>revDataset.records.some(r=>r.localityId===l.id))!.canonicalNameNFC;
+    const headers:Array<[string,string|number]>=[
+      ['A','STT'],['B','Đơn vị'],['C','Tổng thu NSNN giao tại QĐ 5055/QĐ-UBND'],
+      ['D','Thu tiền sử dụng đất'],['E','Tổng thu trừ tiền sử dụng đất'],['F','Kế hoạch thu 11 tháng'],
+      ['G','KH thu tiền sử dụng đất 11 tháng (KH ĐC)'],['H','Kế hoạch thu 11 tháng trừ tiền sử dụng đất'],
+      ['I','Cột mới được chèn'],['J','Lũy kế thực hiện đến ngày 23/11/2026'],
+      ['S','Thu tiền cho thuê đất, thuê mặt nước'],['T','Thu tiền sử dụng đất xã'],
+      ['X','Thu từ quỹ đất công ích và thu hoa lợi công sản khác'],['Y','Lũy kế thực hiện 11 tháng trừ tiền sử dụng đất'],
+      ['Z','Tổng thu NSNN'],['AA','Thu tiền sử dụng đất'],['AB','Tổng thu trừ tiền sử dụng đất'],
+      ['AC','Tổng thu NSNN'],['AD','Thu tiền sử dụng đất'],['AE','Tổng thu trừ tiền sử dụng đất'],
+    ];
+    const amounts:Array<[string,string|number]>=[
+      ['A',1],['B',name],['C',100000],['D',30000],['E',70000],['F',80000],['G',20000],['H',60000],
+      ['I',999999],['J',120000],['S',5000],['T',40000],['X',100],['Y',80000],['Z',1.2],['AA',4/3],['AB',8/7],['AC',1.5],['AD',2],['AE',4/3],
+    ];
+    const title='TỔNG HỢP TÌNH HÌNH THỰC HIỆN THU NSNN XÃ, PHƯỜNG, ĐẶC KHU LŨY KẾ THỰC HIỆN ĐẾN NGÀY 23/11/2026';
+    const rows:Array<[number,Array<[string,string|number]>]>=[[3,[['A',title]]],[8,headers],[10,[['B','TỔNG SỐ']]],[11,amounts]];
+    const bytes=buildSingleSheetXlsx('Sheet đổi tên',rows);
+    const {dataset}=importRevenueWorkbook(bytes,'revenue-test.xlsx');
+    expect(dataset.asOfDate).toBe('2026-11-23');
+    expect(dataset.asOfStatus).toBe('DETECTED_CONFIRMED');
+    expect(dataset.mappingVersion).toBe('REV_HEADER_SEMANTIC_V3');
+    expect(dataset.records[0].metrics.actual_total_revenue.provenance.cell).toBe('J11');
+    expect(dataset.records[0].metrics.actual_land_revenue.provenance.cell).toBe('T11');
+    expect(dataset.records[0].metrics.actual_nonland_revenue.provenance.cell).toBe('Y11');
+    expect(dataset.records[0].metrics.actual_nonland_revenue.normalizedDecimal).toBe('80000');
+    const ws=createEmptyWorkspace();
+    registerDatasetInWorkspace(ws,disbDataset,baselineLocalities);registerDatasetInWorkspace(ws,dataset);registerDatasetInWorkspace(ws,gpmbDataset);
+    const session=createReportSession(ws,{name:'Optional realized revenue'});
+    const loc=baselineLocalities.find(l=>l.canonicalNameNFC===name)!;
+    session.selectedLocalityIds=[loc.id,...baselineLocalities.filter(x=>x.id!==loc.id).slice(0,10).map(x=>x.id)];
+    session.settings.tableLayoutMode='HORIZONTAL';
+    const datasets={REV:dataset,DISB:disbDataset,GPMB:gpmbDataset};
+    const evaluate=()=>evaluateSessionReport({session,baselineLocalities,datasets});
+    const off=evaluate();
+    expect(off.rows.some(r=>r.indicator.id==='REV_REALIZED')).toBe(false);
+    session.settings.showRevRealizedRow=true;
+    const on=evaluate();
+    const row=on.rows.find(r=>r.indicator.id==='REV_REALIZED')!;
+    expect(on.rows[1].indicator.id).toBe('REV_REALIZED');
+    expect(row.rowConfig.sttLabel).toBe('2');
+    expect(row.rowConfig.customLabel).toBe('Kết quả thu NSNN (đến ngày 23/11/2026)');
+    expect(row.cellsByLocalityId[loc.id].numericValueForExcel).toBe(120);
+    expect(row.cellsByLocalityId[loc.id].trace.sourceRefs.some(r=>r.address==='J11')).toBe(true);
+    expect(on.rows.find(r=>r.indicator.id==='REV_RATE_Y')?.rowConfig.sttLabel).toBe('3');
+    expect(on.rows.find(r=>r.indicator.id==='REV_LAND_RATE_Y')?.cellsByLocalityId[loc.id].numericValueForExcel).toBeCloseTo(4/3,8);
+    expect(on.rows.find(r=>r.indicator.id==='REV_NONLAND_RATE_Y')?.cellsByLocalityId[loc.id].numericValueForExcel).toBeCloseTo(8/7,8);
+    const html=renderA4DocumentStudioHtml({evaluated:on,baselineLocalities,datasets});
+    expect((html.match(/data-page-number="/g)||[])).toHaveLength(1);
+    expect((html.match(/class="doc-th doc-th-locality"/g)||[])).toHaveLength(11);
+    expect(html).toContain('data-fit-columns="dense"');
+    expect(html).toMatch(/data-row-type="uncompleted-count"[^]*?style="vertical-align: top;">9<\/td>/);
+    expect(html).toMatch(/data-row-type="nq11"[^]*?style="vertical-align: top;">10<\/td>/);
+    const print=generatePrintableReportHtml({evaluated:on,baselineLocalities,datasets,includeAppendix:false});
+    expect((print.match(/class="print-page-chunk"/g)||[])).toHaveLength(1);
+    expect(print).toContain('Kết quả thu NSNN (đến ngày 23/11/2026)');
+    const exported=exportSessionReportToXlsxBytes({evaluated:on,baselineLocalities,datasets});
+    const sheet=strFromU8(unzipSync(exported)['xl/worksheets/sheet1.xml']);
+    expect(sheet).toContain('Kết quả thu NSNN (đến ngày 23/11/2026)');
+    expect(sheet).toContain('<v>120</v>');
+    session.settings.showRevBenchmarkRow=true;
+    const both=evaluate();
+    expect(both.rows.find(r=>r.indicator.id==='REV_REALIZED')?.rowConfig.sttLabel).toBe('2');
+    expect(both.rows.find(r=>r.indicator.id==='REV_BENCHMARK_RATE')?.rowConfig.sttLabel).toBe('3');
+    expect(both.rows.find(r=>r.indicator.id==='REV_RATE_Y')?.rowConfig.sttLabel).toBe('');
+    session.settings.showRevRealizedRow=false;
+    expect(evaluate().rows.find(r=>r.indicator.id==='REV_BENCHMARK_RATE')?.rowConfig.sttLabel).toBe('2');
+    headers.push(['AF','Lũy kế thực hiện đến ngày 23/11/2026']);
+    expect(()=>importRevenueWorkbook(buildSingleSheetXlsx('Sheet đổi tên',rows),'ambiguous.xlsx')).toThrow();
+  });
+
+  it('1. Auto Layout Algorithm on A4 Landscape: picks Horizontal for <= 11 localities on A4 landscape', () => {
     const ws = createEmptyWorkspace();
     const session = createReportSession(ws, { name: 'Phiên kiểm tra bố cục' });
 
@@ -156,6 +256,14 @@ describe('KTXH Offline – A4 Report Studio & WYSIWYG Architecture Suite', () =>
     });
     expect(decision7.mode).toBe('HORIZONTAL');
     expect(decision7.pageCount).toBe(1);
+
+    const decision11=computeAutoLayoutMode({session,selectedCount:11,indicatorCount:14});
+    expect(decision11.mode).toBe('HORIZONTAL');
+    expect(decision11.pageCount).toBe(1);
+    expect(horizontalPageCapacity(session)).toBe(11);
+    const fitted=horizontalFit(session,11);
+    expect(fitted.indicatorWidth+30+fitted.localityWidth*11).toBeLessThanOrEqual((297-16)*96/25.4);
+    expect(fitted.localityWidth).toBeGreaterThanOrEqual(64);
 
     // Mode AUTO with 15 localities -> Vertical (avoids horizontal splitting on A4 landscape)
     const decision15 = computeAutoLayoutMode({

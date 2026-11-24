@@ -131,3 +131,10 @@
 | PH2-04 | Bộ mẫu mở rộng, chọn hiển thị nâng cao | `DEFERRED_BY_SCOPE (PH2)` |
 | PH2-05 | QC/trace nâng cao, kịch bản ghi chú Q có xác nhận tử/mẫu (`T49`) | `DEFERRED_BY_SCOPE (PH2)` |
 | PH2-06 | Xuất nâng cao, hồi quy tất cả T01–T66 100% PASS, nghiệm thu PH2 | `DEFERRED_BY_SCOPE (PH2)` |
+
+
+## 2026-11-24 — nhánh sửa yêu cầu báo cáo tháng 11 (tách từ `gemini`)
+
+- Người dùng phát hiện 109/114 địa phương và hai tỷ lệ thu đất/không đất sai vì ánh xạ cột mẫu tháng 10. Đã thêm nhận diện cấu trúc tổng hợp giải ngân tháng 11 và ánh xạ REV theo ngữ nghĩa tiêu đề; chặn schema không rõ thay vì suy đoán. Không commit hai workbook mới do chưa được phép; chỉ thêm fixture tổng hợp giả lập.
+- A4 ngang 11 địa phương, co cột có giới hạn, xuất/in cùng quy tắc; tùy chọn `showRevRealizedRow` mặc định tắt, dòng số 2 lấy thực thu lũy kế và đánh lại số thứ tự trên cả ba đầu ra. Dữ liệu cũ có nguy cơ phải nhập lại, không âm thầm sửa giá trị nguồn.
+- Bằng chứng kiểm thử: workflow `november-source-fix.yml` trên nhánh riêng. Trạng thái tại commit này: QA_PENDING; không đánh dấu nghiệm thu PH1/PH2.

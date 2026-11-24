@@ -1,0 +1,29 @@
+name: November source and report fixes
+on:
+  push:
+    branches: ["ai/november-source-report-fix-20261124"]
+    paths: ["src/**", "tests/**", "tools/**", ".github/workflows/november-source-fix.yml"]
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  qa:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+      - name: Verify original source files
+        run: python tools/verify_reference_files.py
+      - run: npm ci
+      - run: npm run typecheck
+      - run: npm test
+      - run: npm run build
+      - uses: actions/upload-artifact@v4
+        with:
+          name: KTXH-offline-November-fix
+          path: dist/index.html
+          retention-days: 30

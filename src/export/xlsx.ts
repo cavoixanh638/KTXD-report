@@ -1032,7 +1032,7 @@ export function exportSessionReportToXlsxBytes(params: {
   sheet1Merges.push(`A${footnoteRowNum}:${lastColLetter}${footnoteRowNum}`);
   const revDate = datasets.REV?.asOfDate
     ? formatVnDate(datasets.REV.asOfDate)
-    : '19/10/2026';
+    : 'chưa xác nhận';
   const disbDate = datasets.DISB?.asOfDate
     ? formatVnDate(datasets.DISB.asOfDate)
     : '15/10/2026';
@@ -1041,7 +1041,11 @@ export function exportSessionReportToXlsxBytes(params: {
     : '26/10/2026';
   const gpmbUnits = datasets.GPMB?.unitCount || 108;
   const gpmbProjects = datasets.GPMB?.projectRowCount || 422;
-  const footnoteBody = `Thu NSNN: kỳ 10T/2026 (ngày chốt: ${revDate}, phạm vi 113/114 địa phương, thiếu Đặc khu Bạch Long Vĩ); Giải ngân: ${disbDate} (114/114 địa phương); GPMB: ${gpmbDate} (${gpmbUnits}/114 địa bàn, ${gpmbProjects} dự án, chỉ tính theo diện tích SUM(I)/SUM(D)).`;
+  const coverage = analyzeSourceCoverage(baselineLocalities,datasets).bySource;
+  const revMissing=coverage.REV?.missingLocalities.map(x=>x.localityName).join(', ');
+  const expected=baselineLocalities.length;
+  const revPeriod=datasets.REV?.periodLabel || 'chưa xác định kỳ';
+  const footnoteBody = `Thu NSNN: ${revPeriod} (ngày chốt: ${revDate}, phạm vi ${datasets.REV?.unitCount??0}/${expected} địa phương${revMissing?', thiếu '+revMissing:''}); Giải ngân: ${disbDate} (${datasets.DISB?.unitCount??0}/${expected} địa phương); GPMB: ${gpmbDate} (${gpmbUnits}/${expected} địa bàn, ${gpmbProjects} dự án, chỉ tính theo diện tích SUM(I)/SUM(D)).`;
   sheet1Rows.push([
     {
       type: 's',
