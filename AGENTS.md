@@ -33,4 +33,4 @@ Repository: `cavoixanh638/KTXD-report` (Private). Sản phẩm tên KTXH Offline
 
 ## Bổ sung bàn giao cuối ngày 24/11/2026
 
-Bảy tên chỉ tiêu tại mục 3 của cập nhật PH1 trong MASTER là chuẩn bắt buộc. Không hoàn nguyên tên cũ, không hardcode 114/ngày chốt khi nguồn không đủ. Giữ nhãn riêng của người dùng, migration nhãn mặc định, công thức tổng/tổng, trace và ô gộp REV/GPMB. Chạy `NOV_FIX_04` cùng toàn bộ test khi sửa phần này.
+Bảy tên chỉ tiêu tại mục 3 của cập nhật PH1 trong MASTER là chuẩn bắt buộc. Không hoàn nguyên tên cũ; nhãn mặc định ba benchmark ghi cố định 114 địa phương nhưng ngày chốt và phạm vi phép tính/độ phủ vẫn động theo nguồn. Không đưa số 113/114 hay 108/114 vào nhãn bảng chính. Tăng cỡ chữ giá trị benchmark 10% trên web/in và 11 pt trong Excel, không tăng cỡ chữ nhãn hoặc chỉ tiêu cá thể. Giữ nhãn riêng của người dùng, migration nhãn mặc định, công thức tổng/tổng, trace và ô gộp REV/GPMB. Chạy `NOV_FIX_04` cùng toàn bộ test khi sửa phần này.

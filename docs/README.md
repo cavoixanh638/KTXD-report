@@ -85,3 +85,5 @@ docs/
 Đọc phần **Cập nhật quy phạm PH1 ngày 24/11/2026** trong [MASTER V2.2](specs/KTXH_OFFLINE_MASTER_SPEC_V2_2_CURRENT.md) trước khi sửa mã. Các bảng tham chiếu tháng 10 chỉ là baseline. SOURCE_MAPPINGS, CALCULATION_RULES, DATA_DICTIONARY, TEST_CASES, hướng dẫn và UI Design System đã đồng bộ thay đổi. Xem PROJECT_STATUS để biết SHA và kết quả QA thực chạy.
 
 Bảy nhãn chỉ tiêu chốt cuối ngày 24/11/2026: xem mục 3 trong phần cập nhật PH1 của MASTER, hướng dẫn người dùng và NOV_FIX_04. Các mục checkpoint/bằng chứng trước đó là lịch sử, không phải tên hiện hành.
+
+Quy ước mới nhất: nhãn benchmark cố định 114 địa phương trên bảng chính, số liệu trung bình tăng cỡ chữ 10% (Excel 11 pt); ngày chốt, công thức và độ phủ kiểm toán không đổi. Xem MASTER mục 3 và UI Design System.

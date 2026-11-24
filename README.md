@@ -85,3 +85,5 @@ Bốn workbook gốc không chỉnh sửa lưu tại [data/reference](data/refer
 ## Bản cập nhật PH1 ngày 24/11/2026
 
 Các thay đổi nguồn tháng 11, 11 cột A4 ngang, dòng thực thu NSNN tùy chọn, ô gộp REV/GPMB, bỏ footer nguồn và bảy tên chỉ tiêu chuẩn mới được quy định trong [MASTER V2.2 hiện hành](docs/specs/KTXH_OFFLINE_MASTER_SPEC_V2_2_CURRENT.md). Xem [PROJECT_STATUS](docs/status/PROJECT_STATUS.md) để biết commit và kết quả CI thực tế. Nhánh cập nhật: `ai/november-source-report-fix-20261124`.
+
+Điều chỉnh trình bày tiếp theo: ba tiêu đề trung bình mặc định ghi 114 địa phương, giá trị tỷ lệ trung bình tăng nhẹ cỡ chữ, giữ nguyên phép tính và độ phủ thật trong kiểm toán. Phiên cũ tự cập nhật nhãn mặc định.

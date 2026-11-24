@@ -153,3 +153,8 @@
 - [CI 45344789386](https://github.com/cavoixanh638/KTXD-report/actions/runs/45344789386), job 138276626023: **47/47 tests PASS**, 3/3 suites, typecheck/build PASS, 4/4 source workbooks SHA/ZIP PASS; artifact `KTXH-offline-November-fix` ID 14897019361 đã upload. NOV_FIX_04 kiểm thử nhãn và ba đầu ra, không xác nhận độ phủ của file tháng 11 thực tế (fixture metadata mô phỏng).
 - Đồng bộ MASTER/PH1, checksum manifest, từ điển, quy tắc tính, test cases, hướng dẫn, UI/UX, AGENTS và mục lục. Các checkpoint, review và bằng chứng cũ giữ nguyên tính lịch sử. Commit tài liệu nối tiếp SHA trên không thay đổi runtime; không kế thừa PASS cho thay đổi runtime về sau.
 - Windows Chrome/Edge in trực tiếp và nghiệm thu với workbook tháng 11 thực tế: NOT_RUN trong lần CI này. Không đổi/commit thêm workbook. PH2 chưa bắt đầu, chưa merge main.
+
+### Điều chỉnh trình bày tỷ lệ trung bình (yêu cầu tiếp theo của chủ dự án)
+
+- SHA runtime: `c29a056c815421cd02a56a2e5e3cebcc25e586c8`, nhánh `ai/november-source-report-fix-20261124`. Ba nhãn benchmark mặc định cố định 114 địa phương, ngày chốt động; migration tự sửa nhãn cũ theo độ phủ. Độ phủ thực tế vẫn lưu ở trace/nguồn/audit, không đổi công thức. Tăng cỡ chữ giá trị benchmark 10% (web, PDF), 11 pt (XLSX). Giữ nguyên ô gộp REV/GPMB và tiêu đề/cỡ chữ khác.
+- CI [45442571960](https://github.com/cavoixanh638/KTXD-report/actions/runs/45442571960): 47/47 tests PASS; 3/3 suites, typecheck/build PASS, 4/4 source workbooks PASS. Job 138617443634. Artifact 14943004728. NOV_FIX_04 đã được mở rộng để kiểm tra nhãn cố định, độ phủ audit, style font, các đầu ra. In thực tế Windows: NOT_RUN; workbook tháng 11 thực tế chưa nghiệm thu trong CI. Không merge main.

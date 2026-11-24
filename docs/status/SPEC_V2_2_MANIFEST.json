@@ -3,13 +3,13 @@
   "repository": "cavoixanh638/KTXD-report",
   "specVersion": "2.2 CURRENT",
   "masterSpec": "docs/specs/KTXH_OFFLINE_MASTER_SPEC_V2_2_CURRENT.md",
-  "masterSha256": "2fc20f3df288e8c1a5d857c3bcfeb81029f81102e38310bcb7f7641f6822f552",
-  "masterLines": 849,
+  "masterSha256": "327e75b1f2cae2830b3a20a6c01f04b689bca341fc89cfb744ed96d8482b3df9",
+  "masterLines": 851,
   "subplans": [
     {
       "phase": "PH1",
       "path": "docs/plans/PHASE_1_RESULT_TEMPLATE.md",
-      "sha256": "ac0354580e755468dd5a6906fbe001ba685410a8228d8d4a6791067b960487dc",
+      "sha256": "b44db152a772adc2f9d1e989852b1337456d504870cc8de9580bcedf7156c175",
       "status": "NOVEMBER_UPDATE_CI_VERIFIED_USER_ACCEPTANCE_PENDING"
     },
     {
@@ -104,14 +104,14 @@
   "novemberUpdate": {
     "date": "2026-11-24",
     "branch": "ai/november-source-report-fix-20261124",
-    "implementationSha": "ee22c0a29d997d4ccd6861bad7997ec845168d90",
+    "implementationSha": "c29a056c815421cd02a56a2e5e3cebcc25e586c8",
     "tests": [
       "NOV_FIX_01",
       "NOV_FIX_02",
       "NOV_FIX_03",
       "NOV_FIX_04"
     ],
-    "ciRun": "https://github.com/cavoixanh638/KTXD-report/actions/runs/45344789386",
+    "ciRun": "https://github.com/cavoixanh638/KTXD-report/actions/runs/45442571960",
     "status": "CI_PASS_WINDOWS_PRINT_NOT_RUN",
     "results": {
       "workbooks": "4/4 PASS",
@@ -121,8 +121,8 @@
       "tests": "47/47 PASS",
       "windowsPrint": "NOT_RUN",
       "userAcceptance": "PENDING",
-      "jobId": 138276626023,
-      "artifactId": 14897019361
+      "jobId": 138617443634,
+      "artifactId": "14943004728"
     }
   }
 }

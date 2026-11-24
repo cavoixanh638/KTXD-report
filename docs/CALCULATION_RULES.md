@@ -34,7 +34,7 @@ $$\text{Tỷ lệ Benchmark} = \frac{\sum_{i \in \text{Phạm vi}} \text{Tử s�
    - Tỷ lệ thu tiền đất so với dự toán năm: $\frac{\sum R}{\sum D} = \frac{9.777.655,455}{7.182.893} = \mathbf{136,12\%}$ (khớp ô $Y10$).
    - Tỷ lệ thu tiền đất so với kế hoạch kỳ 10 tháng: $\frac{\sum R}{\sum G} = \frac{9.777.655,455}{4.823.476} = \mathbf{202,71\%}$ (khớp ô $AB10$).
    - Tỷ lệ thu không gồm đất so với dự toán năm: $\frac{\sum W}{\sum E} = \frac{28.550.929,455 - 9.777.655,455}{25.651.713 - 7.182.893} = \frac{18.773.274}{18.468.820} \approx \mathbf{101,65\%}$ (khớp ô $Z10$).
-   - Mốc REV phải ghi rõ phạm vi: *"113 địa phương có dữ liệu (thiếu Bạch Long Vĩ)"*, tuyệt đối không ghi là mốc 114 địa phương.
+   - Mốc REV trong hồ sơ giải trình phải ghi rõ phạm vi: *"113 địa phương có dữ liệu (thiếu Bạch Long Vĩ)"*. Nhãn bảng chính ghi 114 theo quy ước trình bày, không nâng phạm vi phép tính.
 
 3. **Giải phóng mặt bằng (GPMB):**
    - Nguồn chỉ có dữ liệu của **108 địa bàn** (thiếu 6 địa bàn).
@@ -263,4 +263,4 @@ Công thức tiền đất và không đất phải dùng trường `actual_land
 
 ### Tên chỉ tiêu cập nhật cuối ngày 24/11/2026
 
-Theo bảng bảy nhãn chuẩn tại MASTER mục cập nhật PH1. Từ `trung bình` trong tiêu đề REV/DISB/GPMB chỉ là tên trình bày, không đổi công thức tổng/tổng; số địa phương và ngày chốt lấy đúng độ phủ/nguồn của phiên. Hai benchmark REV/GPMB vẫn gộp ô; không đổi CalculationTrace hay số liệu.
+Theo bảng bảy nhãn chuẩn tại MASTER mục cập nhật PH1. Từ `trung bình` trong tiêu đề REV/DISB/GPMB chỉ là tên trình bày, không đổi công thức tổng/tổng; ngày chốt lấy đúng nguồn của phiên, nhãn bảng chính ghi 114 địa phương theo quy ước; phạm vi phép tính và độ phủ thực tiếp tục lấy từ dữ liệu. Hai benchmark REV/GPMB vẫn gộp ô; không đổi CalculationTrace hay số liệu.

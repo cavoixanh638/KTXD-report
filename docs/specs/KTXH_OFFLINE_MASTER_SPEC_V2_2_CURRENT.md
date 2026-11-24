@@ -19,7 +19,7 @@
 5. Mọi **tỷ lệ chuẩn chung/mốc so sánh** của thu, giải ngân và GPMB phải = **tổng tử số chia tổng mẫu số trong cùng phạm vi**, KHÔNG = `AVERAGE` tỷ lệ của từng địa phương. Nếu tính **mức vốn bình quân một đơn vị** (tỷ đồng/đơn vị) thì công thức đúng là tổng vốn chia số đơn vị hợp lệ; đây là mức bình quân tuyệt đối, không phải bình quân tỷ lệ.
 6. Mỗi ô số liệu có giá trị gốc, đơn vị gốc, giá trị chuẩn hóa, công thức hoặc quy tắc tính, nguồn file/sheet/cell và thời điểm chốt riêng. Thiếu, chưa xác định, 0, và lỗi phải là bốn trạng thái khác nhau.
 7. Mỗi tệp có ngày chốt độc lập; tự trích ngày khi rõ ràng, người dùng xác nhận; khi không rõ/không nhất quán phải yêu cầu nhập và ghi lại cách xác nhận, không tự đoán.
-8. Báo cáo phải ghi rõ **mốc so sánh áp dụng cho 114, 113, 108 địa bàn hay toàn thành phố** và **liệt kê TÊN từng địa phương chưa có bản ghi theo TỪNG NGUỒN**, nêu tình trạng và nguyên nhân có thể khẳng định (ví dụ `NO_LOCALITY_RECORD`: không có bản ghi trong tệp, **không suy diễn là không có phát sinh**). Cần tách tình huống có địa phương nhưng thiếu ô dữ liệu (`FIELD_MISSING`) hoặc dự án thiếu thành phần (`PARTIAL_AGGREGATE`) khỏi tình huống không có địa phương. Không đổi tên hay nâng phạm vi số liệu chưa đủ thành '114 xã, phường'; không coi số giải ngân toàn thành phố là mốc của 114 địa phương.
+8. Báo cáo phải ghi rõ **mốc so sánh áp dụng cho 114, 113, 108 địa bàn hay toàn thành phố** và **liệt kê TÊN từng địa phương chưa có bản ghi theo TỪNG NGUỒN**, nêu tình trạng và nguyên nhân có thể khẳng định (ví dụ `NO_LOCALITY_RECORD`: không có bản ghi trong tệp, **không suy diễn là không có phát sinh**). Cần tách tình huống có địa phương nhưng thiếu ô dữ liệu (`FIELD_MISSING`) hoặc dự án thiếu thành phần (`PARTIAL_AGGREGATE`) khỏi tình huống không có địa phương. Không nâng phạm vi tính toán của số liệu chưa đủ thành '114 xã, phường'; nhãn mặc định bảng chính được quy ước ghi 114 địa phương theo mục 3, độ phủ thực nằm trong kiểm toán. Không coi số giải ngân toàn thành phố là mốc của 114 địa phương.
 9. Không tự điền số 0 khi không có dữ liệu; không tự cộng khoản không cùng kỳ, cùng phạm vi hoặc cùng phương pháp; không lấy trung bình phần trăm đã làm tròn.
 10. Người dùng thay đổi được phần lớn nội dung bảng thông qua cấu hình mà không cần sửa code: địa phương, chỉ tiêu, công thức an toàn, đơn vị, thứ tự, nhãn, điều kiện nhận xét, màu, hiển thị, khổ in và template.
 
@@ -654,7 +654,7 @@ Chỉ các tính năng **mở rộng ngoài dữ liệu/chỉ tiêu mẫu** mớ
 
 - `T01` – 114 địa phương giải ngân: `ΣF=15.550.923,159 triệu`, `ΣI=10.434.921,777 triệu`. `I/F=67,10%`; ứng dụng **không** hiện 76,46% làm tỷ lệ chuẩn 114.
 - `T02` – Mức vốn giao bình quân 114 địa phương: `15.550.923,159/114=136.411,60666 triệu ≈136,41 tỷ/địa phương`.
-- `T03` – Thu 113 địa phương: `ΣC=25.651.713 triệu`, `ΣI=28.550.929,455 triệu`; `I/C=111,30%`. Benchmark ghi **113**, cảnh báo thiếu Đặc khu Bạch Long Vĩ, không ghi là mốc 114.
+- `T03` – Thu 113 địa phương: `ΣC=25.651.713 triệu`, `ΣI=28.550.929,455 triệu`; `I/C=111,30%`. Trace/kiểm toán benchmark ghi **113**, cảnh báo thiếu Đặc khu Bạch Long Vĩ; nhãn bảng chính ghi quy ước 114 theo mục 3.
 - `T04` – GPMB 108 địa bàn: `ΣD=55.398.165 m²`, `ΣI=39.960.463,6 m²`; theo diện tích **72,13%**. Không lấy bình quân tỷ lệ các dòng địa bàn.
 - `T05` – Xã Hồng Châu: `D=119.280 m²`, `I=35.897 m²`, theo diện tích **30,09%**. Bảng báo cáo/Excel/PDF **chỉ** hiển thị tỷ lệ 30,09%, không tạo/cho chọn bình quân tỷ lệ các dự án; nếu nguồn có chỉ số M tổng xã khác thì không dùng để tính/ghi đè tỷ lệ.
 - `T06` – Với một nhóm 11 xã mẫu, tỷ lệ GPMB theo diện tích của **nhóm được chọn** ~**76,97%** (theo dữ liệu 26/10). Không coi đây là tỷ lệ chuẩn 114 hoặc 108.
@@ -736,7 +736,7 @@ Chỉ các tính năng **mở rộng ngoài dữ liệu/chỉ tiêu mẫu** mớ
 
 - `T59` — Bảng chính của PH1 cho 5 xã hoặc 7 phường **chỉ có tỷ lệ GPMB theo `SUM(I)/SUM(D)`**; toàn UI/menu/template/XLSX/PDF không có chỉ tiêu hoặc tùy chọn bình quân tỷ lệ M. Hồng Châu = 30,09%; không hiển thị một tỷ lệ khác lấy từ AVG(M).
 - `T60` — 422 dòng dự án GPMB: chỉ so M nguồn với `100*I/D` khi A là số dự án, D>0 và I/M numeric. Có đúng **12 warning** với `abs(delta)>0,1 điểm phần trăm` (bộ tệp gốc); mỗi warning chứa ô D/I/M, mã dự án, nguồn, I/D tính lại, M và mức chênh. Dòng tổng xã M không bị đưa vào rule; 3 dự án I trống có cờ thiếu riêng.
-- `T61` — Theo danh mục DISB 114, REV có đúng 113 địa phương, thiếu **Đặc khu Bạch Long Vĩ** với trạng thái `NO_LOCALITY_RECORD`, không tự thêm 0; UI import/session/XLSX/PDF nêu rõ tên và không gọi benchmark này là 114 địa phương.
+- `T61` — Theo danh mục DISB 114, REV có đúng 113 địa phương, thiếu **Đặc khu Bạch Long Vĩ** với trạng thái `NO_LOCALITY_RECORD`, không tự thêm 0; UI quản lý nguồn/session, sheet kiểm toán XLSX và phụ lục kiểm toán PDF nêu rõ tên và phạm vi thực tế; nhãn bảng chính ghi quy ước 114 theo mục 3.
 - `T62` — Theo danh mục DISB 114, GPMB có đúng 108 địa bàn; danh sách `NO_LOCALITY_RECORD` đúng sáu tên **Phường Lưu Kiếm, Phường Ái Quốc, Xã Hùng Thắng, Xã Thái Tân, Xã Tân Minh, Đặc khu Bạch Long Vĩ**. Không tạo giá trị 0% hoặc kết luận 'không có dự án' từ danh sách vắng mặt.
 - `T63` — Kinh Môn/ Tân Hưng/ Kiến Hưng vẫn có địa bàn trong GPMB nhưng thiếu I ở dòng 107/173/365; là `FIELD_MISSING` và `PARTIAL_AGGREGATE`, không phải `NO_LOCALITY_RECORD`. DISB có 296 ô thành phần trống nhưng không thiếu 114 dòng địa phương; `ZERO_VALID` phải khác `FIELD_MISSING`.
 - `T64` — Hai phiên A (5 xã) và B (7 phường) có bộ báo thiếu theo nguồn/phiên riêng, ngày chốt và mốc 114/113/108 đúng; nhân bản/sao lưu/khôi phục không đổi các trạng thái thiếu hoặc tự thêm xã.
@@ -834,7 +834,7 @@ Chỉ các tính năng **mở rộng ngoài dữ liệu/chỉ tiêu mẫu** mớ
 
 ### 3. Chuẩn hóa bảy tên chỉ tiêu (chốt ngày 24/11/2026)
 
-| Mã chỉ tiêu | Nhãn chuẩn minh họa khi nguồn đủ 114 địa phương |
+| Mã chỉ tiêu | Nhãn chuẩn trên bảng chính (114 địa phương) |
 |---|---|
 | `REV_BENCHMARK_RATE` | Tỷ lệ thu NSNN trung bình của 114 địa phương (đến ngày 23/11/2026) |
 | `REV_RATE_Y` | Tỷ lệ thu NSNN của từng địa phương so với dự toán |
@@ -844,6 +844,8 @@ Chỉ các tính năng **mở rộng ngoài dữ liệu/chỉ tiêu mẫu** mớ
 | `GPMB_AREA_PLAN` | Diện tích phải GPMB của từng địa phương |
 | `GPMB_BENCHMARK_AREA_RATE` | Tỷ lệ GPMB trung bình của 114 địa phương (đến ngày 24/11/2026) |
 
-Ngày chốt và số địa phương là dữ liệu động theo nguồn của phiên, không cố định các ngày minh họa hoặc 114. Nếu chỉ có N/M địa phương có dữ liệu, nhãn chuẩn ghi `trung bình của N/M địa phương có dữ liệu` (ví dụ REV 113/114, GPMB 108/114 ở nguồn tham chiếu tháng 10). Số lượng này thể hiện độ phủ nguồn, không phải số cột đang chọn hay xác nhận mọi trường đều đủ. Phương pháp vẫn tổng/tổng, không AVERAGE tỷ lệ; mọi cảnh báo chất lượng và trace vẫn giữ nguyên. Khi bật REV_BENCHMARK_RATE, REV_RATE_Y là dòng con không lặp ngày; khi không bật, dòng tỷ lệ từng địa phương giữ ngày chốt như trước. Chỉ di chuyển các tên mặc định/nhãn cũ đã nhận diện; bảo toàn nhãn riêng do người dùng đặt.
+Ngày chốt là dữ liệu động theo nguồn của phiên, không cố định các ngày minh họa. Theo yêu cầu trình bày mới nhất của chủ dự án, cả ba nhãn benchmark mặc định ghi cố định `trung bình của 114 địa phương`, không ghi `113/114 địa phương có dữ liệu` hoặc `108/114 địa phương có dữ liệu` trên bảng chính. Đây là tên quy ước của chỉ tiêu trên báo cáo, không phải xác nhận nguồn đủ dữ liệu; độ phủ thực tế, tên đơn vị thiếu, phạm vi tính toán và cảnh báo vẫn lưu đầy đủ trong quản lý nguồn, CalculationTrace và các sheet kiểm toán. Phương pháp vẫn tổng/tổng, không AVERAGE tỷ lệ; mọi cảnh báo chất lượng và trace vẫn giữ nguyên. Khi bật REV_BENCHMARK_RATE, REV_RATE_Y là dòng con không lặp ngày; khi không bật, dòng tỷ lệ từng địa phương giữ ngày chốt như trước. Chỉ di chuyển các tên mặc định/nhãn cũ đã nhận diện; bảo toàn nhãn riêng do người dùng đặt.
 
 Áp dụng cho phiên mới, phiên cũ sau migration, Studio, PDF và sheet Báo cáo Excel. Giữ chính sách gộp hai benchmark REV/GPMB đã chốt; không tự gộp thêm DISB. `NOV_FIX_04` là ca hồi quy bắt buộc cho lần đổi tên.
+
+Chỉ tăng cỡ chữ giá trị của ba tỷ lệ trung bình REV/DISB/GPMB: Studio/grid và bản in/PDF dùng `1.1em` (tăng 10% so với số liệu thông thường), Excel dùng 11 pt thay vì 10 pt, định dạng phần trăm và căn giữa giữ nguyên. Không tăng cỡ chữ nhãn chỉ tiêu hoặc giá trị của từng địa phương; tiếp tục gộp REV/GPMB, không thay đổi chính sách gộp DISB. Nhãn mặc định cũ theo độ phủ được tự chuyển sang mẫu 114; giữ tên riêng của người dùng.

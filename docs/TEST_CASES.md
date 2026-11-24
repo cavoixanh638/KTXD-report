@@ -102,7 +102,7 @@ Theo quy định nghiêm ngặt tại **§14.2** và mã kiểm thử **`T66`** 
 - **Yêu cầu nghiêm ngặt:**
   - `T01`: Tỷ lệ giải ngân 114 địa phương bằng $10.434.921,777 / 15.550.923,159 = \mathbf{67,10\%}$. Không lấy con số 76,46% ở dòng tổng thành phố làm tỷ lệ chuẩn của 114 địa phương.
   - `T02`: Kế hoạch vốn bình quân một địa phương bằng $15.550.923,159 / 114 \approx \mathbf{136,41\text{ tỷ đồng}}$.
-  - `T03`: Tỷ lệ thu ngân sách 113 địa phương bằng $28.550.929,455 / 25.651.713 = \mathbf{111,30\%}$. Phải ghi nhãn rõ là mốc 113 địa phương, không gọi là mốc 114 địa phương vì thiếu Đặc khu Bạch Long Vĩ.
+  - `T03`: Tỷ lệ thu ngân sách 113 địa phương bằng $28.550.929,455 / 25.651.713 = \mathbf{111,30\%}$. Trace và kiểm toán phải ghi rõ phạm vi 113 địa phương, thiếu Đặc khu Bạch Long Vĩ; nhãn bảng chính ghi 114 theo quy ước mới.
   - `T04`: Tỷ lệ GPMB 108 địa bàn bằng $39.960.463,6 / 55.398.165 = \mathbf{72,13\%}$. Tuyệt đối không lấy bình quân tỷ lệ của các địa bàn.
   - `T05`: Xã Hồng Châu có tỷ lệ GPMB theo diện tích là $35.897 / 119.280 = \mathbf{30,09\%}$. Nghiêm cấm tạo hoặc cho phép người dùng chọn tỷ lệ bình quân cột M các dự án; không dùng giá trị M tổng xã trong nguồn để ghi đè.
   - `T06`: Tỷ lệ GPMB nhóm 11 xã mẫu đạt $\sim \mathbf{76,97\%}$. Đây là tỷ lệ của riêng nhóm được chọn, không đánh đồng với benchmark 108 địa bàn.
@@ -235,6 +235,6 @@ Mọi kết quả kiểm thử trong Cổng PH1 đều được đối soát bit
 | NOV_FIX_01 | Compact DISB nhận đủ 114 dòng 8–121, F/I/M/N đúng vai trò, ngày 22/11, không áp cửa sổ legacy | tests/studio.spec.ts |
 | NOV_FIX_02 | REV có cột chèn vẫn nhận đúng I/S/X theo vai trò, reject duplicate; ngày 23/11; Kết quả thu NSNN mặc định ẩn, STT đồng bộ, 11 cột A4 | tests/studio.spec.ts |
 | NOV_FIX_03 | 1/9/11/12 địa phương: gộp chính xác hai benchmark REV/GPMB mỗi nhóm ngang; rowspan dọc Studio, Excel merge đúng và 1 giá trị numeric; không còn footer nguồn trên báo cáo, sheet audit/trace còn | tests/studio.spec.ts |
-| NOV_FIX_04 | Bảy nhãn chuẩn; migration phiên cũ; ngày chốt và độ phủ đủ/thiếu động; bảo toàn nhãn riêng; đồng nhất Studio/PDF/XLSX. Metadata độ phủ 114 là fixture mô phỏng riêng để kiểm thử nhãn, không phải bằng chứng workbook tháng 11 thực tế | tests/studio.spec.ts |
+| NOV_FIX_04 | Bảy nhãn chuẩn; migration phiên cũ gồm nhãn 113/114, 108/114; ngày chốt động, ba nhãn mặc định cố định 114 dù thiếu nguồn, độ phủ thật còn ở sheet kiểm toán; bảo toàn nhãn riêng; đồng nhất Studio/PDF/XLSX; ba benchmark có class phóng chữ 1.1em và style phần trăm Excel 11 pt, không đổi số liệu hay ô gộp. Fixture độ phủ 114 chỉ mô phỏng nhãn | tests/studio.spec.ts |
 
 T01–T66 là baseline lịch sử, không dùng kết quả cũ để kết luận PASS cho SHA mới. Kiểm tra PDF/Excel trên Windows bằng dữ liệu thực người dùng nhập; không commit workbook mới.

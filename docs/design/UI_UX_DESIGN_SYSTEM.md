@@ -117,4 +117,4 @@ A4 ngang tối đa 11 cột địa phương/cụm, co bề rộng tự động; 
 
 ### Tên chỉ tiêu chuẩn (24/11/2026)
 
-Tuân thủ bảng bảy nhãn mới trong MASTER. Dùng `từng địa phương` thay vì `từng xã` cho bốn chỉ tiêu cá thể; ba benchmark dùng `trung bình của ... địa phương`, ghi đủ độ phủ thực nếu thiếu nguồn. Ngày chốt tự động; giữ ô gộp REV/GPMB và định dạng hiện có, không thêm footer nguồn.
+Tuân thủ bảng bảy nhãn mới trong MASTER. Dùng `từng địa phương` thay vì `từng xã` cho bốn chỉ tiêu cá thể; ba benchmark dùng `trung bình của 114 địa phương` trên bảng chính, ghi đủ độ phủ thực trong kiểm toán. Ngày chốt tự động; giữ ô gộp REV/GPMB, không thêm footer nguồn. Chỉ tăng cỡ chữ giá trị của ba tỷ lệ trung bình REV/DISB/GPMB: Studio/grid và bản in/PDF dùng `1.1em` (tăng 10% so với số liệu thông thường), Excel dùng 11 pt thay vì 10 pt, định dạng phần trăm và căn giữa giữ nguyên. Không tăng cỡ chữ nhãn chỉ tiêu hoặc giá trị của từng địa phương; tiếp tục gộp REV/GPMB, không thay đổi chính sách gộp DISB. Nhãn mặc định cũ theo độ phủ được tự chuyển sang mẫu 114; giữ tên riêng của người dùng.

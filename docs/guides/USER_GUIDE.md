@@ -167,7 +167,7 @@ Nhập lại file giải ngân 22/11 và thu NSNN 23/11 trong đúng phiên, ki�
 
 ### Tên bảy chỉ tiêu hiện hành
 
-| Mã chỉ tiêu | Nhãn chuẩn minh họa khi nguồn đủ 114 địa phương |
+| Mã chỉ tiêu | Nhãn chuẩn trên bảng chính (114 địa phương) |
 |---|---|
 | `REV_BENCHMARK_RATE` | Tỷ lệ thu NSNN trung bình của 114 địa phương (đến ngày 23/11/2026) |
 | `REV_RATE_Y` | Tỷ lệ thu NSNN của từng địa phương so với dự toán |
@@ -177,6 +177,8 @@ Nhập lại file giải ngân 22/11 và thu NSNN 23/11 trong đúng phiên, ki�
 | `GPMB_AREA_PLAN` | Diện tích phải GPMB của từng địa phương |
 | `GPMB_BENCHMARK_AREA_RATE` | Tỷ lệ GPMB trung bình của 114 địa phương (đến ngày 24/11/2026) |
 
-Ngày chốt và số địa phương là dữ liệu động theo nguồn của phiên, không cố định các ngày minh họa hoặc 114. Nếu chỉ có N/M địa phương có dữ liệu, nhãn chuẩn ghi `trung bình của N/M địa phương có dữ liệu` (ví dụ REV 113/114, GPMB 108/114 ở nguồn tham chiếu tháng 10). Số lượng này thể hiện độ phủ nguồn, không phải số cột đang chọn hay xác nhận mọi trường đều đủ. Phương pháp vẫn tổng/tổng, không AVERAGE tỷ lệ; mọi cảnh báo chất lượng và trace vẫn giữ nguyên. Khi bật REV_BENCHMARK_RATE, REV_RATE_Y là dòng con không lặp ngày; khi không bật, dòng tỷ lệ từng địa phương giữ ngày chốt như trước. Chỉ di chuyển các tên mặc định/nhãn cũ đã nhận diện; bảo toàn nhãn riêng do người dùng đặt.
+Ngày chốt là dữ liệu động theo nguồn của phiên, không cố định các ngày minh họa. Theo yêu cầu trình bày mới nhất của chủ dự án, cả ba nhãn benchmark mặc định ghi cố định `trung bình của 114 địa phương`, không ghi `113/114 địa phương có dữ liệu` hoặc `108/114 địa phương có dữ liệu` trên bảng chính. Đây là tên quy ước của chỉ tiêu trên báo cáo, không phải xác nhận nguồn đủ dữ liệu; độ phủ thực tế, tên đơn vị thiếu, phạm vi tính toán và cảnh báo vẫn lưu đầy đủ trong quản lý nguồn, CalculationTrace và các sheet kiểm toán. Phương pháp vẫn tổng/tổng, không AVERAGE tỷ lệ; mọi cảnh báo chất lượng và trace vẫn giữ nguyên. Khi bật REV_BENCHMARK_RATE, REV_RATE_Y là dòng con không lặp ngày; khi không bật, dòng tỷ lệ từng địa phương giữ ngày chốt như trước. Chỉ di chuyển các tên mặc định/nhãn cũ đã nhận diện; bảo toàn nhãn riêng do người dùng đặt.
 
 Sau khi pull và build, mở lại phiên cũ để tên mặc định tự chuyển sang mẫu mới; không cần tạo phiên lại. Nếu đã tự đặt tên khác, tên riêng vẫn được giữ.
+
+Chỉ tăng cỡ chữ giá trị của ba tỷ lệ trung bình REV/DISB/GPMB: Studio/grid và bản in/PDF dùng `1.1em` (tăng 10% so với số liệu thông thường), Excel dùng 11 pt thay vì 10 pt, định dạng phần trăm và căn giữa giữ nguyên. Không tăng cỡ chữ nhãn chỉ tiêu hoặc giá trị của từng địa phương; tiếp tục gộp REV/GPMB, không thay đổi chính sách gộp DISB. Nhãn mặc định cũ theo độ phủ được tự chuyển sang mẫu 114; giữ tên riêng của người dùng.

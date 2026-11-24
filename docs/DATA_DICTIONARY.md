@@ -116,12 +116,12 @@ Dưới đây là cấu hình chi tiết cho 14 dòng báo cáo chuẩn kế th�
 | **6** | `REV_NONLAND_RATE_Y` | Tỷ lệ thu không gồm tiền đất | `REV` cột $W / E \times 100$ ($W = I - R, E = C - D$) | Hiển thị dạng `%` (2 chữ số). Không tính trùng các sắc thuế thành phần chi tiết. |
 | **7** | `DISB_PLAN` | Kế hoạch vốn đầu tư công của từng địa phương sau điều chỉnh, bổ sung | `DISB` cột `F` theo địa phương | Chia 1.000 đổi sang tỷ đồng. Hiển thị số thập phân (2 chữ số). |
 | **8** | `DISB_PLAN_PER_UNIT` | So với mức vốn giao bình quân một địa phương | So sánh $F$ của địa phương với mốc $\sum(F_{114})/114$ | Mốc tiền vốn tuyệt đối (triệu/tỷ đồng), không lấy trung bình tỷ lệ. Nêu rõ chênh lệch tiền và tỷ lệ so với mức bình quân. |
-| **9** | `DISB_RATE` (Benchmark) | Tỷ lệ giải ngân trung bình của 114 địa phương (phạm vi động) | `DISB` $\frac{\sum_{13}^{126} I}{\sum_{13}^{126} F} \times 100$ | **Giá trị chuẩn xác từ nguồn mẫu là 67,10%** ($\frac{10.434.921,777}{15.550.923,159}$). Tuyệt đối không lấy con số 76% từ tệp mẫu cũ. |
+| **9** | `DISB_RATE` (Benchmark) | Tỷ lệ giải ngân trung bình của 114 địa phương (nhãn quy ước; phạm vi tính động) | `DISB` $\frac{\sum_{13}^{126} I}{\sum_{13}^{126} F} \times 100$ | **Giá trị chuẩn xác từ nguồn mẫu là 67,10%** ($\frac{10.434.921,777}{15.550.923,159}$). Tuyệt đối không lấy con số 76% từ tệp mẫu cũ. |
 | **10** | `DISB_RATE` | Tỷ lệ giải ngân của địa phương | `DISB` cột $I / F \times 100$ | Hiển thị dạng `%` (2 chữ số). Kèm chú thích dấu thanh tra (cột P) và ghi chú văn bản (cột Q) nếu có. |
 | **11** | `COMPARISON_LABEL` (Giải ngân) | Nhận xét tỷ lệ giải ngân | So sánh dòng 10 với mốc dòng 9 | Đánh giá theo ngưỡng cấu hình (*Cao hơn*, *Thấp hơn*, *Tương đương*). Nếu khác kỳ/ngày chốt thì cảnh báo chưa đủ cơ sở đánh giá tương đương. |
 | **12** | `GPMB_BUDGET` | Kinh phí phân bổ GPMB cho từng địa phương | `GPMB` $\sum G$ các dự án thuộc địa phương | Chia $10^9$ đổi từ đồng sang tỷ đồng. Giữ nguyên tổng đồng nội bộ để tính tỷ lệ. |
 | **13** | `GPMB_AREA_PLAN` | Diện tích phải GPMB của từng địa phương | `GPMB` $\sum D$ các dự án thuộc địa phương | Đơn vị m² (số nguyên có dấu chấm phân cách ngàn) hoặc ha (2 chữ số thập phân). |
-| **14** | `GPMB_AREA_RATE` (Benchmark) | Tỷ lệ GPMB trung bình của các địa phương (ghi số lượng/độ phủ nguồn thực tế) | `GPMB` $\frac{\sum I_{\text{dự án}}}{\sum D_{\text{dự án}}}$ trên 108 địa bàn | **Tái hiện từ nguồn mẫu là 72,13%** ($\frac{39.960.463,6}{55.398.165}$), gắn cờ `PARTIAL_AGGREGATE`. Tuyệt đối không gán 70,8% của 114 địa phương. |
+| **14** | `GPMB_AREA_RATE` (Benchmark) | Tỷ lệ GPMB trung bình của 114 địa phương (nhãn quy ước) | `GPMB` $\frac{\sum I_{\text{dự án}}}{\sum D_{\text{dự án}}}$ trên 108 địa bàn | **Tái hiện từ nguồn mẫu là 72,13%** ($\frac{39.960.463,6}{55.398.165}$), gắn cờ `PARTIAL_AGGREGATE`. Tuyệt đối không gán 70,8% của 114 địa phương. |
 | **15** | `GPMB_AREA_RATE` | Tỷ lệ GPMB địa phương theo diện tích | `GPMB` $\frac{\sum I_{\text{dự án ghi nhận}}}{\sum D_{\text{dự án}}}$ | **Phương pháp duy nhất được hiển thị.** Nếu có dự án thiếu $I$, gắn cờ `PARTIAL_AGGREGATE`. Tuyệt đối không hiển thị bình quân tỷ lệ cột M. |
 | **16** | `COMPARISON_LABEL` (GPMB) | Đánh giá GPMB | So sánh dòng 15 với mốc hợp lệ dòng 14 | So sánh điểm phần trăm. Nếu địa phương có dự án thiếu $I$ (`PARTIAL_AGGREGATE`) hoặc khác ngày chốt: ghi chú *"Chưa đủ cơ sở đánh giá hoàn thành"*. |
 
@@ -143,7 +143,7 @@ Dưới đây là cấu hình chi tiết cho 14 dòng báo cáo chuẩn kế th�
 
 ### Nhãn chỉ tiêu cập nhật 24/11/2026
 
-| Mã chỉ tiêu | Nhãn chuẩn minh họa khi nguồn đủ 114 địa phương |
+| Mã chỉ tiêu | Nhãn chuẩn trên bảng chính (114 địa phương) |
 |---|---|
 | `REV_BENCHMARK_RATE` | Tỷ lệ thu NSNN trung bình của 114 địa phương (đến ngày 23/11/2026) |
 | `REV_RATE_Y` | Tỷ lệ thu NSNN của từng địa phương so với dự toán |
@@ -153,4 +153,6 @@ Dưới đây là cấu hình chi tiết cho 14 dòng báo cáo chuẩn kế th�
 | `GPMB_AREA_PLAN` | Diện tích phải GPMB của từng địa phương |
 | `GPMB_BENCHMARK_AREA_RATE` | Tỷ lệ GPMB trung bình của 114 địa phương (đến ngày 24/11/2026) |
 
-Ngày chốt và số địa phương là dữ liệu động theo nguồn của phiên, không cố định các ngày minh họa hoặc 114. Nếu chỉ có N/M địa phương có dữ liệu, nhãn chuẩn ghi `trung bình của N/M địa phương có dữ liệu` (ví dụ REV 113/114, GPMB 108/114 ở nguồn tham chiếu tháng 10). Số lượng này thể hiện độ phủ nguồn, không phải số cột đang chọn hay xác nhận mọi trường đều đủ. Phương pháp vẫn tổng/tổng, không AVERAGE tỷ lệ; mọi cảnh báo chất lượng và trace vẫn giữ nguyên. Khi bật REV_BENCHMARK_RATE, REV_RATE_Y là dòng con không lặp ngày; khi không bật, dòng tỷ lệ từng địa phương giữ ngày chốt như trước. Chỉ di chuyển các tên mặc định/nhãn cũ đã nhận diện; bảo toàn nhãn riêng do người dùng đặt.
+Ngày chốt là dữ liệu động theo nguồn của phiên, không cố định các ngày minh họa. Theo yêu cầu trình bày mới nhất của chủ dự án, cả ba nhãn benchmark mặc định ghi cố định `trung bình của 114 địa phương`, không ghi `113/114 địa phương có dữ liệu` hoặc `108/114 địa phương có dữ liệu` trên bảng chính. Đây là tên quy ước của chỉ tiêu trên báo cáo, không phải xác nhận nguồn đủ dữ liệu; độ phủ thực tế, tên đơn vị thiếu, phạm vi tính toán và cảnh báo vẫn lưu đầy đủ trong quản lý nguồn, CalculationTrace và các sheet kiểm toán. Phương pháp vẫn tổng/tổng, không AVERAGE tỷ lệ; mọi cảnh báo chất lượng và trace vẫn giữ nguyên. Khi bật REV_BENCHMARK_RATE, REV_RATE_Y là dòng con không lặp ngày; khi không bật, dòng tỷ lệ từng địa phương giữ ngày chốt như trước. Chỉ di chuyển các tên mặc định/nhãn cũ đã nhận diện; bảo toàn nhãn riêng do người dùng đặt.
+
+Chỉ tăng cỡ chữ giá trị của ba tỷ lệ trung bình REV/DISB/GPMB: Studio/grid và bản in/PDF dùng `1.1em` (tăng 10% so với số liệu thông thường), Excel dùng 11 pt thay vì 10 pt, định dạng phần trăm và căn giữa giữ nguyên. Không tăng cỡ chữ nhãn chỉ tiêu hoặc giá trị của từng địa phương; tiếp tục gộp REV/GPMB, không thay đổi chính sách gộp DISB. Nhãn mặc định cũ theo độ phủ được tự chuyển sang mẫu 114; giữ tên riêng của người dùng.
