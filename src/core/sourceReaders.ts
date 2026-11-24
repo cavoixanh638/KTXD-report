@@ -464,6 +464,103 @@ export function getCellNumber(
   return c.value;
 }
 
+/** Normalize ONLY header labels, not locality identity. */
+function headerKey(value: string): string {
+  return value.normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/đ/g, 'd').replace(/Đ/g, 'D').toLowerCase().replace(/\s+/g, ' ').trim();
+}
+function isLocalityName(value: string): boolean {
+  return /^(xã|phường|đặc khu)\s+\S/iu.test(canonicalizeLocalityName(value));
+}
+function localityRows(sheet: ParsedWorkbookSheet): number[] {
+  return [...sheet.cells.values()]
+    .filter(c => c.col === 'B' && isLocalityName(String(c.value ?? '')))
+    .map(c => c.row).sort((a,b) => a-b);
+}
+function explicitTitleDate(title: string): string | undefined {
+  const match = title.match(/(?:đến(?:\s+hết)?\s+ngày|tính\s+đến\s+ngày)\s+(\d{1,2})[./-](\d{1,2})[./-](\d{4})/iu);
+  if (!match) return undefined;
+  const [,day,month,year] = match;
+  const iso = year + '-' + month.padStart(2,'0') + '-' + day.padStart(2,'0');
+  const d = new Date(iso+'T00:00:00Z');
+  return Number.isFinite(d.getTime()) && d.toISOString().slice(0,10)===iso ? iso : undefined;
+}
+function isCompactTotalDisb(sheet: ParsedWorkbookSheet): boolean {
+  if (!headerKey(getCellText(sheet,'A1')).includes('giai ngan')) return false;
+  for (let r=2;r<=Math.min(12,sheet.maxRow-1);r++) {
+    const h = (col:string,delta=0) => headerKey(getCellText(sheet,col+(r+delta)));
+    if (h('C').includes('ke hoach von') && h('F').includes('ke hoach von') &&
+        /dieu chinh/.test(h('F')) && h('I').includes('giai ngan') &&
+        /ty le.*sau dieu chinh/.test(h('M')) && /ghi chu/.test(h('N')) &&
+        ['C','F','I'].every(c=>h(c,1)==='tong so') &&
+        /du an khoi tp/.test(h('D',1)) && /phan cap.*cap xa/.test(h('E',1))) return true;
+  }
+  return false;
+}
+interface RevenueHeaderMapping {
+  colMap: Record<string,string>;
+  row: number;
+}
+/** Header-based semantic mapping. Distinguish annual, period, actual and
+ * ratio groups by their labels AND their positions relative to group anchors;
+ * duplicate/ambiguous required headers are rejected, never guessed. */
+export function resolveRevenueHeader(sheet: ParsedWorkbookSheet): RevenueHeaderMapping | null {
+  const dataRows = localityRows(sheet);
+  if (!dataRows.length) return null;
+  for (let r=1;r<Math.min(dataRows[0],40);r++) {
+    const headers = Array.from({length:100},(_,i)=>({col:colIndexToLetter(i+1), index:i+1, key:headerKey(getCellText(sheet,colIndexToLetter(i+1)+r))}));
+    const pick = (pred:(x:typeof headers[number])=>boolean) => {
+      const a=headers.filter(pred);return a.length===1?a[0]:undefined;
+    };
+    // The total actually realized must explicitly be a cumulative actual amount,
+    // not a rate, budget, plan, or cumulative non-land subtotal.
+    const actual = pick(x=>/^(luy ke (thuc hien|thu)|thuc hien luy ke)/.test(x.key) && !/tru|khong|ty le|%/.test(x.key));
+    if (!actual) continue;
+    const period = pick(x=>x.index<actual.index && /^(ke hoach thu|ke hoach tong thu)/.test(x.key) && !/tru|khong|tien.*dat/.test(x.key));
+    if (!period) continue;
+    const annual = pick(x=>x.index<period.index && /^tong thu nsnn/.test(x.key) && !/tru|khong/.test(x.key));
+    const isLand = (key:string) => /^(thu )?tien su dung dat(?:\s|$)/.test(key) && !/tru|khong|ke hoach|thue|ty le/.test(key);
+    const isNonland = (key:string) => /(?:tru|khong(?: gom| bao gom)?|loai tru)\s+(?:thu\s+)?tien (?:su dung )?dat/.test(key);
+    const annualLand = pick(x=>x.index> (annual?.index??0) && x.index<period.index && isLand(x.key));
+    const annualNonland = pick(x=>x.index>(annual?.index??0) && x.index<period.index && isNonland(x.key));
+    const periodLand = pick(x=>x.index>period.index && x.index<actual.index && /tien su dung dat/.test(x.key) && !isNonland(x.key) && !/thue/.test(x.key));
+    const periodNonland = pick(x=>x.index>period.index && x.index<actual.index && isNonland(x.key));
+    const actualNonland = pick(x=>x.index>actual.index && /luy ke|thuc hien/.test(x.key) && isNonland(x.key));
+    if (!annual || !annualLand || !annualNonland || !periodLand || !periodNonland || !actualNonland) continue;
+    const actualLand = pick(x=>x.index>actual.index && x.index<actualNonland.index && isLand(x.key));
+    if (!actualLand) continue;
+    const result:Record<string,string> = {
+      [annual.col]:'annual_total_budget', [annualLand.col]:'annual_land_budget', [annualNonland.col]:'annual_nonland_budget',
+      [period.col]:'period_total_plan', [periodLand.col]:'period_land_plan', [periodNonland.col]:'period_nonland_plan',
+      [actual.col]:'actual_total_revenue', [actualLand.col]:'actual_land_revenue', [actualNonland.col]:'actual_nonland_revenue',
+    };
+    const components:Record<string,RegExp> = {
+      actual_nonstate_sector:/thu tu khu vuc kinh te ngoai quoc doanh/,
+      tax_vat:/^thue gtgt$/, tax_excise:/^thue ttdb$/, tax_cit:/^thue tndn$/, tax_resource:/^thue tai nguyen$/,
+    };
+    for (const [field,rx] of Object.entries(components)) {
+      const item=pick(x=>x.index>actual.index&&x.index<actualNonland.index&&rx.test(x.key));
+      if (item) result[item.col]=field;
+    }
+    // Rate columns: only match the exact 3 header roles, twice in source order.
+    // They are diagnostic values; calculation continues to use raw amounts.
+    const tail=headers.filter(x=>x.index>actualNonland.index&&x.key);
+    const rateTotal=tail.filter(x=>/^tong thu nsnn$/.test(x.key));
+    const rateLand=tail.filter(x=>isLand(x.key));
+    const rateNonland=tail.filter(x=>isNonland(x.key));
+    if (rateTotal.length===2&&rateLand.length===2&&rateNonland.length===2&&
+      rateTotal[0].index<rateLand[0].index&&rateLand[0].index<rateNonland[0].index&&
+      rateNonland[0].index<rateTotal[1].index&&rateTotal[1].index<rateLand[1].index&&rateLand[1].index<rateNonland[1].index) {
+      for (const [i,suffix] of ['y','p'].entries()) {
+        result[rateTotal[i].col]='source_rate_total_'+suffix;
+        result[rateLand[i].col]='source_rate_land_'+suffix;
+        result[rateNonland[i].col]='source_rate_nonland_'+suffix;
+      }
+    }
+    return {colMap:result,row:r};
+  }
+  return null;
+}
+
 export function detectSheetFingerprint(
   sheet: ParsedWorkbookSheet
 ):
@@ -511,6 +608,8 @@ export function detectSheetFingerprint(
       return 'GPMB_FLAT';
     }
   }
+
+  if (isCompactTotalDisb(sheet)) return 'DISB_TOTAL_LOCALITY_V2';
 
   // Check commune-allocated disbursement layouts (DISB_PHAN_CAP_XA_V2: 15 cols A..O; DISB_PHAN_CAP_XA_V1: 12 cols A..L)
   const c3 = getCellText(sheet, 'C3').toLowerCase();
@@ -589,6 +688,8 @@ export function detectSheetFingerprint(
     a1.toLowerCase().includes('giải ngân') ||
     (b7.toUpperCase().includes('TỔNG SỐ') && b12.toLowerCase().includes('địa phương'))
   ) {
+    // Never classify an unfamiliar 8-row layout as the legacy row-13 profile.
+    if (isLocalityName(b12)) return 'SCHEMA_MODIFIED_NEEDS_MAPPING';
     // Verify column positions B (locality name), F (adjusted plan numeric), I (disbursed numeric)
     const f13 = sheet.cells.get('F13');
     const i13 = sheet.cells.get('I13');
@@ -605,6 +706,8 @@ export function detectSheetFingerprint(
     return 'DISB_V1';
   }
 
+  // Check header-based REV first; retain recognition of the hash-verified reference for compatibility.
+  if (resolveRevenueHeader(sheet)) return 'REV_V1';
   // Check REV_V1
   if (
     a3.toUpperCase().includes('THU NSNN') ||
@@ -802,7 +905,7 @@ export interface ImportOptions {
 }
 
 function isDisbFingerprint(fp: string): fp is DisbSchemaFingerprint {
-  return fp === 'DISB_V1' || fp === 'DISB_PHAN_CAP_XA_V1' || fp === 'DISB_PHAN_CAP_XA_V2';
+  return fp === 'DISB_V1' || fp === 'DISB_TOTAL_LOCALITY_V2' || fp === 'DISB_PHAN_CAP_XA_V1' || fp === 'DISB_PHAN_CAP_XA_V2';
 }
 
 export function importDisbursementWorkbook(
@@ -940,13 +1043,13 @@ export function importDisbursementWorkbook(
   const citySummaryRecord = profile.hasCitySummary
     ? parseDisbRow(7, 'CITY_TOTAL', 'TỔNG SỐ TOÀN THÀNH PHỐ')
     : undefined;
-  const summaryRecord = parseDisbRow(
+  const summaryRecord = profile.summaryRow > 0 ? parseDisbRow(
     profile.summaryRow,
     'LOCALITIES_BLOCK_114',
     profile.isPhanCapXa
       ? 'Khối 114 địa phương (vốn phân cấp cấp xã, dòng 7)'
       : 'Khối địa phương (dòng 12)'
-  );
+  ) : undefined;
   const unplannedDisbursementRecord = profile.hasUnplannedRow
     ? parseDisbRow(145, 'UNPLANNED_ROW_145', 'Giải ngân ngoài kế hoạch (dòng 145)')
     : undefined;
@@ -956,8 +1059,12 @@ export function importDisbursementWorkbook(
   const rowEnd = profile.isPhanCapXa
     ? Math.max(profile.defaultRowEnd, targetSheet.maxRow)
     : profile.defaultRowEnd;
+  const candidateRows = targetFp === 'DISB_TOTAL_LOCALITY_V2'
+    ? localityRows(targetSheet)
+    : Array.from({length:rowEnd-rowStart+1},(_,i)=>rowStart+i);
+  const seenLocalities = new Set<string>();
 
-  for (let row = rowStart; row <= rowEnd; row++) {
+  for (const row of candidateRows) {
     const rawName = getCellText(targetSheet, `B${row}`).trim();
     if (!rawName) continue;
     if (profile.isPhanCapXa) {
@@ -975,6 +1082,8 @@ export function importDisbursementWorkbook(
     }
 
     const loc = createLocalityFromName(rawName, `${wb.filename}!${targetSheet.name}!B${row}`);
+    if (seenLocalities.has(loc.id)) throw new Error('BLOCKER_DUPLICATE_LOCALITY: '+loc.canonicalNameNFC+' tại dòng '+row);
+    seenLocalities.add(loc.id);
     localities.push(loc);
 
     const rec = parseDisbRow(row, loc.id, loc.canonicalNameNFC);
@@ -1173,7 +1282,9 @@ export function importDisbursementWorkbook(
     periodEnd: asOfDate,
     asOfStatus: 'DETECTED_CONFIRMED',
     asOfDateEvidence:
-      targetFp === 'DISB_PHAN_CAP_XA_V2'
+      targetFp === 'DISB_TOTAL_LOCALITY_V2'
+        ? `Sheet ${targetSheet.name}!A1 ("${a1Text.trim()}"); tiêu đề tổng vốn sau điều chỉnh, giải ngân tổng, tỷ lệ sau điều chỉnh và ghi chú được nhận diện.`
+        : targetFp === 'DISB_PHAN_CAP_XA_V2'
         ? `Sheet ${targetSheet.name}!A1 ("${a1Text.trim()}"). Báo cáo nguồn vốn phân cấp cho cấp xã (gồm KHV đầu năm C–E, sau điều chỉnh F–I, giải ngân J–M, tỷ lệ N, ghi chú O; không gồm dự án khối TP).`
         : targetFp === 'DISB_PHAN_CAP_XA_V1'
         ? `Sheet ${targetSheet.name}!A1 ("${a1Text.trim()}"). Báo cáo nguồn vốn phân cấp cho cấp xã (12 cột A–L, không bao gồm dự án khối TP và không có cột KHV trước điều chỉnh).`
@@ -1246,15 +1357,22 @@ export function importRevenueWorkbook(
   const hasUserConfirmedDate = Boolean(
     options.confirmedAsOfDate && options.confirmedAsOfDate.trim().length > 0
   );
-  const asOfDate = hasUserConfirmedDate ? options.confirmedAsOfDate!.trim() : '';
+  const title = getCellText(targetSheet,'A3');
+  const titleDate = explicitTitleDate(title);
+  const asOfDate = hasUserConfirmedDate ? options.confirmedAsOfDate!.trim() : (titleDate || '');
   const asOfStatus: Dataset['asOfStatus'] = hasUserConfirmedDate
     ? 'MANUAL_CONFIRMED'
-    : 'REQUIRES_USER_CONFIRMATION';
-
+    : titleDate ? 'DETECTED_CONFIRMED' : 'REQUIRES_USER_CONFIRMATION';
   const datasetId = `REV_${wb.sha256.slice(0, 12)}`;
-  const mappingVersion = 'REV_ADAPTER_V2.2';
-
-  const colMap: Record<string, string> = {
+  const semanticMapping = resolveRevenueHeader(targetSheet);
+  const isOriginalReference = wb.sha256 === 'b41227d1444c581e6f3b65d761fad8918b65aedfbd8114443e6dee9d4938356f';
+  // Only the authorized, byte-identical original workbook is allowed to use
+  // the legacy fixed map. Any other workbook must pass semantic recognition.
+  if (!semanticMapping && !isOriginalReference) {
+    throw new Error('BLOCKER_MAPPING_REQUIRED: Không nhận diện duy nhất tiêu đề các cột dự toán/kế hoạch/thực hiện/thu tiền đất/thu trừ tiền đất; không được lấy theo cột R/W cố định.');
+  }
+  const mappingVersion = semanticMapping ? 'REV_HEADER_SEMANTIC_V3' : 'REV_ADAPTER_V2.2';
+  const legacyMap: Record<string, string> = {
     C: 'annual_total_budget',
     D: 'annual_land_budget',
     E: 'annual_nonland_budget',
@@ -1277,8 +1395,9 @@ export function importRevenueWorkbook(
     AC: 'source_rate_nonland_p',
   };
 
+  const colMap = semanticMapping?.colMap ?? legacyMap;
   const issues: QualityIssue[] = [];
-  if (!hasUserConfirmedDate) {
+  if (!asOfDate) {
     issues.push({
       id: `${datasetId}_BLOCKER_AS_OF_DATE`,
       ruleId: 'MISSING_CONFIRMED_AS_OF_DATE',
@@ -1301,7 +1420,7 @@ export function importRevenueWorkbook(
   const parseRevRow = (row: number, locId: string, locName: string): SourceRecord => {
     const metrics: Record<string, MetricCellValue> = {};
     for (const [col, fieldId] of Object.entries(colMap)) {
-      const isRatio = ['X', 'Y', 'Z', 'AA', 'AB', 'AC'].includes(col);
+      const isRatio = fieldId.startsWith('source_rate_');
       const unit = isRatio ? 'ratio' : 'million_vnd';
       metrics[fieldId] = buildMetricCell(
         targetSheet,
@@ -1323,15 +1442,24 @@ export function importRevenueWorkbook(
     };
   };
 
-  const summaryRecord = parseRevRow(10, 'REV_AVAILABLE_113', 'Tổng cộng 113 địa phương (dòng 10)');
+  const dataRows = localityRows(targetSheet);
+  const seen = new Set<string>();
   const records: SourceRecord[] = [];
-
-  for (let row = 11; row <= 123; row++) {
+  for (const row of dataRows) {
     const rawName = getCellText(targetSheet, `B${row}`);
     const canonical = canonicalizeLocalityName(rawName);
     const locId = makeLocalityId(canonical);
+    if (seen.has(locId)) throw new Error('BLOCKER_DUPLICATE_LOCALITY: '+canonical+' tại dòng '+row);
+    seen.add(locId);
     records.push(parseRevRow(row, locId, canonical));
   }
+  if (!records.length) throw new Error('BLOCKER_MAPPING_REQUIRED: Không có dòng địa phương được nhận diện.');
+  const totalRow = Array.from({length:Math.max(0,dataRows[0]-1)},(_,i)=>i+1)
+    .find(row=>/^tong so|^tong cong$/.test(headerKey(getCellText(targetSheet,'B'+row))));
+  const summaryRecord = totalRow ? parseRevRow(totalRow,'REV_AVAILABLE_113','Tổng các địa phương (dòng '+totalRow+')') : undefined;
+  const monthMatch = title.match(/(\d{1,2})\s*tháng\s*(?:đầu\s*)?(?:năm\s*)?(\d{4})/iu);
+  const periodLabel = titleDate ? 'Lũy kế đến ngày '+titleDate.split('-').reverse().join('/') :
+    monthMatch ? monthMatch[1]+' tháng đầu năm '+monthMatch[2] : 'Kỳ theo tiêu đề nguồn';
 
   const dataset: Dataset = {
     id: datasetId,
@@ -1349,13 +1477,14 @@ export function importRevenueWorkbook(
     calculationPolicyVersion: 'V2.2_R06',
     unitCount: records.length,
     asOfDate,
-    reportPeriodLabel: '10 tháng đầu năm 2026',
-    periodLabel: '10 tháng đầu năm 2026',
-    periodStart: '2026-01-01',
-    periodEnd: '2026-10-31',
+    reportPeriodLabel: isOriginalReference ? '10 tháng đầu năm 2026' : periodLabel,
+    periodLabel: isOriginalReference ? '10 tháng đầu năm 2026' : periodLabel,
+    periodStart: asOfDate ? asOfDate.slice(0,4)+'-01-01' : '2026-01-01',
+    periodEnd: isOriginalReference ? '2026-10-31' : asOfDate || undefined,
     asOfStatus,
     asOfDateEvidence:
-      'Sheet 10T-19.10, tiêu đề A3 ghi "10 THÁNG NĂM 2026"; không có ngày chốt rõ ràng trong tiêu đề, yêu cầu người dùng xác nhận.',
+      titleDate ? `Sheet ${targetSheet.name}!A3: ${title.trim()}` :
+      `Sheet ${targetSheet.name}!A3: ${title.trim()}; chưa có ngày chốt cụ thể, yêu cầu người dùng xác nhận.`,
     asOfDateConfirmation: {
       confirmedByUser: hasUserConfirmedDate,
       confirmedAt: hasUserConfirmedDate ? new Date().toISOString() : null,

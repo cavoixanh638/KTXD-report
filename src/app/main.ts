@@ -496,6 +496,7 @@ export class KtxhOfflineApp {
         const fp = detectSheetFingerprint(s);
         if (
           fp === 'DISB_V1' ||
+          fp === 'DISB_TOTAL_LOCALITY_V2' ||
           fp === 'DISB_PHAN_CAP_XA_V1' ||
           fp === 'DISB_PHAN_CAP_XA_V2'
         ) {

@@ -454,6 +454,8 @@ export interface ReportSession {
       deadline?: string;
       isHidden?: boolean;
     }>;
+    showRevRealizedRow?: boolean;
+    revRealizedRowCustomLabel?: string;
     showRevBenchmarkRow?: boolean;
     revBenchmarkRowCustomLabel?: string;
   };
@@ -487,7 +489,8 @@ export interface Workspace {
 export type DisbSchemaFingerprint =
   | 'DISB_V1'
   | 'DISB_PHAN_CAP_XA_V1'
-  | 'DISB_PHAN_CAP_XA_V2';
+  | 'DISB_PHAN_CAP_XA_V2'
+  | 'DISB_TOTAL_LOCALITY_V2';
 
 export interface DisbIdentityEqDef {
   eq: IdentityCheckResult['equation'];
@@ -581,6 +584,61 @@ export const DISB_SCHEMA_PROFILES: Record<DisbSchemaFingerprint, DisbSchemaProfi
           { col: 'M', field: 'disbursed_gpmb' },
           { col: 'N', field: 'disbursed_other' },
         ],
+      },
+    ],
+  },
+  // Compact locality-only sheet: initial/adjusted/paid totals, two component
+  // columns each, rate before/after adjustment, and official note. No city
+  // summary row or L/M/N construction/GPMB breakdown exists in this schema.
+  DISB_TOTAL_LOCALITY_V2: {
+    fingerprint: 'DISB_TOTAL_LOCALITY_V2',
+    isPhanCapXa: false,
+    hasInitialPlan: true,
+    mappingVersion: 'DISB_TOTAL_LOCALITY_HEADERS_V2',
+    rowStart: 8,
+    defaultRowEnd: 121,
+    summaryRow: 0,
+    hasCitySummary: false,
+    hasUnplannedRow: false,
+    planCol: 'F',
+    disbCol: 'I',
+    rateCol: 'M',
+    noteCol: 'N',
+    markerCol: null,
+    colMap: {
+      C: 'initial_total_plan',
+      D: 'initial_city_component',
+      E: 'initial_local_component',
+      F: 'adjusted_total_plan',
+      G: 'adjusted_city_component',
+      H: 'adjusted_local_component',
+      I: 'disbursed_total',
+      J: 'disbursed_city_component',
+      K: 'disbursed_local_component',
+      M: 'source_disbursed_rate',
+    },
+    componentCols: [
+      { field: 'adjusted_city_component', col: 'G' },
+      { field: 'disbursed_city_component', col: 'J' },
+    ],
+    eqDefs: [
+      {
+        eq: 'C=D+E',
+        totalField: 'initial_total_plan',
+        totalCol: 'C',
+        compCols: [{ col: 'D', field: 'initial_city_component' }, { col: 'E', field: 'initial_local_component' }],
+      },
+      {
+        eq: 'F=G+H',
+        totalField: 'adjusted_total_plan',
+        totalCol: 'F',
+        compCols: [{ col: 'G', field: 'adjusted_city_component' }, { col: 'H', field: 'adjusted_local_component' }],
+      },
+      {
+        eq: 'I=J+K',
+        totalField: 'disbursed_total',
+        totalCol: 'I',
+        compCols: [{ col: 'J', field: 'disbursed_city_component' }, { col: 'K', field: 'disbursed_local_component' }],
       },
     ],
   },
@@ -716,6 +774,7 @@ export const DISB_SCHEMA_PROFILES: Record<DisbSchemaFingerprint, DisbSchemaProfi
 
 /** Returns schema metadata for a DISB workbook variant (defaults to DISB_V1). */
 export function getDisbSchemaProfile(schemaFingerprint?: string): DisbSchemaProfile {
+  if (schemaFingerprint === 'DISB_TOTAL_LOCALITY_V2') return DISB_SCHEMA_PROFILES.DISB_TOTAL_LOCALITY_V2;
   if (schemaFingerprint === 'DISB_PHAN_CAP_XA_V1') return DISB_SCHEMA_PROFILES.DISB_PHAN_CAP_XA_V1;
   if (schemaFingerprint === 'DISB_PHAN_CAP_XA_V2') return DISB_SCHEMA_PROFILES.DISB_PHAN_CAP_XA_V2;
   return DISB_SCHEMA_PROFILES.DISB_V1;
