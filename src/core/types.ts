@@ -271,6 +271,41 @@ export interface IdentityCheckResult {
   trace: CalculationTrace;
 }
 
+export interface SourceMappingColumn {
+  field: string;
+  column: string;
+  header: string;
+  unit: string;
+}
+export interface SourceValidationCheck {
+  code: string;
+  label: string;
+  checked: number;
+  failed: number;
+  severity: 'INFO' | 'WARNING' | 'REVIEW';
+  detail: string;
+  examples?: string[];
+}
+export interface SourceValidation {
+  version: 'SCHEMA_GUARD_V1';
+  workbookSha256: string;
+  sheet: string;
+  schemaSignature: string;
+  headerRows: number[];
+  columnCount: number;
+  headerColumnCount: number;
+  columns: SourceMappingColumn[];
+  status: 'VERIFIED' | 'NEEDS_REVIEW';
+  checks: SourceValidationCheck[];
+  checkedAt: string;
+  reviewedAt?: string;
+  reviewReason?: string;
+  historicalDatasetId?: string;
+  historicalDate?: string;
+  previousColumnCount?: number;
+  changedColumns?: Array<{field:string; before:string; after:string}>;
+}
+
 export interface Dataset {
   id: string;
   sourceType: 'REV' | 'DISB' | 'GPMB' | 'MANUAL';
@@ -285,6 +320,9 @@ export interface Dataset {
   manualSelectionReason?: string;
   mappingVersion: string;
   calculationPolicyVersion: string;
+  sourceValidation?: SourceValidation;
+  /** Real workbook addresses for an independently resolved DISB layout. */
+  disbLayout?: DisbResolvedLayout;
   unitCount: number;
   projectRowCount?: number;
   asOfDate: string; // YYYY-MM-DD
@@ -304,7 +342,7 @@ export interface Dataset {
   summaryRecord?: SourceRecord;
   citySummaryRecord?: SourceRecord;
   unplannedDisbursementRecord?: SourceRecord;
-  localityGroupSummaries?: Record<string, { row: number; rawM: string | number | null; formulaM?: string }>;
+  localityGroupSummaries?: Record<string, { row: number; rawM: string | number | null; formulaM?: string; columnM?:string }>;
   issues: QualityIssue[];
   identityChecks?: IdentityCheckResult[];
   allSheetsMeta: Array<{ index: number; name: string; state: 'visible' | 'hidden' | 'veryHidden' }>;
@@ -454,6 +492,8 @@ export interface ReportSession {
       deadline?: string;
       isHidden?: boolean;
     }>;
+    showRevRealizedRow?: boolean;
+    revRealizedRowCustomLabel?: string;
     showRevBenchmarkRow?: boolean;
     revBenchmarkRowCustomLabel?: string;
   };
@@ -487,7 +527,20 @@ export interface Workspace {
 export type DisbSchemaFingerprint =
   | 'DISB_V1'
   | 'DISB_PHAN_CAP_XA_V1'
-  | 'DISB_PHAN_CAP_XA_V2';
+  | 'DISB_PHAN_CAP_XA_V2'
+  | 'DISB_TOTAL_LOCALITY_V2';
+
+export interface DisbResolvedLayout {
+  fingerprint: DisbSchemaFingerprint;
+  /** Canonical profile role (A, B, C...) -> actual workbook column. */
+  columns: Record<string,string>;
+  headerRows: number[];
+  dataRows: number[];
+  summaryRow: number;
+  citySummaryRow?: number;
+  unplannedRow?: number;
+  titleCell: string;
+}
 
 export interface DisbIdentityEqDef {
   eq: IdentityCheckResult['equation'];
@@ -581,6 +634,61 @@ export const DISB_SCHEMA_PROFILES: Record<DisbSchemaFingerprint, DisbSchemaProfi
           { col: 'M', field: 'disbursed_gpmb' },
           { col: 'N', field: 'disbursed_other' },
         ],
+      },
+    ],
+  },
+  // Compact locality-only sheet: initial/adjusted/paid totals, two component
+  // columns each, rate before/after adjustment, and official note. No city
+  // summary row or L/M/N construction/GPMB breakdown exists in this schema.
+  DISB_TOTAL_LOCALITY_V2: {
+    fingerprint: 'DISB_TOTAL_LOCALITY_V2',
+    isPhanCapXa: false,
+    hasInitialPlan: true,
+    mappingVersion: 'DISB_TOTAL_LOCALITY_HEADERS_V2',
+    rowStart: 8,
+    defaultRowEnd: 121,
+    summaryRow: 0,
+    hasCitySummary: false,
+    hasUnplannedRow: false,
+    planCol: 'F',
+    disbCol: 'I',
+    rateCol: 'M',
+    noteCol: 'N',
+    markerCol: null,
+    colMap: {
+      C: 'initial_total_plan',
+      D: 'initial_city_component',
+      E: 'initial_local_component',
+      F: 'adjusted_total_plan',
+      G: 'adjusted_city_component',
+      H: 'adjusted_local_component',
+      I: 'disbursed_total',
+      J: 'disbursed_city_component',
+      K: 'disbursed_local_component',
+      M: 'source_disbursed_rate',
+    },
+    componentCols: [
+      { field: 'adjusted_city_component', col: 'G' },
+      { field: 'disbursed_city_component', col: 'J' },
+    ],
+    eqDefs: [
+      {
+        eq: 'C=D+E',
+        totalField: 'initial_total_plan',
+        totalCol: 'C',
+        compCols: [{ col: 'D', field: 'initial_city_component' }, { col: 'E', field: 'initial_local_component' }],
+      },
+      {
+        eq: 'F=G+H',
+        totalField: 'adjusted_total_plan',
+        totalCol: 'F',
+        compCols: [{ col: 'G', field: 'adjusted_city_component' }, { col: 'H', field: 'adjusted_local_component' }],
+      },
+      {
+        eq: 'I=J+K',
+        totalField: 'disbursed_total',
+        totalCol: 'I',
+        compCols: [{ col: 'J', field: 'disbursed_city_component' }, { col: 'K', field: 'disbursed_local_component' }],
       },
     ],
   },
@@ -716,6 +824,7 @@ export const DISB_SCHEMA_PROFILES: Record<DisbSchemaFingerprint, DisbSchemaProfi
 
 /** Returns schema metadata for a DISB workbook variant (defaults to DISB_V1). */
 export function getDisbSchemaProfile(schemaFingerprint?: string): DisbSchemaProfile {
+  if (schemaFingerprint === 'DISB_TOTAL_LOCALITY_V2') return DISB_SCHEMA_PROFILES.DISB_TOTAL_LOCALITY_V2;
   if (schemaFingerprint === 'DISB_PHAN_CAP_XA_V1') return DISB_SCHEMA_PROFILES.DISB_PHAN_CAP_XA_V1;
   if (schemaFingerprint === 'DISB_PHAN_CAP_XA_V2') return DISB_SCHEMA_PROFILES.DISB_PHAN_CAP_XA_V2;
   return DISB_SCHEMA_PROFILES.DISB_V1;
@@ -725,4 +834,38 @@ export function getDisbSchemaProfile(schemaFingerprint?: string): DisbSchemaProf
 export function formatDisbRange(col: string, profile: DisbSchemaProfile, count = 114): string {
   const endRow = profile.rowStart + Math.max(count, 1) - 1;
   return `${col}${profile.rowStart}:${col}${endRow}`;
+}
+
+/** Keep field IDs and equation IDs stable, but expose actual source addresses. */
+export function remapDisbProfile(layout:DisbResolvedLayout):DisbSchemaProfile {
+  const base=getDisbSchemaProfile(layout.fingerprint);
+  const col=(c:string)=>layout.columns[c]||c;
+  return {
+    ...base,
+    rowStart:layout.dataRows[0]??base.rowStart,
+    defaultRowEnd:layout.dataRows[layout.dataRows.length-1]??base.defaultRowEnd,
+    summaryRow:layout.summaryRow,
+    hasCitySummary:layout.citySummaryRow!==undefined,
+    hasUnplannedRow:layout.unplannedRow!==undefined,
+    planCol:col(base.planCol),disbCol:col(base.disbCol),rateCol:col(base.rateCol),
+    noteCol:col(base.noteCol),markerCol:base.markerCol?layout.columns[base.markerCol]||null:null,
+    colMap:Object.fromEntries(Object.entries(base.colMap).map(([c,field])=>[col(c),field])),
+    componentCols:base.componentCols.map(c=>({...c,col:col(c.col)})),
+    eqDefs:base.eqDefs.map(e=>({...e,totalCol:col(e.totalCol),compCols:e.compCols.map(c=>({...c,col:col(c.col)}))})),
+  };
+}
+export function getDisbDatasetProfile(ds:Dataset):DisbSchemaProfile {
+  return ds.disbLayout?remapDisbProfile(ds.disbLayout):getDisbSchemaProfile(ds.schemaFingerprint);
+}
+/** Use exact records, not an invented continuous range when rows are sparse. */
+export function formatDisbDatasetRange(ds:Dataset,field:string):string {
+  const refs=ds.records.map(r=>r.metrics[field]).filter((m):m is MetricCellValue=>!!m);
+  if(!refs.length)return '(không có dòng nguồn)';
+  const col=refs[0].sourceColumn;
+  const rows=[...new Set(refs.map(m=>m.sourceRow))].sort((a,b)=>a-b);
+  if(refs.some(m=>m.sourceColumn!==col))return refs.map(m=>m.provenance.cell).join(', ');
+  const ranges:string[]=[];
+  for(let i=0;i<rows.length;){let j=i;while(j+1<rows.length&&rows[j+1]===rows[j]+1)j++;
+    ranges.push(col+rows[i]+(j===i?'':':'+col+rows[j]));i=j+1;}
+  return ranges.join(', ');
 }

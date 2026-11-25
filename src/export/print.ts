@@ -6,7 +6,10 @@ import {
   renderIndicatorLabelHtml,
   renderReportCellValueHtml,
   renderUncompletedProjectsTableHtml,
+  horizontalPageCapacity,
+  horizontalFit,
 } from '../ui/reportStudio';
+import { reportMainStt, isSharedReportIndicator, isReportBenchmarkRate } from '../core/indicators';
 import {
   getUncompletedProjectsForSession,
   getNq11ProjectsForSession,
@@ -23,7 +26,7 @@ function escapeHtml(str: string): string {
 
 /**
  * Generates clean, paginated print/PDF HTML for any number of selected localities
- * (e.g. 5 localities in 1 page, 20 localities split across 3 horizontal page chunks of 8 localities each so no column is lost or shrunk to unreadable size - T18, T65).
+ * (e.g. 5 localities in 1 page, 20 localities split across horizontal page chunks of at most 11 localities on A4 landscape so no column is lost or shrunk to unreadable size - T18, T65).
  */
 export function generatePrintableReportHtml(params: {
   evaluated: EvaluatedSessionReport;
@@ -41,7 +44,7 @@ export function generatePrintableReportHtml(params: {
   } = params;
   const { session, selectedLocalities, rows, tracesById } = evaluated;
 
-  const maxColsPerPage = session.settings.paperSize === 'A3' ? 12 : 7;
+  const maxColsPerPage = horizontalPageCapacity(session);
   const chunks: Locality[][] = [];
   if (selectedLocalities.length === 0) {
     chunks.push([]);
@@ -64,18 +67,19 @@ export function generatePrintableReportHtml(params: {
         })
       : null;
 
-  const indWidth = session.settings.indicatorColumnWidthPx || 240;
-
   const pagesHtml = chunks
     .map((chunk, pageIdx) => {
+      const {indicatorWidth:indWidth,localityWidth}=horizontalFit(session,chunk.length);
       const headerCols = chunk
-        .map((loc) => `<th class="doc-th-locality">${escapeHtml(loc.displayName)}</th>`)
+        .map((loc) => `<th class="doc-th-locality" style="width:${localityWidth}px;max-width:${localityWidth}px">${escapeHtml(loc.displayName)}</th>`)
         .join('');
 
       const bodyRows = displayRows
         .map((r) => {
           const hasStt = Boolean(r.rowConfig.sttLabel && r.rowConfig.sttLabel.trim());
-          const cells = chunk
+          const shared = isSharedReportIndicator(r.indicator.id);
+          const span = shared && chunk.length > 1 ? ` colspan="${chunk.length}"` : '';
+          const cells = (shared ? chunk.slice(0, 1) : chunk)
             .map((loc) => {
               const c = r.cellsByLocalityId[loc.id];
               const formattedVal = formatReportCellValue(
@@ -84,7 +88,7 @@ export function generatePrintableReportHtml(params: {
                 session.settings.moneyUnit,
                 session.settings.areaUnit
               );
-              return `<td class="print-cell">${renderReportCellValueHtml(formattedVal)}</td>`;
+              return `<td class="print-cell${isReportBenchmarkRate(r.indicator.id) ? ' report-benchmark-value' : ''}"${span}>${renderReportCellValueHtml(formattedVal)}</td>`;
             })
             .join('');
           return `<tr class="${hasStt ? 'doc-row-primary' : 'doc-row-sub'}">
@@ -108,7 +112,7 @@ export function generatePrintableReportHtml(params: {
           .join('');
 
         const row8 = `<tr class="doc-row-primary doc-row-uncompleted-count">
-          <td class="stt-col" style="vertical-align: top;">8</td>
+          <td class="stt-col" style="vertical-align: top;">${reportMainStt(session,'8')}</td>
           <td class="label-col" style="width: ${indWidth}px; max-width: ${indWidth}px; font-weight: bold; vertical-align: top;">${escapeHtml(
             session.settings.uncompletedRowCustomLabel || 'Số dự án chưa hoàn thành GPMB'
           )}</td>
@@ -154,7 +158,7 @@ export function generatePrintableReportHtml(params: {
           .join('');
 
         nq11PrintRow = `<tr class="doc-row-primary doc-row-nq11">
-          <td class="stt-col" style="vertical-align: top;">9</td>
+          <td class="stt-col" style="vertical-align: top;">${reportMainStt(session,'9')}</td>
           <td class="label-col" style="width: ${indWidth}px; max-width: ${indWidth}px; font-weight: 600; vertical-align: top;">${escapeHtml(
             session.settings.nq11RowCustomLabel || 'Dự án theo NQ 11 trên địa bàn xã có khó khăn, vướng mắc'
           )}</td>
@@ -186,7 +190,7 @@ export function generatePrintableReportHtml(params: {
                 : ''
             }
           </div>
-          <table class="print-table">
+          <table class="print-table"${chunk.length>7?' data-fit-columns="dense"':''}>
             <thead>
               <tr>
                 <th class="stt-col">STT</th>
@@ -204,7 +208,7 @@ export function generatePrintableReportHtml(params: {
           <div class="print-title-center">
             <h2>${escapeHtml(session.settings.reportTitle)} <span style="font-size: 0.85em; font-weight: normal; font-style: italic;">(tiếp theo)</span></h2>
           </div>
-          <table class="print-table">
+          <table class="print-table"${chunk.length>7?' data-fit-columns="dense"':''}>
             <thead>
               <tr>
                 <th class="stt-col">STT</th>
@@ -234,7 +238,7 @@ export function generatePrintableReportHtml(params: {
               : ''
           }
         </div>
-        <table class="print-table">
+        <table class="print-table"${chunk.length>7?' data-fit-columns="dense"':''}>
           <thead>
             <tr>
               <th class="stt-col">STT</th>

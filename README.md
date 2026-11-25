@@ -1,7 +1,7 @@
 # KTXH Offline Report — Báo cáo KTXH mở trực tiếp bằng trình duyệt
 
 > **Tình trạng:** `MASTER_V2.2 / PHASE_1_COMPLETED / DUAL_STUDIO_LIVE / 43_TESTS_PASS`  
-> **Repository:** `cavoixanh638/KTXD-report` (Private)  
+> **Repository:** `cavoixanh638/KTXD-report` (Public theo xác nhận của chủ dự án 25/11/2026)  
 > **Sản phẩm:** KTXH Offline (Bản dựng tệp đơn: `dist/index.html` ~2.2MB, chạy 100% offline qua `file://`)
 
 ---
@@ -81,3 +81,21 @@ Bốn workbook gốc không chỉnh sửa lưu tại [data/reference](data/refer
 - `data/reference/Bc thu 10 thang-19.10-BC (1)(1).xlsx` (SHA-256: `b41227...`) — 113 địa phương.
 - `data/reference/PL01_Tổng hợp DA_26.12.26(1).xlsx` (SHA-256: `d393c3...`) — 108 địa bàn, 422 dự án.
 - `data/reference/Kết quả Tổng hợp chỉ tiêu KTXH 11 xã.xlsx` (SHA-256: `bd19d2...`) — Mẫu chuẩn 14 dòng.
+
+## Bản cập nhật PH1 ngày 24/11/2026
+
+Các thay đổi nguồn tháng 11, 11 cột A4 ngang, dòng thực thu NSNN tùy chọn, ô gộp REV/DISB/GPMB, bỏ footer nguồn và bảy tên chỉ tiêu chuẩn mới được quy định trong [MASTER V2.2 hiện hành](docs/specs/KTXH_OFFLINE_MASTER_SPEC_V2_2_CURRENT.md). Xem [PROJECT_STATUS](docs/status/PROJECT_STATUS.md) để biết commit và kết quả CI thực tế. Nhánh cập nhật: `ai/november-source-report-fix-20261124`.
+
+Điều chỉnh trình bày tiếp theo: ba tiêu đề trung bình mặc định ghi 114 địa phương, giá trị tỷ lệ trung bình tăng nhẹ cỡ chữ, giữ nguyên phép tính và độ phủ thật trong kiểm toán. Phiên cũ tự cập nhật nhãn mặc định.
+
+## Cập nhật không phải chạy lệnh
+
+Sau khi CI hoàn tất, chỉ cần **Fetch origin → Pull origin**, sau đó mở `dist/index.html`. Clone mới cũng có sẵn file. Không cần Node.js hay npm để sử dụng. Các lệnh ở mục 4 chỉ dành cho lập trình viên. Xem trạng thái CI/commit bản chạy trong PROJECT_STATUS.
+
+## Nạp 3 file mới nhất
+
+Chọn ba nguồn đã nhập theo ngày chốt xác nhận, giữ phạm vi giải ngân; xem trước và xác nhận chỉ cho phiên đang mở. Khi cùng ngày mà chưa xác định bản chính thức, ưu tiên nội dung được nhập lần đầu gần nhất và cảnh báo. Nguồn thiếu ngày phải xác nhận, không lấy ngày theo tên file. Không quét thư mục máy tính.
+
+## Kiểm tra cấu trúc và chất lượng nguồn
+
+Trước khi lập báo cáo, app xác minh tiêu đề/đơn vị/ánh xạ, kiểm tra chéo và đối chiếu lịch sử đã xác minh; không dùng % chênh lệch giữa kỳ. Mở chi tiết Kiểm tra cột ở Khối 1. Nếu nguồn cũ thiếu xác minh, nhập lại đúng file gốc một lần. DISB tự ánh xạ cột theo nhóm tiêu đề của 4 profile; bố cục không rõ nghĩa bị từ chối an toàn. Xem SOURCE_CORPUS.json và corpus/README.md để lưu mẫu thực tế được chủ dự án cho phép trong repo Public; không tự upload từ app.

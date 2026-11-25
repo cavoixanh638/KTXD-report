@@ -34,7 +34,7 @@ $$\text{Tỷ lệ Benchmark} = \frac{\sum_{i \in \text{Phạm vi}} \text{Tử s�
    - Tỷ lệ thu tiền đất so với dự toán năm: $\frac{\sum R}{\sum D} = \frac{9.777.655,455}{7.182.893} = \mathbf{136,12\%}$ (khớp ô $Y10$).
    - Tỷ lệ thu tiền đất so với kế hoạch kỳ 10 tháng: $\frac{\sum R}{\sum G} = \frac{9.777.655,455}{4.823.476} = \mathbf{202,71\%}$ (khớp ô $AB10$).
    - Tỷ lệ thu không gồm đất so với dự toán năm: $\frac{\sum W}{\sum E} = \frac{28.550.929,455 - 9.777.655,455}{25.651.713 - 7.182.893} = \frac{18.773.274}{18.468.820} \approx \mathbf{101,65\%}$ (khớp ô $Z10$).
-   - Mốc REV phải ghi rõ phạm vi: *"113 địa phương có dữ liệu (thiếu Bạch Long Vĩ)"*, tuyệt đối không ghi là mốc 114 địa phương.
+   - Mốc REV trong hồ sơ giải trình phải ghi rõ phạm vi: *"113 địa phương có dữ liệu (thiếu Bạch Long Vĩ)"*. Nhãn bảng chính ghi 114 theo quy ước trình bày, không nâng phạm vi phép tính.
 
 3. **Giải phóng mặt bằng (GPMB):**
    - Nguồn chỉ có dữ liệu của **108 địa bàn** (thiếu 6 địa bàn).
@@ -256,3 +256,17 @@ Khi người dùng nhấn vào bất kỳ ô nào trên Bảng báo cáo 14 dòn
    - Danh sách các địa phương tham gia tính toán và danh sách địa phương bị loại trừ (nêu rõ từng nguyên nhân).
    - Danh sách các địa phương phát sinh thu ngoài kế hoạch/dự toán (`zeroDenominatorContributors`).
    - Nút sao chép nội dung Trace dưới định dạng JSON phục vụ kiểm toán và lưu trữ độc lập.
+
+## 24/11/2026 — Công thức theo vai trò nguồn
+
+Công thức tiền đất và không đất phải dùng trường `actual_land_revenue`, `actual_nonland_revenue` từ header mapping; tháng 10 lần lượt R/W, tháng 11 lần lượt S/X. Mẫu tháng 11: tỷ lệ năm I/C, S/D, X/E; tỷ lệ kỳ I/F, S/G, X/H. Các chỉ số trên là tỷ số (×100 khi hiển thị %). `REV_REALIZED` = actual_total_revenue / 1.000 (triệu sang tỷ). Giải ngân = disbursed_total / adjusted_total_plan (I/F ở tổng hợp tháng 11; J/F ở phân cấp V2). Benchmark REV/GPMB giữ tổng/tổng toàn phạm vi đủ điều kiện, không dùng AVERAGE, không suy ngược số tiền từ tỷ lệ hiển thị. GPMB = SUM(I ghi nhận)/SUM(D), không thay đổi. Ba benchmark REV/DISB/GPMB dùng một ô gộp và một trace chung; số liệu gốc, cảnh báo, included/excluded, mẫu số 0, thiếu I và kiểm toán vẫn như quy tắc MASTER. Các trị số ví dụ tháng 10 ở trên chỉ là fixture lịch sử.
+
+### Tên chỉ tiêu cập nhật cuối ngày 24/11/2026
+
+Theo bảng bảy nhãn chuẩn tại MASTER mục cập nhật PH1. Từ `trung bình` trong tiêu đề REV/DISB/GPMB chỉ là tên trình bày, không đổi công thức tổng/tổng; ngày chốt lấy đúng nguồn của phiên, nhãn bảng chính ghi 114 địa phương theo quy ước; phạm vi phép tính và độ phủ thực tiếp tục lấy từ dữ liệu. Ba benchmark REV/DISB/GPMB vẫn gộp ô; không đổi CalculationTrace hay số liệu.
+
+### Kiểm tra đối chiếu, không sửa công thức nghiệp vụ
+
+Source schema guard kiểm tra REV cân đối tổng/tiền đất/trừ tiền đất, sáu tỷ lệ nguồn nếu có; DISB identity và tỷ lệ; GPMB tỷ lệ và tổng theo địa bàn; tổng chi tiết khi cùng phạm vi/đủ toán hạng. Chỉ là QA, không ghi đè số nguồn hoặc thay đổi SUM/SUM. Lịch sử không dùng % biến động cố định; chọn kỳ trước đã xác minh, cùng năm/phạm vi và đối tượng, kiểm tra neo, dấu giảm lũy kế, Spearman. Độ phủ thực vẫn được lưu như cũ.
+
+Kiểm tra bổ sung tỷ lệ DISB compact theo vốn đầu năm, REV tỷ lệ nguồn chỉ khi nhóm dự toán/kế hoạch kỳ rõ. Đối chiếu lịch sử dấu hiệu đổi đơn vị theo hệ số gần đúng 100/1.000/1.000.000 và nghịch đảo ở nhiều đối tượng có chỉ tiêu neo; chỉ cảnh báo xác minh, không ngưỡng % chênh lệch kỳ, không thay đổi SUM/SUM.

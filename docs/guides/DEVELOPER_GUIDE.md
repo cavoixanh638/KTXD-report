@@ -162,3 +162,33 @@ Bất kỳ AI hoặc lập trình viên nào phát triển tiếp đều **bắt
 3. Đọc dữ liệu nhị phân thông qua `parseXlsxBytes` trong `src/core/sourceReaders.ts`.
 4. Trích xuất tên xã/phường, chuẩn hóa tên thông qua `canonicalName` và `searchKey` trong `src/core/localities.ts`.
 5. Đăng ký adapter vào luồng nạp dữ liệu trong `src/app/main.ts`.
+
+## Bảo trì PH1 — 24/11/2026
+
+Xem mục cập nhật quy phạm trong MASTER. `resolveRevenueHeader` và `DISB_SCHEMA_PROFILES.DISB_TOTAL_LOCALITY_V2` thay logic cố định khi nhận mẫu mới. Không bỏ provenance hoặc bỏ kiểm tra duplicate. `reportMainStt`, `formatRevRealizedRowLabel` điều khiển dòng thực thu. `horizontalPageCapacity` và `horizontalFit` dùng chung giữa Studio/print. `isSharedReportIndicator` là nguồn duy nhất của chính sách gộp ba benchmark; dùng trong reportGrid, reportStudio, print, xlsx. Không ghi đè số liệu tính để phục vụ gộp. Sheet 2 lưu thông tin nguồn chuyển khỏi footer; bốn sheet audit giữ nguyên. Kiểm thử NOV_FIX_01–03; workflow November source and report fixes chạy typecheck/build/test; báo QA theo SHA.
+
+### Bảo trì nhãn chỉ tiêu (24/11/2026)
+
+`normalizeLocalityReportLabel` và `formatBenchmarkReportLabel` trong `src/core/indicators.ts` chuẩn hóa bảy tên theo MASTER, cập nhật ngày, cố định nhãn 114 địa phương trên bảng chính. `syncReportLabelsWithDatasetDates`/`migrateLegacySessionLabels` đồng bộ phiên cũ; `evaluateSessionReport` dùng bản sao row config khi render. Không hardcode ngày tháng 11 hoặc thay đổi độ phủ thực; cố định 114 chỉ ở nhãn mặc định. Không ghi đè nhãn tùy chỉnh khác. `isReportBenchmarkRate` áp dụng class `report-benchmark-value` cho số liệu và style XLSX 34/35 (11 pt). `NOV_FIX_04` kiểm tra migration, độ phủ kiểm toán, ngày, định dạng và cả ba đầu ra.
+
+### Phân phối HTML tự động
+
+Bản chạy duy nhất `dist/index.html` được theo dõi trực tiếp trong Git; người dùng clone hoặc Fetch/Pull origin nhánh phân phối rồi mở file bằng Chrome/Edge, không cần cài Node.js, npm, chạy build hoặc mở server. GitHub Actions hiện có trên nhánh `ai/november-source-report-fix-20261124` (và `main` sau khi được merge) chạy xác minh 4 nguồn tham chiếu, typecheck, build, test và chỉ sau khi đạt mới commit riêng file HTML đã build bằng GITHUB_TOKEN. Không force-push; bot push không kích hoạt lại CI. Các nhánh khác chỉ phân phối sau khi được hợp nhất hoặc build có chủ đích. Không commit `node_modules`, các tệp nguồn người dùng nhập hay đầu ra khác. HTML chỉ nhúng ba workbook tham chiếu đã được cho phép; không đưa dữ liệu phiên cá nhân vào repo. Nếu CI thất bại hoặc push bị từ chối, chưa công bố bản mới là sẵn sàng. Bản build thủ công chỉ dành cho phát triển.
+
+Ba chỉ tiêu tỷ lệ trung bình REV/DISB/GPMB đều gộp toàn bộ cột địa phương trong mỗi nhóm/trang ngang, gộp hàng trong Studio dọc và merge ô giá trị trong Excel. Mỗi nhóm/trang chỉ hiển thị một kết quả, căn giữa; giữ cỡ chữ lớn hơn 10% (Excel 11 pt), trace chung, công thức và phạm vi nguồn. Không gộp chỉ tiêu riêng từng địa phương. `isSharedReportIndicator` là điểm cấu hình duy nhất; kiểm thử NOV_FIX_03/04.
+
+Migration `normalizeLocalityReportLabel` cho `GPMB_BUDGET` nhận diện chính xác cả nhãn cũ `Kinh phí phân bổ GPMB cho từng xã` và `Kinh phí phân bổ GPMB cho từng phường`, chuẩn hóa sang `Kinh phí phân bổ GPMB cho từng địa phương`. Giữ nhãn tùy chỉnh không khớp chính xác. NOV_FIX_04 kiểm tra cả render và migration, PDF/XLSX.
+
+## Bộ chọn nguồn mới nhất
+
+Nút Nạp 3 file mới nhất chọn độc lập DISB/REV/GPMB trong kho dataset của workspace theo ngày chốt hợp lệ đã xác nhận; không quét ổ đĩa. DISB giữ phạm vi tổng vốn hoặc phân cấp của phiên hiện tại; nếu chưa có DISB mặc định tổng vốn. Loại nguồn sai mapping, ngày chưa xác minh, lỗi BLOCKER hoặc ERROR trường tính chính; không loại chỉ vì thiếu vài địa phương. Ưu tiên nguồn thực tế; chỉ dùng mẫu SHA gốc nếu chưa có nguồn thực tế tương thích. Cùng ngày và chưa có metadata phiên bản chính thức, chọn nội dung khác SHA được nhập lần đầu gần nhất, cảnh báo nhiều bản; nhập lại cùng SHA không làm mới thứ hạng. Cùng SHA có ngày chốt xác nhận mâu thuẫn thì không tự chọn. Tên file không quyết định ngày chốt. Preview tên file, ngày, độ phủ, phạm vi, nguồn mẫu/cảnh báo; chỉ nạp khi đủ ba nguồn và người dùng xác nhận. Không thay dữ liệu các phiên khác. Tạo phiên mới có tùy chọn 3 nguồn mới nhất; không thay đổi mặc định dùng nguồn phiên đang mở. Ngày chốt DISB/GPMB không còn fallback tháng 10/tên file; nguồn cũ có bằng chứng A1 không đủ phải xác nhận tại Khối 1. Không tự suy ngày từ hạn dự án CSV.
+
+`src/core/latestSources.ts` chứa selector thuần `chooseLatestSources`, `hasTrustedSourceDate`, `dateFromReportTitle`; `applyLatestSources` trong sessions kiểm tra lại preview trước khi rebind. NOV_FIX_05 kiểm thử ngày, phạm vi, SHA, nguồn mẫu, nguồn không hợp lệ và cô lập phiên.
+
+`registerDatasetInWorkspace` giữ bản đã xác nhận với cùng SHA/profile/mapping/sheet, giữ thời điểm nhập đầu; UI import dùng dataset trả về. Xác nhận ngày cập nhật kỳ dạng ngày và provenance, kể cả summary records. Không xem đổi ngày thủ công là file mới.
+
+### Source Schema Guard và corpus
+
+`src/core/sourceValidation.ts`: validateDisbHeaders, resolveGroupedGpmbHeaders, resolveFlatGpmbHeaders, attachSourceValidation, sourceMappingProblem, assessSourceHistory, confirmSourceValidation. Importer REV dùng semantic headers; GPMB group remap toàn bộ provenance; DISB semantic group resolver + remapped profiles. `latestSources` và `evaluateActiveContext` chặn nguồn chưa guard/xác minh. `sessions` tái đánh giá lịch sử khi ngày chốt đổi. Corpus test chạy theo SOURCE_CORPUS.json và verify_reference_files.py. Không đưa sample mới vào tools/build.mjs; chỉ thêm mẫu nguồn gốc đúng phạm vi chủ dự án cho phép, kể cả repo Public đã xác nhận, qua corpus. Chi tiết MASTER mục 6–7.
+
+`resolveDisbLayout` xác định cột/dòng và profile; `remapDisbProfile`, `getDisbDatasetProfile`, `formatDisbDatasetRange` bảo toàn provenance. `resolveRevenueHeader` nhận STT/địa phương và tiêu đề nhóm tỷ lệ. Importer không auto chọn loại nguồn khi có nhiều loại hợp lệ; dùng ô nguồn cụ thể. Xem MASTER mục 8.

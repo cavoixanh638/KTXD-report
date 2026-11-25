@@ -110,3 +110,21 @@ Khi người dùng nhấn `In / Lưu PDF` hoặc ấn `Ctrl + P`, mã CSS in ấ
   - Cột đầu tiên (Nội dung chỉ tiêu) tự động co giãn tỷ lệ hợp lý, các cột địa phương phân bổ đều nhau.
   - Đường kẻ bảng `border: 1px solid #000000` sắc nét trên bản in thật và bản PDF xuất ra.
 - **Tùy chọn ngắt Trang 2:** Khi bật tùy chọn *Ngắt danh sách dự án sang Trang 2*, hệ thống tự động chèn thuộc tính `page-break-before: always` trước Dòng 8 và 9, giúp bản in 2 trang vô cùng ngăn nắp và sạch sẽ.
+
+## Điều chỉnh bố cục 24/11/2026
+
+A4 ngang tối đa 11 cột địa phương/cụm, co bề rộng tự động; 1 địa phương dùng ô thường. Ba dòng tỷ lệ chung REV/DISB/GPMB gộp toàn bộ cột địa phương trong nhóm và căn giữa; Studio dọc gộp các hàng địa phương trong nhóm. Nhãn chỉ tiêu, STT và các dòng số liệu cá thể giữ nguyên. Ô gộp vẫn mở inspector theo trace chung. Bỏ đoạn ghi chú nguồn cuối bảng ở mọi đầu ra bảng chính; thông tin nguồn chuyển sang khối quản lý nguồn và sheet/phụ lục kiểm toán riêng. Dòng thực thu NSNN tùy chọn đặt sau dự toán, STT tự tính; không thay đổi template cũ.
+
+### Tên chỉ tiêu chuẩn (24/11/2026)
+
+Tuân thủ bảng bảy nhãn mới trong MASTER. Dùng `từng địa phương` thay vì `từng xã` cho bốn chỉ tiêu cá thể; ba benchmark dùng `trung bình của 114 địa phương` trên bảng chính, ghi đủ độ phủ thực trong kiểm toán. Ngày chốt tự động; giữ ô gộp REV/DISB/GPMB, không thêm footer nguồn. Chỉ tăng cỡ chữ giá trị của ba tỷ lệ trung bình REV/DISB/GPMB: Studio/grid và bản in/PDF dùng `1.1em` (tăng 10% so với số liệu thông thường), Excel dùng 11 pt thay vì 10 pt, định dạng phần trăm và căn giữa giữ nguyên. Không tăng cỡ chữ nhãn chỉ tiêu hoặc giá trị của từng địa phương; gộp cả ba benchmark REV/DISB/GPMB. Nhãn mặc định cũ theo độ phủ được tự chuyển sang mẫu 114; giữ tên riêng của người dùng.
+
+### Nạp 3 file mới nhất
+
+Nút liên kết Khối 1 và empty state mở modal cùng style `proj-modal-dialog`. Mỗi nhóm nguồn có card tên file/ngày chốt/độ phủ, DISB có phạm vi, mẫu và nhiều phiên bản cùng ngày có cảnh báo; nguồn loại nằm trong details. Nút Nạp 3 nguồn vô hiệu khi thiếu ứng viên; Cancel/Escape/đóng nền không thay phiên. Tạo phiên mới hiện lựa chọn LATEST kèm preview; ô xác nhận ngày dùng chung cho cả DISB/REV/GPMB, không điền ngày mẫu khi chưa xác minh.
+
+### Xác minh nguồn
+
+Khối 1 có details Kiểm tra cột hiển thị số cột có nội dung, ngày lịch sử, kết quả QA, mapping. Với NEEDS_REVIEW dùng hộp xác nhận native của trình duyệt chứa lý do và danh sách cột; không hiển thị mỗi lần nhập bình thường. Nguồn chưa xác minh/ngày chưa chốt không lập/xuất báo cáo; khi cần có nút Đối chiếu & xác nhận nguồn. Không tự gán cột theo số lượng hoặc tương quan. Wizard ánh xạ tùy ý vẫn PH2.
+
+Nhận diện nhiều loại nguồn trong cùng workbook: yêu cầu chọn ô nguồn cụ thể. DISB không dùng số cột cố định làm nhãn phạm vi; phân biệt tổng vốn và phân cấp/có vốn đầu năm. Giữ kiểm tra cột thu gọn khi bình thường.

@@ -10,7 +10,8 @@
 
 # Local outputs & AI agent skills workspace caches
 node_modules/
-dist/
+/dist/*
+!/dist/index.html
 coverage/
 .tmp/
 .cache/

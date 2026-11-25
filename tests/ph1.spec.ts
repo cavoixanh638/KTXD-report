@@ -772,7 +772,7 @@ describe('KTXH Offline Report — MASTER SPEC V2.2 Phase 1 Runtime Suite (T01–
       if (fs.existsSync(tmpXlsxPath)) fs.unlinkSync(tmpXlsxPath);
     }
 
-    // T18: Print HTML for 5 localities (1 chunk) and 20 localities (3 chunks on A4)
+    // T18: Print HTML for 5 localities (1 chunk) and 20 localities (2 chunks on A4 landscape)
     const print5 = generatePrintableReportHtml({
       evaluated: eval5,
       baselineLocalities,
@@ -797,7 +797,7 @@ describe('KTXH Offline Report — MASTER SPEC V2.2 Phase 1 Runtime Suite (T01–
       baselineLocalities,
       datasets: { DISB: disbDataset, REV: revDataset, GPMB: gpmbDataset },
     });
-    expect((print20.match(/class="print-page-chunk"/g) || []).length).toBe(3);
+    expect((print20.match(/class="print-page-chunk"/g) || []).length).toBe(2);
 
     // T23: XSS HTML escaping and Excel formula injection sanitization
     expect(sanitizeExcelText('=SUM(A1:A10)')).toBe("'=SUM(A1:A10)");

@@ -104,13 +104,12 @@ Mỗi phiên làm việc có thể sử dụng các file Excel hoàn toàn riên
 
 ### 6.2. Bật / Tắt các dòng chỉ tiêu linh hoạt
 Để tờ báo cáo ngắn gọn, vừa vặn với mục đích cuộc họp, bạn có thể tích chọn bật hoặc tắt các dòng:
-- **Dòng 2**: *Tổng số vốn đã phân bổ theo kế hoạch năm*.
-- **Dòng 3**: *Tổng số vốn giải ngân*.
-- **Dòng 8**: *Số dự án chưa hoàn thành công tác GPMB*.
-- **Dòng 9**: *Danh sách các dự án chưa hoàn thành công tác GPMB*.
+- **Kết quả thu NSNN (đến ngày …)**: mặc định ẩn; bật để hiện sau dự toán, STT 2, các STT tiếp theo tự dịch.
+- **Tỷ lệ thu NSNN trung bình**: bật nếu cần; ba tỷ lệ chung REV/DISB/GPMB gộp ô toàn bộ địa phương và hiển thị một lần mỗi nhóm.
+- **Số dự án chưa hoàn thành GPMB** và **Dự án NQ 11**: có thể ẩn/hiện; STT phụ thuộc dòng thu thực hiện.
 
 ### 6.3. Căn chỉnh thẩm mỹ trang in
-- **Độ rộng cột địa phương**: Điều chỉnh độ rộng cột (mặc định `88px`). Khi chọn ít xã, bạn có thể tăng độ rộng; khi chọn nhiều xã, có thể giảm để bảng không bị tràn lề.
+- **Độ rộng cột địa phương**: Khổ A4 ngang tự co tối đa 11 địa phương/cụm; nếu vượt giới hạn, dùng AUTO (dọc) hoặc chọn ngang để chia nhóm. Danh sách dự án dài có thể phát sinh trang theo chiều cao.
 - **Cỡ chữ chi tiết dự án (Dòng 9)**: Cho phép chuyển đổi giữa `10px` và `11px` để danh sách dự án hiển thị gọn gàng, đẹp mắt.
 - **Ngắt danh sách dự án sang Trang 2**: Khi danh sách dự án tại Dòng 9 quá dài, hãy tích chọn mục này. Hệ thống sẽ tự động chuyển toàn bộ Dòng 8 & 9 sang Trang 2 độc lập khi in hoặc xuất PDF, giữ cho Trang 1 nguyên vẹn 7 chỉ tiêu tài chính đầu tiên.
 
@@ -145,11 +144,11 @@ Mỗi phiên làm việc có thể sử dụng các file Excel hoàn toàn riên
 ### 8.2. Xuất bảng tính Excel (.xlsx) 5 Sheet Kiểm toán
 1. Nhấn nút **`Xuất Excel`** trên Topbar.
 2. Hệ thống sẽ tự động tạo và tải về file `.xlsx` gồm **5 sheet chuyên biệt**:
-   - **Sheet 1 (`BaoCaoKTXH`)**: Toàn bộ bảng báo cáo tổng hợp 14 dòng đúng như đang nhìn thấy trên màn hình.
-   - **Sheet 2 (`GiaiNgan_DISB`)**: Trích xuất chi tiết số liệu kế hoạch vốn và giải ngân từng xã.
-   - **Sheet 3 (`ThuNganSach_REV`)**: Trích xuất số liệu thu ngân sách nhà nước và tỷ lệ đạt kế hoạch.
-   - **Sheet 4 (`GiaiPhongMatBang_GPMB`)**: Danh mục dự án, diện tích bàn giao (I) và diện tích thu hồi (D).
-   - **Sheet 5 (`Trace_KiemToan`)**: Nhật ký đối soát toàn bộ công thức và vết tính toán của từng ô.
+   - **Sheet 1 (`Báo cáo`)**: Bảng chính theo tùy chọn hiển thị, gộp ba tỷ lệ chung, không có ghi chú nguồn cuối bảng.
+   - **Sheet 2 (`Nguồn thiếu & lý do`)**: Phạm vi nguồn, kỳ chốt, tên file, danh sách thiếu và lý do.
+   - **Sheet 3 (`Danh mục công thức`)**: Công thức, đơn vị, quy tắc tính.
+   - **Sheet 4 (`Nhật ký phép tính`)**: Trace và giá trị trước/sau tính, tử/mẫu, nguồn ô, kỳ.
+   - **Sheet 5 (`Bản ghi không tính`)**: Bản ghi loại trừ, cảnh báo và lý do.
 
 ---
 
@@ -161,3 +160,47 @@ Mỗi phiên làm việc có thể sử dụng các file Excel hoàn toàn riên
 | **Bảng bị tràn sang ngang khi in** | Số lượng xã chọn quá nhiều so với khổ giấy A4 | Điều chỉnh độ rộng cột ở Khối 3 xuống `75px` hoặc `80px` |
 | **Cảnh báo ngày chốt màu vàng ở Nguồn REV** | File thu ngân sách không ghi rõ ngày chốt số liệu tự động | Nhập ngày chốt thực tế (ví dụ: `19/10/2026`) vào ô cảnh báo và nhấn `Xác nhận ngày` |
 | **Tờ báo cáo bị thu nhỏ quá mức** | Sidebar bên trái đang chiếm chỗ | Nhấn nút `[|] Bật/tắt điều khiển` trên Topbar để đóng Sidebar |
+
+## Lưu ý khi chuyển sang dữ liệu tháng 11/2026
+
+Nhập lại file giải ngân 22/11 và thu NSNN 23/11 trong đúng phiên, kiểm tra độ phủ và ngày chốt ở Khối 1. Dữ liệu đã nhập bằng bộ ánh xạ cũ có thể sai tỷ lệ thu đất/không đất hoặc thiếu 5 địa phương; không chỉnh tay tỷ lệ để bù lỗi nguồn. Khi cần giải trình, bấm vào ô số liệu hoặc mở các sheet kiểm toán; không còn ghi chú nguồn cuối bảng chính.
+
+### Tên bảy chỉ tiêu hiện hành
+
+| Mã chỉ tiêu | Nhãn chuẩn trên bảng chính (114 địa phương) |
+|---|---|
+| `REV_BENCHMARK_RATE` | Tỷ lệ thu NSNN trung bình của 114 địa phương (đến ngày 23/11/2026) |
+| `REV_RATE_Y` | Tỷ lệ thu NSNN của từng địa phương so với dự toán |
+| `DISB_PLAN` | Kế hoạch vốn đầu tư công của từng địa phương sau điều chỉnh, bổ sung |
+| `DISB_BENCHMARK_RATE` | Tỷ lệ giải ngân trung bình của 114 địa phương (đến ngày 22/11/2026) |
+| `GPMB_BUDGET` | Kinh phí phân bổ GPMB cho từng địa phương |
+| `GPMB_AREA_PLAN` | Diện tích phải GPMB của từng địa phương |
+| `GPMB_BENCHMARK_AREA_RATE` | Tỷ lệ GPMB trung bình của 114 địa phương (đến ngày 24/11/2026) |
+
+Ngày chốt là dữ liệu động theo nguồn của phiên, không cố định các ngày minh họa. Theo yêu cầu trình bày mới nhất của chủ dự án, cả ba nhãn benchmark mặc định ghi cố định `trung bình của 114 địa phương`, không ghi `113/114 địa phương có dữ liệu` hoặc `108/114 địa phương có dữ liệu` trên bảng chính. Đây là tên quy ước của chỉ tiêu trên báo cáo, không phải xác nhận nguồn đủ dữ liệu; độ phủ thực tế, tên đơn vị thiếu, phạm vi tính toán và cảnh báo vẫn lưu đầy đủ trong quản lý nguồn, CalculationTrace và các sheet kiểm toán. Phương pháp vẫn tổng/tổng, không AVERAGE tỷ lệ; mọi cảnh báo chất lượng và trace vẫn giữ nguyên. Khi bật REV_BENCHMARK_RATE, REV_RATE_Y là dòng con không lặp ngày; khi không bật, dòng tỷ lệ từng địa phương giữ ngày chốt như trước. Chỉ di chuyển các tên mặc định/nhãn cũ đã nhận diện; bảo toàn nhãn riêng do người dùng đặt.
+
+Sau khi pull và build, mở lại phiên cũ để tên mặc định tự chuyển sang mẫu mới; không cần tạo phiên lại. Nếu đã tự đặt tên khác, tên riêng vẫn được giữ.
+
+Chỉ tăng cỡ chữ giá trị của ba tỷ lệ trung bình REV/DISB/GPMB: Studio/grid và bản in/PDF dùng `1.1em` (tăng 10% so với số liệu thông thường), Excel dùng 11 pt thay vì 10 pt, định dạng phần trăm và căn giữa giữ nguyên. Không tăng cỡ chữ nhãn chỉ tiêu hoặc giá trị của từng địa phương; gộp cả ba benchmark REV/DISB/GPMB. Nhãn mặc định cũ theo độ phủ được tự chuyển sang mẫu 114; giữ tên riêng của người dùng.
+
+## Cập nhật ứng dụng không cần npm
+
+Trong GitHub Desktop chọn nhánh phân phối `ai/november-source-report-fix-20261124`, chọn Fetch origin → Pull origin sau khi CI hoàn tất, sau đó mở lại `dist/index.html` trong đúng thư mục cũ. Clone mới cũng đã có file này; không cần cài Node.js hoặc chạy lệnh. Nếu chưa thấy file, kiểm tra commit build mới nhất trên GitHub. Không đổi đường dẫn thư mục đang sử dụng nếu muốn giữ phiên cũ trong bộ nhớ trình duyệt.
+
+Ba chỉ tiêu tỷ lệ trung bình REV/DISB/GPMB đều gộp toàn bộ cột địa phương trong mỗi nhóm/trang ngang, gộp hàng trong Studio dọc và merge ô giá trị trong Excel. Mỗi nhóm/trang chỉ hiển thị một kết quả, căn giữa; giữ cỡ chữ lớn hơn 10% (Excel 11 pt), trace chung, công thức và phạm vi nguồn. Không gộp chỉ tiêu riêng từng địa phương.
+
+**Nhãn kinh phí GPMB:** Phiên đã lưu nhãn mặc định “Kinh phí phân bổ GPMB cho từng phường” hoặc “Kinh phí phân bổ GPMB cho từng xã” tự chuyển thành “Kinh phí phân bổ GPMB cho từng địa phương” trên bảng và bản xuất; không cần tạo lại phiên.
+
+## Nạp 3 file mới nhất
+
+Nút Nạp 3 file mới nhất chọn độc lập DISB/REV/GPMB trong kho dataset của workspace theo ngày chốt hợp lệ đã xác nhận; không quét ổ đĩa. DISB giữ phạm vi tổng vốn hoặc phân cấp của phiên hiện tại; nếu chưa có DISB mặc định tổng vốn. Loại nguồn sai mapping, ngày chưa xác minh, lỗi BLOCKER hoặc ERROR trường tính chính; không loại chỉ vì thiếu vài địa phương. Ưu tiên nguồn thực tế; chỉ dùng mẫu SHA gốc nếu chưa có nguồn thực tế tương thích. Cùng ngày và chưa có metadata phiên bản chính thức, chọn nội dung khác SHA được nhập lần đầu gần nhất, cảnh báo nhiều bản; nhập lại cùng SHA không làm mới thứ hạng. Cùng SHA có ngày chốt xác nhận mâu thuẫn thì không tự chọn. Tên file không quyết định ngày chốt. Preview tên file, ngày, độ phủ, phạm vi, nguồn mẫu/cảnh báo; chỉ nạp khi đủ ba nguồn và người dùng xác nhận. Không thay dữ liệu các phiên khác. Tạo phiên mới có tùy chọn 3 nguồn mới nhất; không thay đổi mặc định dùng nguồn phiên đang mở. Ngày chốt DISB/GPMB không còn fallback tháng 10/tên file; nguồn cũ có bằng chứng A1 không đủ phải xác nhận tại Khối 1. Không tự suy ngày từ hạn dự án CSV.
+
+Nếu thiếu nguồn đủ điều kiện, chọn từng file ở Khối 1 và xác nhận ngày chốt rồi bấm lại nút. Nếu nhiều bản cùng ngày, đối chiếu tên file và chọn thủ công bản chính thức khi cần.
+
+Nhập lại đúng một file đã xác nhận ngày chốt và cùng mapping không làm mất ngày chốt hoặc tăng thứ hạng; nếu muốn sửa ngày thì dùng nút Lưu ngày của riêng phiên.
+
+## Kiểm tra dữ liệu nguồn
+
+Mỗi lần nhập Excel hệ thống tự kiểm tra tiêu đề, cột, đơn vị, các quan hệ số liệu và lịch sử đã xác minh. Xem 'Kiểm tra cột' trong Khối 1 để xem số cột, ánh xạ và cảnh báo. Nếu hộp xác minh hiện ra, kiểm tra tên/cột/đơn vị trong Excel gốc, chỉ OK khi thực sự đúng; Hủy giữ nguyên nguồn cũ. Khi đổi/xác nhận ngày chốt có thể xuất hiện nút 'Đối chiếu & xác nhận nguồn'. Nguồn cũ chưa guard cần nạp lại đúng Excel gốc một lần, các phiên và dữ liệu cũ vẫn lưu. Nếu DISB có cấu trúc chưa được hỗ trợ, gửi file mới để bổ sung profile, không ép app dùng cột cũ. Không dùng % chênh lệch giữa kỳ. App không tự gửi file từ máy lên repo. Repo Public đã được chủ dự án xác nhận; chỉ lưu mẫu gốc thuộc phạm vi được cho phép và cung cấp được byte gốc.
+
+Cả 3 nguồn tự nhận diện cột đã dịch nếu tiêu đề và nhóm rõ nghĩa; đặc biệt DISB không còn bắt buộc số cột cố định. Nếu workbook chứa nhiều loại nguồn, hãy chọn đúng ô nguồn tại Khối 1. Nếu đơn vị bị khai báo mâu thuẫn hoặc bố cục không thể xác minh, app giữ nguồn cũ. Không cần thêm thao tác khi kiểm tra tự động đạt.

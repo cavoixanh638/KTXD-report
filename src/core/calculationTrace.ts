@@ -12,8 +12,8 @@ import {
   CalculationTrace,
   CoverageDetail,
   Dataset,
-  formatDisbRange,
-  getDisbSchemaProfile,
+  formatDisbDatasetRange,
+  getDisbDatasetProfile,
   Locality,
   MetricCellValue,
   QualityIssue,
@@ -27,6 +27,10 @@ import {
 import {
   DEFAULT_INDICATORS,
   formatRevBenchmarkRowLabel,
+  formatBenchmarkReportLabel,
+  normalizeLocalityReportLabel,
+  formatRevRealizedRowLabel,
+  reportMainStt,
   IndicatorDefinition,
 } from './indicators';
 import { getUncompletedProjectsForSession } from './uncompletedProjects';
@@ -751,9 +755,9 @@ export function computeDisbPlanPerUnitBenchmark(
     moneyUnit === 'billion' ? millionToBillion(avgMillion) : avgMillion;
   const unitText = moneyUnit === 'billion' ? 'tỷ đồng' : 'triệu đồng';
   const displayedText = `${formatVnNumber(avgDisplay, decimals)} ${unitText}`;
-  const disbProfile = getDisbSchemaProfile(disbDataset.schemaFingerprint);
+  const disbProfile = getDisbDatasetProfile(disbDataset);
   const planCol = disbProfile.planCol;
-  const planRange = formatDisbRange(planCol, disbProfile, count);
+  const planRange = formatDisbDatasetRange(disbDataset,'adjusted_total_plan');
 
   const trace: CalculationTrace = {
     traceId: `TRACE_BM_DISB_PLAN_PER_UNIT_${disbDataset.id}`,
@@ -1115,6 +1119,29 @@ export function evaluateLocalityIndicator(params: {
       };
     }
 
+    // Do not turn a blank/error numerator or denominator into numeric zero.
+    const requiredFields = [indicator.numeratorField,indicator.denominatorField].filter((x):x is string=>Boolean(x));
+    const invalidField = requiredFields.find(field=>{
+      const m=rec.metrics[field];
+      return !m || (m.state!=='VALUE'&&m.state!=='ZERO') || m.normalizedDecimal===null;
+    });
+    if (invalidField && rec.metrics[invalidField]) {
+      const bad=rec.metrics[invalidField];
+      const sourceTrace=buildSourceValueTrace(rev,rec,invalidField);
+      const qualityStatus:CalculationQuality=bad.state==='FORMULA_ERROR'||bad.state==='INVALID'?'SOURCE_ERROR':'INSUFFICIENT_COMPONENTS';
+      const displayedText=bad.state==='FORMULA_ERROR'?'Lỗi công thức nguồn':'Chưa có số liệu';
+      const traceId='TRACE_'+indicator.id+'_'+locality.id+'_'+rev.id+'_INVALID_INPUT';
+      const trace:CalculationTrace={
+        ...sourceTrace, traceId,indicatorId:indicator.id,
+        resultKind:'CALCULATED',
+        result:{...sourceTrace.result,exactDecimal:null,displayedText,state:bad.state},
+        formula:{...sourceTrace.formula,formulaId:indicator.id,readableExpression:'Không tính: trường '+invalidField+' chưa có giá trị hợp lệ',method:'INVALID_OR_MISSING_INPUT'},
+        population:{...sourceTrace.population,includedCount:0,excludedCount:1,includedRecordIds:[],excludedRecordIds:[rec.id]},
+        exclusions:[{recordId:rec.id,affectedOperand:invalidField,reasonCode:bad.state==='FORMULA_ERROR'?'FORMULA_ERROR':'MISSING_INPUT',explanation:'Không chuyển giá trị thiếu/lỗi thành 0.',sourceCell:bad.provenance.cell,sourceValue:bad.raw==null?null:String(bad.raw)}],
+        quality:{status:qualityStatus,warningIds:[]},
+      };
+      return {traceId,indicatorId:indicator.id,localityId:locality.id,localityName:locality.canonicalNameNFC,exactDecimal:null,numericValueForExcel:null,excelFormatType:'TEXT',displayedText,unitLabel:'',state:bad.state,qualityStatus,hasWarning:true,warningCount:1,trace};
+    }
     // Direct money indicator (REV_BUDGET_Y, REV_REALIZED)
     if (indicator.aggregationPolicy === 'DIRECT_UNIT_CONVERSION' && indicator.numeratorField) {
       const mCell = rec.metrics[indicator.numeratorField];
@@ -1658,11 +1685,7 @@ export function evaluateLocalityIndicator(params: {
           expressionTree: {
             op: 'COMPARE',
             lhs: fRef.address,
-            rhs: `SUM(${formatDisbRange(
-              getDisbSchemaProfile(disb.schemaFingerprint).planCol,
-              getDisbSchemaProfile(disb.schemaFingerprint),
-              114
-            )})/114`,
+            rhs: `SUM(${formatDisbDatasetRange(disb,'adjusted_total_plan')})/114`,
           },
           method: 'COMPARISON_RULE',
           roundingPolicy: 'EXACT_DECIMAL_BEFORE_COMPARE',
@@ -1756,7 +1779,7 @@ export function evaluateLocalityIndicator(params: {
       const pct = ratio.mul(100);
       const displayedText = formatVnPercent(pct, decPct);
       const traceId = `TRACE_DISB_RATE_${locality.id}_${disb.id}`;
-      const disbProfile = getDisbSchemaProfile(disb.schemaFingerprint);
+      const disbProfile = getDisbDatasetProfile(disb);
       const ratioSymbol = `${disbProfile.disbCol}/${disbProfile.planCol}`;
 
       const trace: CalculationTrace = {
@@ -1841,7 +1864,7 @@ export function evaluateLocalityIndicator(params: {
         quality: {
           status: 'COMPLETE',
           warningIds: rec.officialNote
-            ? [`NOTE_${getDisbSchemaProfile(disb.schemaFingerprint).noteCol}${rec.sourceRow}`]
+            ? [`NOTE_${getDisbDatasetProfile(disb).noteCol}${rec.sourceRow}`]
             : [],
         },
         sourceRefs: [iRef, fRef],
@@ -2359,7 +2382,7 @@ export function evaluateLocalityIndicator(params: {
 
       const groupSummaryProvenance = gpmb.localityGroupSummaries?.[locality.id];
       const provenanceNote = groupSummaryProvenance
-        ? ` (Lưu ý provenance nguồn: dòng tổng địa bàn M${groupSummaryProvenance.row} trong Excel gốc ghi ${groupSummaryProvenance.rawM}% theo công thức ${groupSummaryProvenance.formulaM || 'cũ'}, KHÔNG dùng để tính hay hiển thị báo cáo theo R06)`
+        ? ` (Lưu ý provenance nguồn: dòng tổng địa bàn ${groupSummaryProvenance.columnM||'M'}${groupSummaryProvenance.row} trong Excel gốc ghi ${groupSummaryProvenance.rawM}% theo công thức ${groupSummaryProvenance.formulaM || 'cũ'}, KHÔNG dùng để tính hay hiển thị báo cáo theo R06)`
         : '';
 
       const traceId = `TRACE_${indicator.id}_${locality.id}_${gpmb.id}`;
@@ -2949,7 +2972,18 @@ export function evaluateSessionReport(params: {
     })
     .sort((a, b) => a.order - b.order);
 
-  let evalRowConfigs: TemplateRowCustomConfig[] = sortedTemplateRows.map((r) => ({ ...r }));
+  let evalRowConfigs: TemplateRowCustomConfig[] = sortedTemplateRows.map((r) => {
+    let customLabel = normalizeLocalityReportLabel(r.indicatorId, r.customLabel);
+    if (r.indicatorId === 'DISB_BENCHMARK_RATE' || r.indicatorId === 'GPMB_BENCHMARK_AREA_RATE') {
+      const ds = r.indicatorId === 'DISB_BENCHMARK_RATE' ? datasets.DISB : datasets.GPMB;
+      customLabel = formatBenchmarkReportLabel({
+        indicatorId: r.indicatorId, customLabel,
+        unitCount: ds?.unitCount, expectedCount: baselineLocalities.length || 114,
+        asOfDate: ds?.asOfDate,
+      });
+    }
+    return { ...r, customLabel };
+  });
   if (
     session.settings.showRevBenchmarkRow &&
     datasets.REV &&
@@ -2989,6 +3023,18 @@ export function evaluateSessionReport(params: {
     } else {
       evalRowConfigs.unshift(revBmConfig);
     }
+  }
+
+  if (session.settings.showRevRealizedRow) {
+    evalRowConfigs=evalRowConfigs.filter(r=>r.indicatorId!=='REV_REALIZED').map(r=>({...r,sttLabel:reportMainStt(session,r.sttLabel)}));
+    const realized:TemplateRowCustomConfig={
+      rowNumber:31,indicatorId:'REV_REALIZED',sttLabel:'2',
+      customLabel:formatRevRealizedRowLabel({customLabel:session.settings.revRealizedRowCustomLabel,asOfDate:datasets.REV?.asOfDate}),
+      groupName:'I. Thu ngân sách nhà nước',visible:true,order:1.25,
+    };
+    const budgetIndex=evalRowConfigs.findIndex(r=>r.indicatorId==='REV_BUDGET_Y');
+    const rateIndex=evalRowConfigs.findIndex(r=>r.indicatorId==='REV_BENCHMARK_RATE'||r.indicatorId==='REV_RATE_Y');
+    evalRowConfigs.splice(budgetIndex>=0?budgetIndex+1:Math.max(0,rateIndex),0,realized);
   }
 
   const rows: EvaluatedReportRow[] = [];

@@ -2,7 +2,7 @@
 """Read-only verification of selected numeric acceptance fixtures for MASTER V2.2 (facts unchanged from V2).
 
 Usage: python tools/verify_final_spec_baseline.py --disb file.xlsx --rev file.xlsx --gpmb file.xlsx
-No workbook is edited. Only the four user-authorized reference XLSX files are committed to the Private repo; do not add others.
+No workbook is edited. This historical baseline checks the four original reference XLSX files. Additional authorized regression samples are registered separately in SOURCE_CORPUS.json.
 """
 import argparse
 import hashlib

@@ -102,7 +102,7 @@ Theo quy định nghiêm ngặt tại **§14.2** và mã kiểm thử **`T66`** 
 - **Yêu cầu nghiêm ngặt:**
   - `T01`: Tỷ lệ giải ngân 114 địa phương bằng $10.434.921,777 / 15.550.923,159 = \mathbf{67,10\%}$. Không lấy con số 76,46% ở dòng tổng thành phố làm tỷ lệ chuẩn của 114 địa phương.
   - `T02`: Kế hoạch vốn bình quân một địa phương bằng $15.550.923,159 / 114 \approx \mathbf{136,41\text{ tỷ đồng}}$.
-  - `T03`: Tỷ lệ thu ngân sách 113 địa phương bằng $28.550.929,455 / 25.651.713 = \mathbf{111,30\%}$. Phải ghi nhãn rõ là mốc 113 địa phương, không gọi là mốc 114 địa phương vì thiếu Đặc khu Bạch Long Vĩ.
+  - `T03`: Tỷ lệ thu ngân sách 113 địa phương bằng $28.550.929,455 / 25.651.713 = \mathbf{111,30\%}$. Trace và kiểm toán phải ghi rõ phạm vi 113 địa phương, thiếu Đặc khu Bạch Long Vĩ; nhãn bảng chính ghi 114 theo quy ước mới.
   - `T04`: Tỷ lệ GPMB 108 địa bàn bằng $39.960.463,6 / 55.398.165 = \mathbf{72,13\%}$. Tuyệt đối không lấy bình quân tỷ lệ của các địa bàn.
   - `T05`: Xã Hồng Châu có tỷ lệ GPMB theo diện tích là $35.897 / 119.280 = \mathbf{30,09\%}$. Nghiêm cấm tạo hoặc cho phép người dùng chọn tỷ lệ bình quân cột M các dự án; không dùng giá trị M tổng xã trong nguồn để ghi đè.
   - `T06`: Tỷ lệ GPMB nhóm 11 xã mẫu đạt $\sim \mathbf{76,97\%}$. Đây là tỷ lệ của riêng nhóm được chọn, không đánh đồng với benchmark 108 địa bàn.
@@ -227,3 +227,28 @@ Mọi kết quả kiểm thử trong Cổng PH1 đều được đối soát bit
    `0853fe6c0e816a757e84ee857fa463777ceaa51410427845ba00870f7be543ee`
 4. `RESULT_REFERENCE` (`Phụ lục 14 xã.xlsx`):  
    `ec566eb0717df304fa36ea3be01b0b5e7d44fd276532057d29792031a0e10a62`
+
+## Các ca hồi quy PH1 bổ sung ngày 24/11/2026
+
+| ID | Kỳ vọng | Bằng chứng |
+|---|---|---|
+| NOV_FIX_01 | Compact DISB nhận đủ 114 dòng 8–121, F/I/M/N đúng vai trò, ngày 22/11, không áp cửa sổ legacy | tests/studio.spec.ts |
+| NOV_FIX_02 | REV có cột chèn vẫn nhận đúng I/S/X theo vai trò, reject duplicate; ngày 23/11; Kết quả thu NSNN mặc định ẩn, STT đồng bộ, 11 cột A4 | tests/studio.spec.ts |
+| NOV_FIX_03 | 1/9/11/12 địa phương: gộp chính xác ba benchmark REV/DISB/GPMB mỗi nhóm ngang; rowspan dọc Studio, Excel merge đúng và 1 giá trị numeric; không còn footer nguồn trên báo cáo, sheet audit/trace còn | tests/studio.spec.ts |
+| NOV_FIX_04 | Bảy nhãn chuẩn; migration phiên cũ gồm nhãn 113/114, 108/114 và cả hai nhãn GPMB_BUDGET `cho từng xã` / `cho từng phường` sang `cho từng địa phương`; ngày chốt động, ba nhãn mặc định cố định 114 dù thiếu nguồn, độ phủ thật còn ở sheet kiểm toán; bảo toàn nhãn riêng; đồng nhất Studio/PDF/XLSX; ba benchmark có class phóng chữ 1.1em và style phần trăm Excel 11 pt, không đổi số liệu; cả ba benchmark gộp ô. Fixture độ phủ 114 chỉ mô phỏng nhãn | tests/studio.spec.ts |
+
+T01–T66 là baseline lịch sử, không dùng kết quả cũ để kết luận PASS cho SHA mới. Kiểm tra PDF/Excel trên Windows bằng dữ liệu thực người dùng nhập; không commit workbook mới.
+
+- Gate phân phối: CI xác minh nguồn, typecheck/build/test, kiểm tra `dist/index.html` không rỗng và SHA-256, upload artifact, commit riêng HTML đã kiểm thử nếu thay đổi; HEAD nhánh phải thực sự chứa `dist/index.html` mới trước khi xác nhận người dùng chỉ cần pull. Không coi upload artifact là đã có file trong repo.
+
+- NOV_FIX_05: chọn cutoff mới nhất thay vì nhập cuối; giữ phạm vi DISB; loại mapping sai/ngày chưa xác nhận; xử lý bản sửa cùng ngày, nhập lại SHA, ngày mâu thuẫn; fallback mẫu có điều kiện; preview đủ ba nguồn; chỉ đổi phiên mục tiêu; CSV GPMB thiếu ngày phải xác nhận.
+
+- NOV_FIX_05 bổ sung: nhập lại cùng nội dung đã xác nhận với parser không biết ngày phải giữ dataset/ngày/first-import; ngày 30/02 bị từ chối và xác nhận ngày hợp lệ đồng bộ periodEnd/periodLabel.
+
+- NOV_FIX_06: biến thể từ workbook DISB/GPMB gốc: thêm cột giữa có số, đảo cột, thêm cột không liên quan, GPMB thiếu/trùng tiêu đề, dịch dòng tiêu đề, tăng STT 423; DISB remap nhóm rõ nghĩa/chèn cột/đảo thành phần, reject khi phá nhóm; GPMB remap giá trị và provenance đúng, GPMB phẳng chèn/trùng/thiếu cột, đơn vị ha hoặc tỷ đồng không khớp chặn.
+- NOV_FIX_07: lịch sử cùng năm/phạm vi, thay đổi lớn nhưng giữ thứ hạng không báo sai chỉ vì giá trị tăng, đảo phân bố được phát hiện, tái kiểm tra khi xác nhận ngày, nguồn chưa guard hoặc NEEDS_REVIEW không chọn latest cho đến khi xác minh.
+- tests/source-corpus.spec.ts: chạy 3 mẫu nguồn gốc, SHA, sheet, độ phủ, ngày chốt (REV là giả định test được ghi), expectedColumns và goldenSums đối chiếu độc lập; verify_reference_files.py kiểm chứng 4 workbook và mọi corpus bổ sung. Không coi workbook tháng 11 chưa cung cấp là đã chạy test.
+
+- NOV_FIX_01 mở rộng: compact DISB dịch toàn bộ cột kể cả STT, địa phương, ô tiêu đề; giữ 114 bản ghi, cutoff, note và số tiền; QA tỷ lệ đầu năm. Hai test DISB phân cấp V1/V2 dịch toàn bộ cột, giữ scope/giá trị. NOV_FIX_06 kiểm thử chèn giữa nhóm và đảo thành phần từ file DISB gốc; phá nhóm phải reject.
+- NOV_FIX_02 mở rộng: dịch cả cột định danh, số liệu, dòng tiêu đề và các cột AA+, phân biệt hai nhóm tỷ lệ, nhận ĐVT, chặn khai báo triệu đồng/tỷ đồng cùng lúc. NOV_FIX_05: reject metadata DISB layout/phạm vi mâu thuẫn. NOV_FIX_07: cảnh báo hệ số đổi đơn vị ở chỉ tiêu neo dù Spearman vẫn cao.
+- CI cuối 45645990437: 53/53 PASS, 4/4 workbook, 3/3 mẫu nguồn trong corpus; 5 file thực tế pending chưa được chạy.

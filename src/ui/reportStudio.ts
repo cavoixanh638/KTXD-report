@@ -8,6 +8,7 @@ import {
   UncompletedProject,
 } from '../core/uncompletedProjects';
 import { uiIcon } from './icons';
+import { reportMainStt, isSharedReportIndicator, isReportBenchmarkRate } from '../core/indicators';
 
 export function formatReportCellValue(
   cell: EvaluatedReportCell | undefined,
@@ -176,6 +177,21 @@ export interface LayoutDecision {
   pageCount: number;
 }
 
+/** Shared capacity/width policy for preview and printable report. */
+export function horizontalPageCapacity(session:ReportSession):number {
+  if (session.settings.paperSize==='A3') return session.settings.orientation==='portrait'?11:12;
+  return session.settings.orientation==='portrait'?7:11;
+}
+export function horizontalFit(session:ReportSession,count:number):{indicatorWidth:number;localityWidth:number} {
+  const a3=session.settings.paperSize==='A3', portrait=session.settings.orientation==='portrait';
+  const pageMm=a3?(portrait?297:420):(portrait?210:297);
+  const available=(pageMm-16)*96/25.4;
+  const n=Math.max(1,count);
+  const requested=session.settings.indicatorColumnWidthPx||240;
+  const indicatorWidth=Math.max(150,Math.floor(Math.min(requested,n>7?180:requested,available-30-n*64-3)));
+  const localityWidth=Math.max(40,Math.floor((available-30-indicatorWidth-3)/n));
+  return {indicatorWidth,localityWidth};
+}
 export function computeAutoLayoutMode(params: {
   session: ReportSession;
   selectedCount: number;
@@ -185,7 +201,7 @@ export function computeAutoLayoutMode(params: {
   const userPref = session.settings.tableLayoutMode || 'AUTO';
 
   if (userPref === 'HORIZONTAL') {
-    const maxCols = session.settings.paperSize === 'A3' ? 12 : 7;
+    const maxCols = horizontalPageCapacity(session);
     const pages = selectedCount === 0 ? 1 : Math.ceil(selectedCount / maxCols);
     return {
       mode: 'HORIZONTAL',
@@ -209,8 +225,8 @@ export function computeAutoLayoutMode(params: {
   }
 
   // AUTO Mode: Decision logic optimized for A4 Landscape
-  // If <= 7 localities, Horizontal layout fits on 1 single page without horizontal splitting
-  if (selectedCount <= 7) {
+  // For A4 landscape, fit up to 11 locality columns on one horizontal group.
+  if (selectedCount <= horizontalPageCapacity(session)) {
     const isSplit = Boolean(
       session.settings.splitRow8ToNewPage &&
         session.settings.showUncompletedSummaryRow !== false
@@ -227,10 +243,10 @@ export function computeAutoLayoutMode(params: {
     };
   }
 
-  // If > 7 localities:
+  // Above the horizontal capacity:
   // In vertical layout, each page fits ~18 locality rows with 14 indicator columns on A4 landscape.
   // This avoids wide horizontal splitting when tracking 8..25 localities.
-  if (selectedCount > 7 && selectedCount <= 35) {
+  if (selectedCount > horizontalPageCapacity(session) && selectedCount <= 35) {
     const pages = Math.ceil(selectedCount / 18);
     return {
       mode: 'VERTICAL',
@@ -375,9 +391,7 @@ function renderHorizontalPages(params: {
         })
       : null;
 
-  const indWidth = session.settings.indicatorColumnWidthPx || 240;
-
-  const maxCols = session.settings.paperSize === 'A3' ? 12 : 7;
+  const maxCols = horizontalPageCapacity(session);
   const chunks: Locality[][] = [];
   for (let i = 0; i < selectedLocalities.length; i += maxCols) {
     chunks.push(selectedLocalities.slice(i, i + maxCols));
@@ -386,9 +400,10 @@ function renderHorizontalPages(params: {
 
   return chunks
     .map((chunk, pageIdx) => {
+      const {indicatorWidth:indWidth,localityWidth}=horizontalFit(session,chunk.length);
       const headerColsHtml = chunk
         .map(
-          (loc) => `<th class="doc-th doc-th-locality"${session.settings.columnWidthPx ? ` style="width:${session.settings.columnWidthPx}px"` : ''}>
+          (loc) => `<th class="doc-th doc-th-locality" style="width:${localityWidth}px;max-width:${localityWidth}px">
             <div class="doc-loc-name">${escapeHtmlUi(loc.displayName)}</div>
           </th>`
         )
@@ -397,11 +412,13 @@ function renderHorizontalPages(params: {
       const displayRows = rows.filter((r) => r.indicator.id !== 'DISB_PLAN_VS_AVG_COMMENT');
       const bodyRowsHtml = displayRows
         .map((r) => {
-          const cellsHtml = chunk
+          const shared = isSharedReportIndicator(r.indicator.id);
+          const span = shared && chunk.length > 1 ? ` colspan="${chunk.length}"` : '';
+          const cellsHtml = (shared ? chunk.slice(0, 1) : chunk)
             .map((loc) => {
               const cell = r.cellsByLocalityId[loc.id];
               if (!cell) {
-                return `<td class="doc-td doc-cell-missing">Chưa có số liệu</td>`;
+                return `<td class="doc-td doc-cell-missing"${span}>Chưa có số liệu</td>`;
               }
               const isSelected = activeTraceId === cell.traceId;
               const formattedVal = formatReportCellValue(
@@ -415,7 +432,7 @@ function renderHorizontalPages(params: {
                 cell.state
               )} quality-${escapeHtmlUi(cell.qualityStatus)} ${cell.hasWarning ? 'has-warning' : ''} ${cell.officialNote ? 'has-note' : ''} ${
                 isSelected ? 'doc-cell-active' : ''
-              }" tabindex="0" role="button" data-trace-id="${escapeHtmlUi(
+              }"${span} tabindex="0" role="button" data-trace-id="${escapeHtmlUi(
                 cell.traceId
               )}" data-locality-id="${escapeHtmlUi(
                 loc.id
@@ -423,7 +440,7 @@ function renderHorizontalPages(params: {
                 r.indicator.id
               )}" title="Nhấn để xem cách tính chi tiết và nguồn số liệu">
                 <div class="cell-content">
-                  <span class="cell-val">${renderReportCellValueHtml(formattedVal)}</span>
+                  <span class="cell-val${isReportBenchmarkRate(r.indicator.id) ? ' report-benchmark-value' : ''}">${renderReportCellValueHtml(formattedVal)}</span>
                 </div>
               </td>`;
             })
@@ -460,7 +477,7 @@ function renderHorizontalPages(params: {
           .join('');
 
         const row8Html = `<tr class="doc-row doc-row-primary doc-row-uncompleted-count" data-row-type="uncompleted-count">
-          <td class="doc-td doc-td-stt" style="vertical-align: top;">8</td>
+          <td class="doc-td doc-td-stt" style="vertical-align: top;">${reportMainStt(session,'8')}</td>
           <td class="doc-td doc-td-indicator" style="width: ${indWidth}px; max-width: ${indWidth}px; vertical-align: top;">
             <div class="indicator-name-group">
               <span class="indicator-name-text" style="font-weight: 600;">${escapeHtmlUi(
@@ -530,7 +547,7 @@ function renderHorizontalPages(params: {
           .join('');
 
         nq11RowHtml = `<tr class="doc-row doc-row-primary doc-row-nq11" data-row-type="nq11">
-          <td class="doc-td doc-td-stt" style="vertical-align: top;">9</td>
+          <td class="doc-td doc-td-stt" style="vertical-align: top;">${reportMainStt(session,'9')}</td>
           <td class="doc-td doc-td-indicator" style="width: ${indWidth}px; max-width: ${indWidth}px; vertical-align: top;">
             <div class="indicator-name-group">
               <span class="indicator-name-text" style="font-weight: 600;">${escapeHtmlUi(
@@ -567,7 +584,7 @@ function renderHorizontalPages(params: {
           session,
           contentHtml: `
             <div class="table-responsive">
-              <table class="doc-table doc-table-horizontal">
+              <table class="doc-table doc-table-horizontal"${chunk.length>7?' data-fit-columns="dense"':''}>
                 <thead>
                   <tr>
                     <th class="doc-th doc-th-stt">STT</th>
@@ -595,7 +612,7 @@ function renderHorizontalPages(params: {
           session,
           contentHtml: `
             <div class="table-responsive">
-              <table class="doc-table doc-table-horizontal">
+              <table class="doc-table doc-table-horizontal"${chunk.length>7?' data-fit-columns="dense"':''}>
                 <thead>
                   <tr>
                     <th class="doc-th doc-th-stt">STT</th>
@@ -628,7 +645,7 @@ function renderHorizontalPages(params: {
         session,
         contentHtml: `
           <div class="table-responsive">
-            <table class="doc-table doc-table-horizontal">
+            <table class="doc-table doc-table-horizontal"${chunk.length>7?' data-fit-columns="dense"':''}>
               <thead>
                 <tr>
                   <th class="doc-th doc-th-stt">STT</th>
@@ -751,9 +768,12 @@ function renderVerticalPages(params: {
           const globalStt = (pageIdx * maxRowsPerPage) + locIdx + 1;
           const cellsHtml = displayRows
             .map((r) => {
+              const shared = isSharedReportIndicator(r.indicator.id);
+              if (shared && locIdx > 0) return '';
+              const span = shared && chunk.length > 1 ? ` rowspan="${chunk.length}"` : '';
               const cell = r.cellsByLocalityId[loc.id];
               if (!cell) {
-                return `<td class="doc-td doc-cell-missing">-</td>`;
+                return `<td class="doc-td doc-cell-missing"${span}>-</td>`;
               }
               const isSelected = activeTraceId === cell.traceId;
               const formattedVal = formatReportCellValue(
@@ -765,17 +785,17 @@ function renderVerticalPages(params: {
 
               return `<td class="doc-td doc-cell state-${escapeHtmlUi(
                 cell.state
-              )} quality-${escapeHtmlUi(cell.qualityStatus)} ${cell.hasWarning ? 'has-warning' : ''} ${cell.officialNote ? 'has-note' : ''} ${isSelected ? 'doc-cell-active' : ''}" tabindex="0" role="button" data-trace-id="${escapeHtmlUi(
+              )} quality-${escapeHtmlUi(cell.qualityStatus)} ${cell.hasWarning ? 'has-warning' : ''} ${cell.officialNote ? 'has-note' : ''} ${isSelected ? 'doc-cell-active' : ''}"${span} tabindex="0" role="button" data-trace-id="${escapeHtmlUi(
                 cell.traceId
               )}" data-locality-id="${escapeHtmlUi(
                 loc.id
               )}" data-indicator-id="${escapeHtmlUi(
                 r.indicator.id
-              )}" title="${escapeHtmlUi(loc.displayName)} — ${escapeHtmlUi(
+              )}" title="${escapeHtmlUi(shared ? 'Phạm vi chung của nguồn' : loc.displayName)} — ${escapeHtmlUi(
                 r.rowConfig.customLabel
               )}: ${escapeHtmlUi(formattedVal)}">
                 <div class="cell-content">
-                  <span class="cell-val">${renderReportCellValueHtml(formattedVal)}</span>
+                  <span class="cell-val${isReportBenchmarkRate(r.indicator.id) ? ' report-benchmark-value' : ''}">${renderReportCellValueHtml(formattedVal)}</span>
                 </div>
               </td>`;
             })

@@ -15,17 +15,17 @@
 | Dòng mẫu | Chỉ tiêu người dùng thấy (cho đổi tên) | Cách tạo từ nguồn, dạng dữ liệu | Quy tắc hiển thị |
 |---:|---|---|---|
 | 3 | Dự toán thu NSNN năm | REV C theo địa phương → tỷ đồng | Số, đơn vị tách khỏi giá trị |
-| 4 | Tỷ lệ thu NSNN so với dự toán | REV I/C × 100 | %; nếu C=0: không chia, giải trình |
+| 4 | Tỷ lệ thu NSNN của từng địa phương so với dự toán | REV I/C × 100 | %; nếu C=0: không chia, giải trình |
 | 5 | Trong đó: tỷ lệ thu tiền sử dụng đất | REV R/D × 100 | %; nếu D=0,R>0: phát sinh ngoài dự toán |
 | 6 | Tỷ lệ thu không gồm tiền đất | REV W/E × 100 | %; không tính trùng các sắc thuế chi tiết |
-| 7 | Kế hoạch vốn đầu tư công sau điều chỉnh | DISB F theo địa phương → tỷ đồng | Số |
+| 7 | Kế hoạch vốn đầu tư công của từng địa phương sau điều chỉnh, bổ sung | DISB F theo địa phương → tỷ đồng | Số |
 | 8 | So với mức vốn giao bình quân một địa phương | So F với `SUM(F của 114)/114` | Mốc tiền tuyệt đối, không AVERAGE tỷ lệ |
-| 9 | Tỷ lệ giải ngân chung của 114 địa phương | DISB `SUM(I13:I126)/SUM(F13:F126)` × 100 | 67,10% theo nguồn mẫu, không lấy 76% từ bảng gốc |
+| 9 | Tỷ lệ giải ngân trung bình của 114 địa phương (nhãn quy ước; phạm vi tính động) | DISB `SUM(I13:I126)/SUM(F13:F126)` × 100 | 67,10% theo nguồn mẫu, không lấy 76% từ bảng gốc |
 | 10 | Tỷ lệ giải ngân của địa phương | DISB I/F × 100 | %; chú thích Q/P nếu có |
 | 11 | Nhận xét tỷ lệ giải ngân | So dòng 10 với mốc dòng 9 theo ngưỡng cấu hình | Cảnh báo sai khác phương pháp/ngày, có lý do |
-| 12 | Kinh phí phân bổ GPMB | GPMB tổng G các dự án thuộc địa phương → tỷ đồng | Giữ nguyên tổng VND để tính |
-| 13 | Diện tích phải GPMB | GPMB tổng D các dự án thuộc địa phương → m² | Có thể chọn ha và định dạng |
-| 14 | Tỷ lệ GPMB của danh mục địa bàn có dữ liệu | GPMB `SUM(I dự án)/SUM(D dự án)` trên phạm vi nguồn hiện có | 72,13% trên 108 địa bàn, PARTIAL; **không ghi 70,8% của 114** |
+| 12 | Kinh phí phân bổ GPMB cho từng địa phương | GPMB tổng G các dự án thuộc địa phương → tỷ đồng | Giữ nguyên tổng VND để tính |
+| 13 | Diện tích phải GPMB của từng địa phương | GPMB tổng D các dự án thuộc địa phương → m² | Có thể chọn ha và định dạng |
+| 14 | Tỷ lệ GPMB trung bình của 114 địa phương (nhãn quy ước) | GPMB `SUM(I dự án)/SUM(D dự án)` trên phạm vi nguồn hiện có | 72,13% trên 108 địa bàn, PARTIAL; **không ghi 70,8% của 114** |
 | 15 | Tỷ lệ GPMB địa phương theo diện tích | GPMB `SUM(I dự án)/SUM(D dự án)` | **Phương pháp duy nhất được hiển thị**; không có lựa chọn bình quân tỷ lệ M |
 | 16 | Đánh giá GPMB | So dòng 15 với mốc hợp lệ và phù hợp | Nếu thiếu thành phần hoặc khác phạm vi/ngày: chưa đủ cơ sở, không tự kết luận |
 
@@ -85,3 +85,39 @@ Cho ẩn/hiện và thay thứ tự 14 dòng, tạo nhóm và sao chép/đổi n
 Bộ test gốc T01–T58 dùng lại, với T05/T35/T45 được sửa theo Master V2.2; các ca mới T59–T66 nằm ở Master. **Không tự công bố PH1 DONE** khi chỉ có giao diện hoặc số liệu copy từ bảng mẫu. Báo cáo nghiệm thu PH1 cần bảng đối chiếu 14 dòng, số liệu 5/7 địa phương, bằng chứng QA xuất và log runtime; các bài test đòi mapping động hay formula editor tự do chuyển kiểm ở PH2 và ghi rõ `DEFERRED_BY_SCOPE`, không ghi PASS giả. Mọi lỗi tính toán, thiếu nguồn, mốc sai phạm vi, trace thiếu, mất session, offline không chạy đều là `BLOCKER` của PH1.
 
 **Điều kiện chuyển PH2:** người dùng đã có sản phẩm theo mẫu và bằng chứng nghiệm thu PH1 trên commit SHA cụ thể; PH2 phát triển trên nền PH1, không dựng lại các phần đã PASS trừ khi thay đổi có ảnh hưởng và kiểm chứng hồi quy.
+
+## 24/11/2026 — Điều chỉnh PH1 đã chốt
+
+Tuân thủ mục **Cập nhật quy phạm PH1 ngày 24/11/2026** trong MASTER hiện hành. Không dùng mô tả R/W và dòng 13–126 của file tháng 10 làm mặc định cho file tháng 11. PH1 hỗ trợ REV nhận diện tiêu đề ngữ nghĩa, DISB_TOTAL_LOCALITY_V2, ngày chốt độc lập, dòng Kết quả thu NSNN tùy chọn mặc định ẩn/đánh lại STT, A4 ngang tối đa 11 địa phương/cụm, ô gộp ba benchmark REV/DISB/GPMB và bỏ footer nguồn bảng chính. Các sheet kiểm toán và trace vẫn bắt buộc. Các test NOV_FIX_01…03 bổ sung cho T01–T66; nghiệm thu theo SHA mới, không kế thừa PASS cũ. Mẫu 14 dòng là cơ sở, tùy chọn có thể tăng/giảm dòng hiển thị. Không triển khai PH2 trong đợt này.
+
+### Nhãn chỉ tiêu cập nhật 24/11/2026
+
+| Mã chỉ tiêu | Nhãn chuẩn trên bảng chính (114 địa phương) |
+|---|---|
+| `REV_BENCHMARK_RATE` | Tỷ lệ thu NSNN trung bình của 114 địa phương (đến ngày 23/11/2026) |
+| `REV_RATE_Y` | Tỷ lệ thu NSNN của từng địa phương so với dự toán |
+| `DISB_PLAN` | Kế hoạch vốn đầu tư công của từng địa phương sau điều chỉnh, bổ sung |
+| `DISB_BENCHMARK_RATE` | Tỷ lệ giải ngân trung bình của 114 địa phương (đến ngày 22/11/2026) |
+| `GPMB_BUDGET` | Kinh phí phân bổ GPMB cho từng địa phương |
+| `GPMB_AREA_PLAN` | Diện tích phải GPMB của từng địa phương |
+| `GPMB_BENCHMARK_AREA_RATE` | Tỷ lệ GPMB trung bình của 114 địa phương (đến ngày 24/11/2026) |
+
+Ngày chốt là dữ liệu động theo nguồn của phiên, không cố định các ngày minh họa. Theo yêu cầu trình bày mới nhất của chủ dự án, cả ba nhãn benchmark mặc định ghi cố định `trung bình của 114 địa phương`, không ghi `113/114 địa phương có dữ liệu` hoặc `108/114 địa phương có dữ liệu` trên bảng chính. Đây là tên quy ước của chỉ tiêu trên báo cáo, không phải xác nhận nguồn đủ dữ liệu; độ phủ thực tế, tên đơn vị thiếu, phạm vi tính toán và cảnh báo vẫn lưu đầy đủ trong quản lý nguồn, CalculationTrace và các sheet kiểm toán. Phương pháp vẫn tổng/tổng, không AVERAGE tỷ lệ; mọi cảnh báo chất lượng và trace vẫn giữ nguyên. Khi bật REV_BENCHMARK_RATE, REV_RATE_Y là dòng con không lặp ngày; khi không bật, dòng tỷ lệ từng địa phương giữ ngày chốt như trước. Chỉ di chuyển các tên mặc định/nhãn cũ đã nhận diện; bảo toàn nhãn riêng do người dùng đặt.
+
+Chỉ tăng cỡ chữ giá trị của ba tỷ lệ trung bình REV/DISB/GPMB: Studio/grid và bản in/PDF dùng `1.1em` (tăng 10% so với số liệu thông thường), Excel dùng 11 pt thay vì 10 pt, định dạng phần trăm và căn giữa giữ nguyên. Không tăng cỡ chữ nhãn chỉ tiêu hoặc giá trị của từng địa phương; gộp cả ba benchmark REV/DISB/GPMB. Nhãn mặc định cũ theo độ phủ được tự chuyển sang mẫu 114; giữ tên riêng của người dùng.
+
+### Bổ sung phân phối và gộp benchmark
+
+Ba chỉ tiêu tỷ lệ trung bình REV/DISB/GPMB đều gộp toàn bộ cột địa phương trong mỗi nhóm/trang ngang, gộp hàng trong Studio dọc và merge ô giá trị trong Excel. Mỗi nhóm/trang chỉ hiển thị một kết quả, căn giữa; giữ cỡ chữ lớn hơn 10% (Excel 11 pt), trace chung, công thức và phạm vi nguồn. Không gộp chỉ tiêu riêng từng địa phương.
+
+Bản chạy duy nhất `dist/index.html` được theo dõi trực tiếp trong Git; người dùng clone hoặc Fetch/Pull origin nhánh phân phối rồi mở file bằng Chrome/Edge, không cần cài Node.js, npm, chạy build hoặc mở server. GitHub Actions hiện có trên nhánh `ai/november-source-report-fix-20261124` (và `main` sau khi được merge) chạy xác minh 4 nguồn tham chiếu, typecheck, build, test và chỉ sau khi đạt mới commit riêng file HTML đã build bằng GITHUB_TOKEN. Không force-push; bot push không kích hoạt lại CI. Các nhánh khác chỉ phân phối sau khi được hợp nhất hoặc build có chủ đích. Không commit `node_modules`, các tệp nguồn người dùng nhập hay đầu ra khác. HTML chỉ nhúng ba workbook tham chiếu đã được cho phép; không đưa dữ liệu phiên cá nhân vào repo. Nếu CI thất bại hoặc push bị từ chối, chưa công bố bản mới là sẵn sàng. Bản build thủ công chỉ dành cho phát triển.
+
+### Bổ sung 25/11/2026: Nạp 3 file mới nhất
+
+Tuân thủ mục 5 MASTER: bộ chọn latest theo ngày chốt đáng tin, phạm vi DISB, SHA/thời điểm nhập lần đầu để phân định cùng ngày, fallback mẫu có điều kiện và preview xác nhận đủ ba nguồn. Không tự cập nhật các phiên khác; giữ ngày xác nhận khi nhập lại cùng nội dung/mapping. Bổ sung NOV_FIX_05.
+
+### Bổ sung PH1 — Source Schema Guard V1 và corpus nguồn
+
+Áp dụng MASTER mục 6–7. Đây là gate tính đúng dữ liệu của PH1, không chờ PH2; DISB/REV/GPMB remap theo tiêu đề và nhóm rõ nghĩa, bố cục không xác minh được bị từ chối, nguồn chưa xác minh không được lập/xuất báo cáo. NOV_FIX_06/07 + source-corpus.spec.ts. Lưu mẫu nguồn gốc được chủ dự án cung cấp theo manifest trên repo Public đã được xác nhận; không tự upload từ webapp offline.
+
+Bổ sung MASTER mục 8: DISB remap bốn profile; REV remap định danh, nhóm tỷ lệ; cảnh báo xung đột đơn vị và hệ số đổi đơn vị; test NOV_FIX_01/02/05/06/07 mở rộng. Chưa đưa 5 file pending vào corpus vì chưa có raw bytes.

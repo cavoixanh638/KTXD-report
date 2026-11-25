@@ -1,8 +1,8 @@
 # CHECKPOINT — WebApp KTXH Offline (MASTER V2.2)
 
-- **Ngày cập nhật:** 2026-11-14
+- **Ngày cập nhật:** 2026-11-24
 - **Repository:** `cavoixanh638/KTXD-report` (Private)
-- **Nhánh triển khai:** `gemini` (Dual-Pane Live Studio Phương án 5, cô lập nguồn dữ liệu theo từng phiên, tổ chức hệ thống tài liệu chuẩn hóa)
+- **Nhánh triển khai hiện tại:** `ai/november-source-report-fix-20261124` (kế thừa `gemini`; không merge main)
 - **Tài liệu có hiệu lực:** [`MASTER V2.2`](../specs/KTXH_OFFLINE_MASTER_SPEC_V2_2_CURRENT.md), [`PH1`](../plans/PHASE_1_RESULT_TEMPLATE.md), [`PH2`](../plans/PHASE_2_EXTENSIBILITY.md).
 - **Trạng thái tổng:** `MASTER_V2.2 / PH1_DOCUMENT_STUDIO_WYSIWYG_IMPLEMENTED / PH2_NOT_STARTED`.
 - **Hệ thống Tài liệu Mới:**
@@ -36,7 +36,7 @@
 ## KẾT QUẢ KIỂM THỬ RUNTIME (`T01`–`T66` & STUDIO SUITE)
 
 - **Lệnh kiểm thử:** `npm run typecheck; npm test; npm run build` (kèm kiểm chứng Edge Headless CDP trên `file:///.../dist/index.html`)
-- **Bộ kiểm thử runtime:** 3 test suites, **43/43 tests PASS** (`tests/ph1.spec.ts` 18 tests, `tests/studio.spec.ts` 24 tests, `tests/export-evidence.spec.ts` 1 test).
+- **Bộ kiểm thử runtime tại checkpoint 14/11 (lịch sử):** 3 test suites, **43/43 tests PASS** (`tests/ph1.spec.ts` 18 tests, `tests/studio.spec.ts` 24 tests, `tests/export-evidence.spec.ts` 1 test).
 - **Tinh chỉnh giao diện, tìm kiếm và công thức tính đã hoàn thiện:**
   1. Loại bỏ hoàn toàn khối cơ quan chủ quản (Sở KH&ĐT), quốc hiệu tiêu ngữ và dòng ngày chốt số liệu meta ở đầu trang báo cáo.
   2. Loại bỏ phụ đề và huy hiệu phiên ở đầu báo cáo; căn giữa tiêu đề chính `TÌNH HÌNH THỰC HIỆN MỘT SỐ CHỈ TIÊU KINH TẾ - XÃ HỘI CỦA CÁC ĐỊA PHƯƠNG`.
@@ -131,3 +131,73 @@
 | PH2-04 | Bộ mẫu mở rộng, chọn hiển thị nâng cao | `DEFERRED_BY_SCOPE (PH2)` |
 | PH2-05 | QC/trace nâng cao, kịch bản ghi chú Q có xác nhận tử/mẫu (`T49`) | `DEFERRED_BY_SCOPE (PH2)` |
 | PH2-06 | Xuất nâng cao, hồi quy tất cả T01–T66 100% PASS, nghiệm thu PH2 | `DEFERRED_BY_SCOPE (PH2)` |
+
+
+## 2026-11-24 — nhánh sửa yêu cầu báo cáo tháng 11 (tách từ `gemini`)
+
+- Người dùng phát hiện 109/114 địa phương và hai tỷ lệ thu đất/không đất sai vì ánh xạ cột mẫu tháng 10. Đã thêm nhận diện cấu trúc tổng hợp giải ngân tháng 11 và ánh xạ REV theo ngữ nghĩa tiêu đề; chặn schema không rõ thay vì suy đoán. Không commit hai workbook mới do chưa được phép; chỉ thêm fixture tổng hợp giả lập.
+- A4 ngang 11 địa phương, co cột có giới hạn, xuất/in cùng quy tắc; tùy chọn `showRevRealizedRow` mặc định tắt, dòng số 2 lấy thực thu lũy kế và đánh lại số thứ tự trên cả ba đầu ra. Dữ liệu cũ có nguy cơ phải nhập lại, không âm thầm sửa giá trị nguồn.
+- Bằng chứng kiểm thử nhánh trước chỉnh sửa ô gộp: SHA `2a4606ad652dc1b3c89514ed99fa209f096e4523`, [workflow 45323195268](https://github.com/cavoixanh638/KTXD-report/actions/runs/45323195268) SUCCESS. Không coi là PASS cho SHA mới.
+
+### 24/11/2026 — Cập nhật bảng và tài liệu hệ thống
+
+- Mã thay đổi: `b4288a96dcfb55e72e632d19bd9c56cea6cf7295`, nhánh `ai/november-source-report-fix-20261124`.
+- Files: src/core/indicators.ts, src/ui/reportStudio.ts, src/ui/reportGrid.ts, src/export/print.ts, src/export/xlsx.ts, tests/studio.spec.ts; đồng bộ MASTER, PH1, SOURCE_MAPPINGS, CALCULATION_RULES, DATA_DICTIONARY, TEST_CASES, hướng dẫn, design, manifest và AGENTS.
+- Gộp 2 benchmark REV/GPMB (colspan nhóm, rowspan Studio dọc, merge Excel). Bỏ footer nguồn trên bảng chính; sheet 2 giữ metadata phạm vi động, không xóa audit. Kiểm thử mới NOV_FIX_03.
+- [CI 45343442429](https://github.com/cavoixanh638/KTXD-report/actions/runs/45343442429): SUCCESS (job 138272250471): 4/4 workbook SHA/ZIP PASS, typecheck PASS, build PASS, 3/3 suites và 46/46 tests PASS, artifact dist/index.html đã được upload. Bằng chứng chỉ áp dụng SHA mã `b4288a96dcfb55e72e632d19bd9c56cea6cf7295`; commit tài liệu `278932808c8ab7d2acdb4212d30ed58a0823f798` không đổi runtime. Windows Chrome/Edge in thực tế: NOT_RUN. Không đổi dữ liệu tham chiếu/SHA workbook; không đưa tệp tháng 11 vào repo.
+- PH2 không bắt đầu; nghiệm thu chính thức PH1 vẫn cần chủ dự án kiểm tra.
+
+### 24/11/2026 — Chốt bảy tên chỉ tiêu và đồng bộ tài liệu
+
+- Nhánh `ai/november-source-report-fix-20261124`; SHA mã nguồn đã kiểm thử `ee22c0a29d997d4ccd6861bad7997ec845168d90`. Đổi tên bảy chỉ tiêu theo MASTER mục 3; migration phiên cũ, giữ nhãn tùy chỉnh, ngày và độ phủ động; không sửa công thức. Files runtime: indicators.ts, sessions.ts, calculationTrace.ts, main.ts, tests/studio.spec.ts.
+- [CI 45344789386](https://github.com/cavoixanh638/KTXD-report/actions/runs/45344789386), job 138276626023: **47/47 tests PASS**, 3/3 suites, typecheck/build PASS, 4/4 source workbooks SHA/ZIP PASS; artifact `KTXH-offline-November-fix` ID 14897019361 đã upload. NOV_FIX_04 kiểm thử nhãn và ba đầu ra, không xác nhận độ phủ của file tháng 11 thực tế (fixture metadata mô phỏng).
+- Đồng bộ MASTER/PH1, checksum manifest, từ điển, quy tắc tính, test cases, hướng dẫn, UI/UX, AGENTS và mục lục. Các checkpoint, review và bằng chứng cũ giữ nguyên tính lịch sử. Commit tài liệu nối tiếp SHA trên không thay đổi runtime; không kế thừa PASS cho thay đổi runtime về sau.
+- Windows Chrome/Edge in trực tiếp và nghiệm thu với workbook tháng 11 thực tế: NOT_RUN trong lần CI này. Không đổi/commit thêm workbook. PH2 chưa bắt đầu, chưa merge main.
+
+### Điều chỉnh trình bày tỷ lệ trung bình (yêu cầu tiếp theo của chủ dự án)
+
+- SHA runtime: `c29a056c815421cd02a56a2e5e3cebcc25e586c8`, nhánh `ai/november-source-report-fix-20261124`. Ba nhãn benchmark mặc định cố định 114 địa phương, ngày chốt động; migration tự sửa nhãn cũ theo độ phủ. Độ phủ thực tế vẫn lưu ở trace/nguồn/audit, không đổi công thức. Tăng cỡ chữ giá trị benchmark 10% (web, PDF), 11 pt (XLSX). Giữ nguyên ô gộp REV/GPMB và tiêu đề/cỡ chữ khác.
+- CI [45442571960](https://github.com/cavoixanh638/KTXD-report/actions/runs/45442571960): 47/47 tests PASS; 3/3 suites, typecheck/build PASS, 4/4 source workbooks PASS. Job 138617443634. Artifact 14943004728. NOV_FIX_04 đã được mở rộng để kiểm tra nhãn cố định, độ phủ audit, style font, các đầu ra. In thực tế Windows: NOT_RUN; workbook tháng 11 thực tế chưa nghiệm thu trong CI. Không merge main.
+
+### Bổ sung gộp DISB và bản phân phối chạy sẵn
+
+- Bổ sung `DISB_BENCHMARK_RATE` vào `isSharedReportIndicator` để cả ba tỷ lệ trung bình dùng ô gộp trên Studio/grid, bản in, XLSX; cập nhật NOV_FIX_03/04 cho 1/9/11/12 địa phương, dọc/ngang, giá trị và trace chung, font, audit.
+- Theo dõi duy nhất `dist/index.html` trong Git. CI hiện tại publish HTML sau kiểm thử; không tự tạo vòng lặp hoặc force-push. Đã kiểm chứng GitHub Actions publish thành công; xem bằng chứng tiếp theo. Windows thực tế NOT_RUN; không merge main.
+
+#### Bằng chứng 25/11/2026
+
+- SHA triển khai và kiểm thử: `25f27edf7aeda0acfb95c0751b33620a3dbdd740`; [CI 45584135248](https://github.com/cavoixanh638/KTXD-report/actions/runs/45584135248), job 139101284007: SUCCESS, 47/47 tests PASS, 3/3 suites, typecheck/build PASS, 4/4 workbook PASS.
+- GitHub Actions đã push commit `f8f2f98b215c161fe682962650437983c6b6deb4` chỉ chứa `dist/index.html`; kiểm chứng file tồn tại trong tree, kích thước 2.295.061 byte, Git blob `12c1a67a7c6f4d84d0442dad5c1e775850258a11`, SHA-256 từ build log `1689d28108f231a1cab4f15ed8119cfca7bc417a9ba6ae1ed0a10fdbdb845c6b`. Artifact 15007133001. Không cần npm khi clone/pull nhánh phân phối. Chỉ commit tài liệu sau bản chạy không thay đổi runtime.
+- Trạng thái: CI_PASS_OFFLINE_BUNDLE_PUBLISHED; Windows/Edge in trực tiếp và nghiệm thu dữ liệu tháng 11 của người dùng NOT_RUN. Chưa merge main. Nếu người dùng có bản HTML local bị sửa, sao lưu rồi bỏ thay đổi local riêng tệp đó trước khi pull; không xóa hồ sơ phiên hoặc workbook cá nhân.
+
+### Chuẩn hóa nhãn kinh phí GPMB của phiên cũ
+
+- Nhãn chuẩn đã có trong MASTER và template. Bổ sung alias chính xác `Kinh phí phân bổ GPMB cho từng phường` trong `normalizeLocalityReportLabel` cho GPMB_BUDGET, không thay đổi phép tính hoặc dữ liệu. Kiểm thử NOV_FIX_04 mở rộng kiểm tra nhãn phiên cũ và ba đầu ra; giữ nhãn tùy chỉnh khác.
+- CI [45586482726](https://github.com/cavoixanh638/KTXD-report/actions/runs/45586482726), SHA `c1ad458304c4ab167fc86663b786cc29ed8afc31`: SUCCESS; 47/47 test PASS, 4/4 workbook PASS, typecheck/build PASS. HTML tự publish tại `0339b9fdcd8203bf3fdb4afc7243543f3bfd8f3a`, SHA-256 `cccb9be41332273a0de0ac8bcb200cf28f72811dde563a2dcfec60f25014b702`. Đã kiểm tra tree có file `dist/index.html` (2.295.223 byte). Windows in trực tiếp: NOT_RUN. Chỉ cần Pull origin, không chạy npm.
+
+### Nạp 3 file mới nhất (25/11/2026)
+
+Nút Nạp 3 file mới nhất chọn độc lập DISB/REV/GPMB trong kho dataset của workspace theo ngày chốt hợp lệ đã xác nhận; không quét ổ đĩa. DISB giữ phạm vi tổng vốn hoặc phân cấp của phiên hiện tại; nếu chưa có DISB mặc định tổng vốn. Loại nguồn sai mapping, ngày chưa xác minh, lỗi BLOCKER hoặc ERROR trường tính chính; không loại chỉ vì thiếu vài địa phương. Ưu tiên nguồn thực tế; chỉ dùng mẫu SHA gốc nếu chưa có nguồn thực tế tương thích. Cùng ngày và chưa có metadata phiên bản chính thức, chọn nội dung khác SHA được nhập lần đầu gần nhất, cảnh báo nhiều bản; nhập lại cùng SHA không làm mới thứ hạng. Cùng SHA có ngày chốt xác nhận mâu thuẫn thì không tự chọn. Tên file không quyết định ngày chốt. Preview tên file, ngày, độ phủ, phạm vi, nguồn mẫu/cảnh báo; chỉ nạp khi đủ ba nguồn và người dùng xác nhận. Không thay dữ liệu các phiên khác. Tạo phiên mới có tùy chọn 3 nguồn mới nhất; không thay đổi mặc định dùng nguồn phiên đang mở. Ngày chốt DISB/GPMB không còn fallback tháng 10/tên file; nguồn cũ có bằng chứng A1 không đủ phải xác nhận tại Khối 1. Không tự suy ngày từ hạn dự án CSV.
+
+- Mã: latestSources.ts, sourceReaders.ts, sessions.ts, main.ts, CSS, NOV_FIX_05. CI và publish HTML: PENDING.
+
+- CI đầu tiên của `a3860a578bb49eba58ef39b7df0894cf991666d3`: [45595093052](https://github.com/cavoixanh638/KTXD-report/actions/runs/45595093052) SUCCESS, 48/48 PASS, 4/4 workbook PASS, HTML `9e567b96a925772d55c591ed6d226cd7fae9486a`. Bổ sung gia cố trùng SHA/ngày xác nhận và đồng bộ MASTER/PH1, checksum. CI gia cố [45595464837](https://github.com/cavoixanh638/KTXD-report/actions/runs/45595464837) tại `0fc745421ed72bb592094759308b28358dee2586`: SUCCESS, 48/48 tests PASS (NOV_FIX_05 bao gồm trùng SHA và xác nhận ngày), 3/3 suites, 4/4 workbook PASS, typecheck/build PASS.
+
+- HTML tự publish tại `25234ec65f98f93f72e5c62ddbc4f7950b9f2be2`; tree xác nhận `dist/index.html` 2.307.605 byte, SHA-256 `91ed08fddd008e9a9727bd5c6ac2ae2e3b50be6e248fbd80394211319f7419ae`, artifact 15012891402. MASTER/PH1 và hướng dẫn đồng bộ. Người dùng chỉ Pull origin và mở lại HTML. Nghiệm thu thao tác trực tiếp trên Windows và bộ nguồn riêng của người dùng: NOT_RUN; không có metadata phiên bản điều chỉnh chính thức nên dùng ngày chốt + first-import/SHA, cảnh báo khi cùng ngày. Chưa merge main.
+
+### Source Schema Guard V1 (đang kiểm thử)
+
+Kiểm tra đầy đủ vai trò tiêu đề profile DISB/GPMB phân nhóm; REV và GPMB phẳng ánh xạ theo tiêu đề duy nhất. Lưu số cột có nội dung, header fingerprint, map, đơn vị, kiểm tra chéo và lịch sử nguồn đã xác minh cùng năm/phạm vi. Không dùng % biến động cố định, không đoán cột; chặn cấu trúc không xác minh, cảnh báo nguồn cần đối chiếu, giữ phiên cũ. Bỏ giới hạn GPMB 422 dự án. Bản cũ chưa có guard cần nhập lại gốc (trừ fixture SHA/sheet chính xác). NOV_FIX_06/07, CI PENDING. Không thêm workbook thực tế vào repo đang public.
+
+- CI guard đợt 1 `03f5688c1da1ae99589ffe634397ec78bc0abe57`: [45642877918](https://github.com/cavoixanh638/KTXD-report/actions/runs/45642877918), SUCCESS 50/50; HTML `49d0f83d5854af997d9f0c67103adb529ca07a7f`. Tiếp tục remap GPMB phân nhóm theo vai trò, kiểm tra tổng địa bàn, recheck lịch sử khi xác nhận ngày, và corpus test riêng. Repo API xác nhận public; không thêm file thật mới. CI đợt 2 đã đạt; xem bằng chứng dưới đây.
+
+- CI cuối [45643547137](https://github.com/cavoixanh638/KTXD-report/actions/runs/45643547137) tại `c50d1f947dc6d8a617edd62aa1d65c0de7733fc4`: SUCCESS, 53/53 tests, 4/4 suites, 4/4 original workbooks, corpus 3 nguồn + 1 mẫu kết quả, typecheck/build PASS. HTML publish `c52f0274016880fa09563a2afe7dee46e40c21b5` (tree có `dist/index.html`, 2348897 byte, blob `a8946ff07af4003163174c20ed40cc7c89af02f2`, SHA-256 `be9a588d5d42f977aa80e1701d84af6833c35a5e8a0fdd732753c46e3370e7e1`), artifact 15037135540. MASTER/PH1, hướng dẫn và quy tắc lưu mẫu đồng bộ. Lưu ý: DISB vẫn fail-closed khi đổi bố cục chính chưa có profile; Wizard tùy ý chưa triển khai. Windows thao tác/in thực tế, bộ nguồn tháng 11 chưa truy cập, chưa nghiệm thu. Repo public đã xác minh; bốn file cũ nguyên vẹn, không thêm file thật mới. Không merge main.
+
+### Hoàn thiện ánh xạ giải ngân & kho mẫu (25/11/2026)
+
+Chủ dự án xác nhận repo Public và cho phép lưu mẫu nguồn của dự án. Giữ nguyên 4 workbook hiện hữu; rà soát cả 5 nhánh chỉ có 4 file đó. Đã tìm được metadata của 5 Excel nguồn khác trong thư viện, nhưng đọc/materialize bị từ chối vì không có đường dẫn raw bytes được cấp quyền. Danh sách `pendingOriginals` trong SOURCE_CORPUS.json; không lưu tên giả, không lấy file kết quả xuất làm nguồn. 
+Nâng cấp resolver DISB theo nhóm tiêu đề duy nhất, thành phần cùng phạm vi, địa chỉ thực, hỗ trợ chèn cột và đảo thành phần rõ nghĩa ở bốn profile. Không tự đoán khi đảo phá nhóm hoặc thiếu/trùng vai trò. Trace dùng cột và dòng thực; kiểm tra cả tỷ lệ vốn đầu năm mẫu compact. CI lần đầu xem bên dưới.
+
+- CI đầu `c98593ec4f854c007be7401222982f2cebfaf6a4`: [45645499084](https://github.com/cavoixanh638/KTXD-report/actions/runs/45645499084), 52/53 PASS; NOV_FIX_05 sai metadata fixture do copy layout DISB khác profile, gate từ chối đúng; không publish HTML. Đã chỉnh fixture và thêm test reject scope mismatch. Gia cố REV nhận diện cả cột định danh và tiêu đề nhóm tỷ lệ, bỏ giới hạn 100 cột; nhận diện đơn vị ĐVT/mâu thuẫn nhiều đơn vị, cảnh báo hệ số sai đơn vị ở chỉ tiêu neo (không ngưỡng % biến động), tránh tự chọn khi workbook có nhiều loại nguồn. CI mới đã đạt; xem bằng chứng tiếp theo.
+
+- CI cuối [45645990437](https://github.com/cavoixanh638/KTXD-report/actions/runs/45645990437), implementation SHA `2fcd2403684c2d2dc55dc90ad813debaf2af51ae`: SUCCESS, **53/53 PASS**, 4/4 suites, 4/4 original workbook PASS, 3/3 nguồn corpus; typecheck/build PASS. HTML tự publish `1fc79a2a105f0b787d1e73fc06abf3f87a4ef8da`, `dist/index.html` 2355134 byte, blob `f7285b38a5f32436cf668f7c4c1a2d7b919a2bf8`, SHA-256 `ed242a2a999f1e29b007d7689525340d7e3d3a67453c684e879292691dcccc21`, artifact 15037817410. Tài liệu MASTER/PH1 và quy tắc Public đã đồng bộ. Còn 5 tệp mẫu pending vì thư viện từ chối raw bytes (không phải do Public); chưa nghiệm thu thao tác Windows và file tháng 11 thật. Không merge main. Người dùng chỉ Fetch/Pull và mở HTML.

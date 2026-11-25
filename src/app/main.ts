@@ -1,7 +1,7 @@
 import {
   createEmptyWorkspace,
   registerDatasetInWorkspace,
-  confirmDatasetAsOfDate,
+  applyLatestSources,
   createReportSession,
   cloneReportSession,
   renameReportSession,
@@ -31,6 +31,8 @@ import {
   computeBenchmarkRatio,
 } from '../core/calculationTrace';
 import { analyzeSourceCoverage } from '../core/coverage';
+import { chooseLatestSources, hasTrustedSourceDate, disbScope, LatestSourcePlan } from '../core/latestSources';
+import { assessSourceHistory, confirmSourceValidation, sourceMappingProblem, sourceFieldLabel } from '../core/sourceValidation';
 import { filterWarningsForSession } from '../core/warnings';
 import { searchLocalities } from '../core/localities';
 import { renderA4DocumentStudioHtml, computeAutoLayoutMode } from '../ui/reportStudio';
@@ -59,6 +61,8 @@ import {
 } from '../core/types';
 import {
   formatRevBenchmarkRowLabel,
+  formatRevRealizedRowLabel,
+  reportMainStt,
   TEMPLATE_14_ROWS_DEFAULT,
 } from '../core/indicators';
 import {
@@ -107,8 +111,9 @@ export class KtxhOfflineApp {
 
   // Modals
   public showNewSessionModal = false;
+  private latestSourcesPreview: { sessionId: string; plan: LatestSourcePlan } | null = null;
   public newSessionNameDraft = 'Báo cáo KTXH phiên mới';
-  public newSessionSourceMode: 'CURRENT' | 'EMBEDDED' | 'EMPTY' = 'CURRENT';
+  public newSessionSourceMode: 'CURRENT' | 'LATEST' | 'EMPTY' = 'CURRENT';
   public showRenameSessionModal = false;
   public renameSessionNameDraft = '';
   public showCoverageModal = false;
@@ -190,12 +195,13 @@ export class KtxhOfflineApp {
       this.showNewSessionModal ||
       this.showRenameSessionModal ||
       this.showCoverageModal ||
-      this.showIndicatorsModal
+      this.showIndicatorsModal || this.latestSourcesPreview
     ) {
       this.showNewSessionModal = false;
       this.showRenameSessionModal = false;
       this.showCoverageModal = false;
       this.showIndicatorsModal = false;
+      this.latestSourcesPreview = null;
       this.render();
       return true;
     }
@@ -478,6 +484,24 @@ export class KtxhOfflineApp {
     }
   }
 
+  private reviewImportedSource(dataset:Dataset):boolean {
+    const existing=this.workspace.datasets.find(d=>d.id===dataset.id&&!sourceMappingProblem(d)&&d.sourceValidation?.schemaSignature===dataset.sourceValidation?.schemaSignature);
+    if(existing)return true;
+    assessSourceHistory(dataset,this.workspace);
+    return this.confirmPendingSource(dataset);
+  }
+  private confirmPendingSource(dataset:Dataset):boolean {
+    const v=dataset.sourceValidation;
+    if(!v)return false;
+    if(v.status==='VERIFIED')return true;
+    const review=v.checks.filter(c=>c.severity==='REVIEW');
+    const prior=new Map((v.changedColumns||[]).map(c=>[c.field,c.before]));
+    const fields=v.columns.map(c=>sourceFieldLabel(c.field)+': '+(prior.has(c.field)?prior.get(c.field)+' → ':'')+c.column+' | '+c.header+' | '+c.unit);
+    const message=['CẦN XÁC MINH NGUỒN: '+dataset.sourceFilename,'Đã kiểm tra tiêu đề; có bất thường cần đối chiếu Excel gốc.',...review.map(c=>c.label+': '+c.detail+(c.examples?.length?'\n'+c.examples.slice(0,3).join('\n'):'')),'Ánh xạ cột (cột trước → cột mới nếu đổi):',...fields,'Chỉ chọn OK nếu đã kiểm tra đúng cột, đơn vị và số liệu. Hủy sẽ không phê duyệt nguồn.'].join('\n');
+    if(typeof window==='undefined'||!window.confirm(message))return false;
+    confirmSourceValidation(dataset,'Người dùng đã đối chiếu Excel gốc và xác nhận cảnh báo khi nhập.');return true;
+  }
+
   public handleWorkbookBytesUpload(
     bytes: Uint8Array,
     filename: string,
@@ -491,11 +515,19 @@ export class KtxhOfflineApp {
 
     try {
       const wb = parseWorkbookBytes(bytes, filename);
-      const visibleSheets = wb.sheets.filter((s) => s.state === 'visible');
-      for (const s of visibleSheets) {
-        const fp = detectSheetFingerprint(s);
+      const visibleSheets = wb.sheets.filter((s) => s.state === 'visible').map(sheet=>({sheet,fp:detectSheetFingerprint(sheet)}));
+      const sourceType=(fp:string)=>fp.startsWith('DISB_')?'DISB':fp==='REV_V1'?'REV':fp==='GPMB_V1'||fp==='GPMB_FLAT'?'GPMB':undefined;
+      const recognized=visibleSheets.filter(x=>sourceType(x.fp));
+      const kinds=new Set(recognized.map(x=>sourceType(x.fp)));
+      if(!expectedSourceType&&kinds.size>1){
+        this.setStatus('Tệp chứa nhiều loại nguồn hợp lệ. Hãy nhập tại ô nguồn cụ thể để tránh chọn nhầm sheet.','warning');return;
+      }
+      const matching=expectedSourceType?recognized.filter(x=>sourceType(x.fp)===expectedSourceType):recognized;
+      const candidates=matching.length?matching:recognized.length?recognized:visibleSheets;
+      for (const {fp} of candidates) {
         if (
           fp === 'DISB_V1' ||
+          fp === 'DISB_TOTAL_LOCALITY_V2' ||
           fp === 'DISB_PHAN_CAP_XA_V1' ||
           fp === 'DISB_PHAN_CAP_XA_V2'
         ) {
@@ -506,17 +538,18 @@ export class KtxhOfflineApp {
             );
             return;
           }
-          const { dataset, localities } = importDisbursementWorkbook(bytes, filename);
-          registerDatasetInWorkspace(this.workspace, dataset, localities);
+          const { dataset: parsed, localities } = importDisbursementWorkbook(bytes, filename);
+          if(!this.reviewImportedSource(parsed)){this.setStatus('Chưa xác minh nguồn mới; giữ nguyên nguồn phiên hiện tại.','warning');return;}
+          const dataset = registerDatasetInWorkspace(this.workspace, parsed, localities);
           rebindSessionDataset(this.workspace, activeSession.id, 'DISB', dataset.id);
           this.triggerAutosave();
           this.setStatus(
             fp === 'DISB_PHAN_CAP_XA_V2'
-              ? `Đã cập nhật nguồn Giải ngân (Phân cấp xã · 15 cột) "${filename}" cho riêng phiên "${activeSession.name}" (${dataset.unitCount} ĐP, chốt ${formatVnDate(dataset.asOfDate)}).`
+              ? `Đã cập nhật nguồn Giải ngân (Phân cấp xã · có vốn đầu năm) "${filename}" cho riêng phiên "${activeSession.name}" (${dataset.unitCount} ĐP, chốt ${formatVnDate(dataset.asOfDate)}).`
               : fp === 'DISB_PHAN_CAP_XA_V1'
-              ? `Đã cập nhật nguồn Giải ngân (Phân cấp xã · 12 cột) "${filename}" cho riêng phiên "${activeSession.name}" (${dataset.unitCount} ĐP, chốt ${formatVnDate(dataset.asOfDate)}).`
+              ? `Đã cập nhật nguồn Giải ngân (Phân cấp xã) "${filename}" cho riêng phiên "${activeSession.name}" (${dataset.unitCount} ĐP, chốt ${formatVnDate(dataset.asOfDate)}).`
               : `Đã cập nhật nguồn Giải ngân "${filename}" cho riêng phiên "${activeSession.name}" (${dataset.unitCount} ĐP, chốt ${formatVnDate(dataset.asOfDate)}).`,
-            'success'
+            hasTrustedSourceDate(dataset) ? 'success' : 'warning'
           );
           return;
         }
@@ -528,8 +561,9 @@ export class KtxhOfflineApp {
             );
             return;
           }
-          const { dataset } = importRevenueWorkbook(bytes, filename);
-          registerDatasetInWorkspace(this.workspace, dataset);
+          const { dataset: parsed } = importRevenueWorkbook(bytes, filename);
+          if(!this.reviewImportedSource(parsed)){this.setStatus('Chưa xác minh nguồn mới; giữ nguyên nguồn phiên hiện tại.','warning');return;}
+          const dataset = registerDatasetInWorkspace(this.workspace, parsed);
           rebindSessionDataset(this.workspace, activeSession.id, 'REV', dataset.id);
           this.triggerAutosave();
           this.setStatus(
@@ -546,13 +580,14 @@ export class KtxhOfflineApp {
             );
             return;
           }
-          const { dataset } = importGpmbWorkbook(bytes, filename);
-          registerDatasetInWorkspace(this.workspace, dataset);
+          const { dataset: parsed } = importGpmbWorkbook(bytes, filename);
+          if(!this.reviewImportedSource(parsed)){this.setStatus('Chưa xác minh nguồn mới; giữ nguyên nguồn phiên hiện tại.','warning');return;}
+          const dataset = registerDatasetInWorkspace(this.workspace, parsed);
           rebindSessionDataset(this.workspace, activeSession.id, 'GPMB', dataset.id);
           this.triggerAutosave();
           this.setStatus(
             `Đã cập nhật nguồn GPMB (${fp === 'GPMB_FLAT' ? 'bảng phẳng' : 'phân nhóm'}) "${filename}" cho riêng phiên "${activeSession.name}" (${dataset.unitCount} địa bàn, ${dataset.projectRowCount} DA).`,
-            'success'
+            hasTrustedSourceDate(dataset) ? 'success' : 'warning'
           );
           return;
         }
@@ -596,6 +631,17 @@ export class KtxhOfflineApp {
     return getSessionLocalitiesBaseline(this.workspace, activeSession, datasets);
   }
 
+  private legacyImportNeedsReview(datasets:{REV?:Dataset;DISB?:Dataset;GPMB?:Dataset}):string[] {
+    const warnings:string[]=[];
+    for(const ds of [datasets.REV,datasets.DISB,datasets.GPMB]){
+      if(!ds)continue;
+      const issue=sourceMappingProblem(ds);
+      if(issue)warnings.push(ds.sourceType+': '+issue);
+      else if(!hasTrustedSourceDate(ds))warnings.push(ds.sourceType+': cần xác nhận ngày chốt tại Khối 1.');
+    }
+    return warnings;
+  }
+
   private evaluateActiveContext(): {
     activeSession: ReportSession | undefined;
     datasets: { REV?: Dataset; DISB?: Dataset; GPMB?: Dataset };
@@ -606,7 +652,7 @@ export class KtxhOfflineApp {
     const activeSession = this.getActiveSession();
     const datasets = this.getLatestDatasetsMap();
     const effectiveLocalities = this.getEffectiveBaselineLocalities(activeSession, datasets);
-    const hasAllThreeSources = Boolean(datasets.DISB && datasets.REV && datasets.GPMB);
+    const hasAllThreeSources = Boolean(datasets.DISB && datasets.REV && datasets.GPMB && !this.legacyImportNeedsReview(datasets).length);
     let evaluatedReport: EvaluatedSessionReport | null = null;
     if (activeSession && hasAllThreeSources) {
       evaluatedReport = evaluateSessionReport({
@@ -696,6 +742,7 @@ export class KtxhOfflineApp {
       ${projectModalHtml}
       ${nq11ModalHtml}
       ${newSessionModalHtml}
+      ${this.renderLatestSourcesModal()}
       ${renameSessionModalHtml}
       ${coverageModalHtml}
       ${indicatorsModalHtml}
@@ -1023,17 +1070,13 @@ export class KtxhOfflineApp {
         let metaHtml = '';
         if (!ds) {
           metaHtml = `<div class="session-source-empty">Phiên này chưa gắn tệp ${type}. Chọn tệp bên dưới để nạp riêng cho phiên.</div>`;
-        } else if (ds.asOfStatus === 'REQUIRES_USER_CONFIRMATION') {
+        } else if (!hasTrustedSourceDate(ds)) {
           metaHtml = `
             <div class="rev-date-warn-box">
               <span>Cần xác nhận ngày chốt:</span>
               <div class="rev-date-warn-controls">
-                <input type="date" id="input-confirm-rev-date" value="${
-                  formatIsoDate(ds.asOfDate) || '2026-10-19'
-                }" class="input-dataset-asof-date"/>
-                <button type="button" class="btn btn-xs btn-primary" id="btn-confirm-rev-date" data-dataset-id="${escapeHtmlUi(
-                  ds.id
-                )}">Xác nhận</button>
+                <input type="date" id="input-asof-date-${escapeHtmlUi(ds.id)}" value="" class="input-dataset-asof-date" aria-label="Ngày chốt ${type}"/>
+                <button type="button" class="btn btn-xs btn-primary btn-save-asof-date" data-dataset-id="${escapeHtmlUi(ds.id)}">Xác nhận</button>
               </div>
             </div>
           `;
@@ -1059,6 +1102,17 @@ export class KtxhOfflineApp {
           `;
         }
 
+        const validation=ds?.sourceValidation;
+        if(ds){
+          const problem=sourceMappingProblem(ds);
+          metaHtml+=problem?'<div class="latest-source-warning">'+escapeHtmlUi(problem)+'</div>'+
+            (validation?.status==='NEEDS_REVIEW'?'<button type="button" class="btn btn-xs btn-primary btn-review-pending-source" data-dataset-id="'+escapeHtmlUi(ds.id)+'">Đối chiếu &amp; xác nhận nguồn</button>':''):'';
+          metaHtml+=validation?
+            '<details class="source-validation-details"><summary>Kiểm tra cột: '+(validation.status==='NEEDS_REVIEW'?'Cần đối chiếu':validation.reviewedAt?'Đã đối chiếu':'Đã kiểm tra')+' · '+validation.columnCount+' cột có nội dung</summary>'+
+            (validation.historicalDate?'<div>Đối chiếu lịch sử '+escapeHtmlUi(validation.historicalDate)+'</div>':'')+
+            validation.checks.map(c=>'<div class="source-validation-check '+(c.severity==='INFO'?'':'latest-source-warning')+'"><strong>'+escapeHtmlUi(c.label)+'</strong>: '+escapeHtmlUi(c.detail)+'</div>').join('')+
+            '<div class="source-validation-columns">'+validation.columns.map(c=>'<div>'+escapeHtmlUi(c.column+' · '+sourceFieldLabel(c.field)+' · '+c.unit)+'</div>').join('')+'</div></details>':!problem?'<div class="muted-xs">Workbook tham chiếu đã kiểm tra SHA gốc.</div>':'';
+        }
         const cardTitleTip = ds
           ? `${ds.sourceFilename} · Sheet: ${ds.sourceSheet} · SHA: ${ds.workbookSha256}`
           : `Chưa gắn nguồn ${type}`;
@@ -1125,8 +1179,8 @@ export class KtxhOfflineApp {
               <button type="button" class="btn-link-subtle" id="btn-open-coverage-modal">
                 ${uiIcon('shield-check', 13)} Kiểm toán nguồn thiếu
               </button>
-              <button type="button" class="btn-link-subtle" id="btn-load-embedded-confirmed" title="Gắn 3 file Excel tham chiếu mặc định vào phiên hiện tại">
-                ${uiIcon('undo', 13)} Nạp 3 file mẫu
+              <button type="button" class="btn-link-subtle" id="btn-load-latest-sources" title="Chọn nguồn có ngày chốt mới nhất trong kho dữ liệu đã nhập">
+                ${uiIcon('undo', 13)} Nạp 3 file mới nhất
               </button>
             </div>
           </div>
@@ -1232,21 +1286,25 @@ export class KtxhOfflineApp {
               <div class="setting-group-heading">Bật / tắt dòng hiển thị</div>
 
               <label class="toggle-switch-row">
-                <span>Dòng Tỷ lệ thu NSNN chung (STT 2)</span>
+                <span>Kết quả thu NSNN lũy kế (STT 2)</span>
+                <input type="checkbox" id="setting-show-rev-realized-row" class="chk-live-setting" ${s.showRevRealizedRow ? 'checked' : ''} />
+              </label>
+              <label class="toggle-switch-row">
+                <span>Dòng Tỷ lệ thu NSNN trung bình (STT ${reportMainStt(activeSession,'2')})</span>
                 <input type="checkbox" id="setting-show-rev-benchmark-row" class="chk-live-setting" ${
                   s.showRevBenchmarkRow ? 'checked' : ''
                 } />
               </label>
 
               <label class="toggle-switch-row">
-                <span>So sánh KHV ĐTC đầu năm (Dòng 3)</span>
+                <span>So sánh KHV ĐTC đầu năm (Dòng ${reportMainStt(activeSession,'3')})</span>
                 <input type="checkbox" id="setting-show-disb-adjustment" class="chk-live-setting" ${
                   s.showDisbPlanAdjustmentComparison !== false ? 'checked' : ''
                 } />
               </label>
 
               <label class="toggle-switch-row">
-                <span>Dòng 8: Dự án GPMB chưa hoàn thành</span>
+                <span>Dòng ${reportMainStt(activeSession,'8')}: Dự án GPMB chưa hoàn thành</span>
                 <input type="checkbox" id="setting-show-uncompleted-summary" class="chk-live-setting" ${
                   s.showUncompletedSummaryRow !== false ? 'checked' : ''
                 } />
@@ -1260,7 +1318,7 @@ export class KtxhOfflineApp {
               </label>
 
               <label class="toggle-switch-row">
-                <span>Dòng 9: Dự án theo NQ 11</span>
+                <span>Dòng ${reportMainStt(activeSession,'9')}: Dự án theo NQ 11</span>
                 <input type="checkbox" id="setting-show-nq11-row" class="chk-live-setting" ${
                   s.showNq11Row !== false ? 'checked' : ''
                 } />
@@ -1333,6 +1391,8 @@ export class KtxhOfflineApp {
     }
 
     if (!evaluatedReport) {
+      const stale=this.legacyImportNeedsReview(datasets);
+      if (stale.length) return `<div class="studio-canvas-scroll"><div class="card empty-state-card"><h3>Cần xác minh nguồn Excel trước khi lập báo cáo</h3><p>${escapeHtmlUi(stale.join(' '))}</p><p>Dữ liệu cũ được giữ nguyên; hãy xác nhận ngày chốt hoặc nhập lại file gốc ở Khối 1.</p></div></div>`;
       const missingList = (['DISB', 'REV', 'GPMB'] as const)
         .filter((t) => !datasets[t])
         .map((t) =>
@@ -1355,11 +1415,11 @@ export class KtxhOfflineApp {
             <div class="empty-studio-icon">${uiIcon('database', 32)}</div>
             <h3 class="empty-studio-title">Phiên "${escapeHtmlUi(activeSession.name)}" đang thiếu ${missingList.length} nguồn: ${escapeHtmlUi(missingList.join(', '))}</h3>
             <p class="empty-studio-desc">
-              Mỗi phiên lưu nguồn Excel độc lập. Bạn có thể chọn/nạp từng file Excel ở thanh bên trái cho riêng phiên này, hoặc nạp bộ 3 file tham chiếu mặc định để xem ngay bảng báo cáo.
+              Mỗi phiên lưu nguồn Excel độc lập. Bạn có thể chọn/nạp từng file Excel ở thanh bên trái cho riêng phiên này, hoặc nạp 3 nguồn mới nhất từ kho dữ liệu đã nhập.
             </p>
             <div class="empty-studio-presets">
-              <button type="button" class="btn btn-primary" id="btn-center-load-embedded">
-                ${uiIcon('database', 14)} Nạp 3 file tham chiếu cho phiên này
+              <button type="button" class="btn btn-primary" id="btn-center-load-latest-sources">
+                ${uiIcon('database', 14)} Nạp 3 file mới nhất
               </button>
               <label class="btn btn-secondary">
                 ${uiIcon('upload', 14)} Chọn file Excel từ máy tính
@@ -1657,9 +1717,52 @@ export class KtxhOfflineApp {
       .join('');
   }
 
+  private openLatestSourcesModal(): void {
+    const active = this.getActiveSession();
+    if (!active) return;
+    this.latestSourcesPreview = {sessionId: active.id, plan: chooseLatestSources(this.workspace, active)};
+    this.render();
+  }
+
+  private latestSourceCards(plan: LatestSourcePlan): string {
+    const titles = {DISB:'Giải ngân đầu tư công', REV:'Thu NSNN', GPMB:'Giải phóng mặt bằng'};
+    return plan.choices.map(c => {
+      const d = c.dataset;
+      const scope = d && c.type === 'DISB' ? (disbScope(d) === 'ALLOCATED' ? ' · Vốn phân cấp cấp xã' : ' · Tổng vốn') : '';
+      const notes = [
+        c.referenceFallback ? 'Đang dùng nguồn mẫu tham chiếu (chưa có nguồn thực tế tương thích).' : '',
+        c.sameDateVersions > 1 ? 'Có ' + c.sameDateVersions + ' bản khác nội dung cùng ngày chốt; ưu tiên bản được nhập lần đầu gần nhất. Hãy kiểm tra tên file trước khi nạp.' : '',
+      ].filter(Boolean).map(x => '<div class="latest-source-warning">' + escapeHtmlUi(x) + '</div>').join('');
+      const skipped = c.skipped.length ? '<details class="latest-source-skipped"><summary>' + c.skipped.length + ' nguồn không được tự chọn</summary>' +
+        c.skipped.map(x => '<div>' + escapeHtmlUi(x.dataset.sourceFilename + ' — ' + x.reason) + '</div>').join('') + '</details>' : '';
+      return '<div class="latest-source-card"><strong>' + titles[c.type] + '</strong>' +
+        (d ? '<div class="latest-source-name">' + escapeHtmlUi(d.sourceFilename) + '</div><div>Chốt ' + escapeHtmlUi(formatVnDate(d.asOfDate)) + ' · ' + d.unitCount + ' địa phương' + escapeHtmlUi(scope) + '</div>' :
+          '<div class="latest-source-warning">Chưa có nguồn đủ điều kiện. Chọn hoặc nhập file rồi xác nhận ngày chốt.</div>') + notes + skipped + '</div>';
+    }).join('');
+  }
+
+  private renderLatestSourcesModal(): string {
+    const preview = this.latestSourcesPreview;
+    if (!preview) return '';
+    const active = this.workspace.sessions.find(s => s.id === preview.sessionId);
+    if (!active) return '';
+    return `<div class="proj-modal-backdrop no-print" id="latest-sources-backdrop">
+      <div class="proj-modal-dialog" role="dialog" aria-modal="true" aria-labelledby="latest-sources-title">
+        <div class="proj-modal-header"><h3 class="proj-modal-title" id="latest-sources-title">Nạp 3 file mới nhất</h3><button type="button" class="proj-modal-close" id="btn-close-latest-sources" aria-label="Đóng">&times;</button></div>
+        <div class="proj-modal-body">
+          <p>Chọn theo ngày chốt đã xác nhận, không theo ngày nhập lại file. Chỉ cập nhật phiên “${escapeHtmlUi(active.name)}”.</p>
+          ${this.latestSourceCards(preview.plan)}
+          <p class="muted-xs">Các nguồn có thể có ngày chốt khác nhau. Xác nhận ngày chưa rõ ở Khối 1; không tự thay đổi phạm vi vốn giải ngân. Các phiên khác giữ nguyên.</p>
+        </div>
+        <div class="proj-modal-footer"><button type="button" class="btn btn-secondary" id="btn-cancel-latest-sources">Hủy</button><button type="button" class="btn btn-primary" id="btn-confirm-latest-sources" ${preview.plan.complete ? '' : 'disabled'}>Nạp 3 nguồn</button></div>
+      </div>
+    </div>`;
+  }
+
   private renderNewSessionModal(datasets: { REV?: Dataset; DISB?: Dataset; GPMB?: Dataset }): string {
     if (!this.showNewSessionModal) return '';
     const active = this.getActiveSession();
+    const latestPlan = chooseLatestSources(this.workspace, active);
     const curNames = [
       datasets.DISB ? `DISB: ${datasets.DISB.sourceFilename}` : 'DISB: (trống)',
       datasets.REV ? `REV: ${datasets.REV.sourceFilename}` : 'REV: (trống)',
@@ -1707,12 +1810,13 @@ export class KtxhOfflineApp {
                 </label>
 
                 <label class="source-mode-radio-item">
-                  <input type="radio" name="new-session-source-mode" value="EMBEDDED" ${
-                    this.newSessionSourceMode === 'EMBEDDED' ? 'checked' : ''
-                  } />
+                  <input type="radio" name="new-session-source-mode" value="LATEST" ${
+                    this.newSessionSourceMode === 'LATEST' ? 'checked' : ''
+                  } ${latestPlan.complete ? '' : 'disabled'} />
                   <div>
-                    <strong>Gắn 3 file Excel tham chiếu mặc định (DISB/REV/GPMB)</strong>
-                    <div class="muted-xs">Khởi tạo nhanh từ 3 file tham chiếu đóng gói sẵn trong ứng dụng.</div>
+                    <strong>Gắn 3 file mới nhất (DISB/REV/GPMB)</strong>
+                    <div class="muted-xs">Chọn theo ngày chốt đã xác nhận; cùng phạm vi giải ngân của phiên đang mở.</div>
+                    ${this.latestSourceCards(latestPlan)}
                   </div>
                 </label>
               </div>
@@ -2196,8 +2300,8 @@ export class KtxhOfflineApp {
       this.showCoverageModal = true;
       this.render();
     });
-    document.getElementById('btn-center-load-embedded')?.addEventListener('click', () => {
-      this.loadEmbeddedReferenceWorkbooks('2026-10-19');
+    document.getElementById('btn-center-load-latest-sources')?.addEventListener('click', () => {
+      this.openLatestSourcesModal();
     });
     const centerUpload = document.getElementById('input-center-xlsx-upload') as HTMLInputElement | null;
     centerUpload?.addEventListener('change', () => {
@@ -2273,6 +2377,17 @@ export class KtxhOfflineApp {
         const rowNum = Number(btn.getAttribute('data-row-number'));
         const activeSession = this.getActiveSession();
         if (!activeSession) return;
+
+        if (indId === 'REV_REALIZED') {
+          const currentLabel=formatRevRealizedRowLabel({customLabel:activeSession.settings.revRealizedRowCustomLabel,asOfDate:datasets.REV?.asOfDate});
+          const nextLabel=window.prompt('Đổi tên hiển thị dòng kết quả thu NSNN:',currentLabel);
+          if (nextLabel?.trim()) {
+            activeSession.settings.revRealizedRowCustomLabel=nextLabel.trim();
+            this.triggerAutosave();
+            this.render();
+          }
+          return;
+        }
 
         if (indId === 'REV_BENCHMARK_RATE') {
           const { effectiveLocalities } = this.evaluateActiveContext();
@@ -2582,6 +2697,7 @@ export class KtxhOfflineApp {
 
     // Topbar Print / PDF
     document.getElementById('btn-topbar-print')?.addEventListener('click', () => {
+      if(!this.evaluateActiveContext().evaluatedReport){this.setStatus('Chưa có báo cáo hợp lệ; hãy nhập lại hoặc bổ sung nguồn Excel.','warning');return;}
       window.print();
     });
 
@@ -2641,6 +2757,9 @@ export class KtxhOfflineApp {
             'info'
           );
         } else {
+          const candidate=this.workspace.datasets.find(d=>d.id===val&&d.sourceType===sourceType);
+          const problem=candidate?sourceMappingProblem(candidate):'Không tìm thấy nguồn';
+          if(problem){this.setStatus(problem+' Nguồn phiên hiện tại giữ nguyên.','warning');return;}
           rebindSessionDataset(this.workspace, activeSession.id, sourceType, val);
           this.triggerAutosave();
           this.setStatus(
@@ -2697,6 +2816,12 @@ export class KtxhOfflineApp {
       }
     });
 
+    document.querySelectorAll('.btn-review-pending-source').forEach(el=>el.addEventListener('click',()=>{
+      const id=el.getAttribute('data-dataset-id');const ds=this.workspace.datasets.find(d=>d.id===id);
+      if(!ds||!ds.sourceValidation||ds.sourceValidation.status!=='NEEDS_REVIEW')return;
+      if(this.confirmPendingSource(ds)){this.triggerAutosave();this.setStatus('Đã xác nhận nguồn sau khi đối chiếu.','success');}
+    }));
+
     // Save asOfDate per-session (auto-clones dataset if shared with another session)
     document.querySelectorAll('.btn-save-asof-date').forEach((btnEl) => {
       btnEl.addEventListener('click', () => {
@@ -2715,6 +2840,9 @@ export class KtxhOfflineApp {
             inputEl.value
           );
           this.triggerAutosave();
+          if(updated.sourceValidation?.status==='NEEDS_REVIEW'){
+            this.setStatus('Đã lưu ngày chốt. Kiểm tra lịch sử phát hiện bất thường; hãy đối chiếu nguồn tại Khối 1 trước khi lập báo cáo.','warning');return;
+          }
           this.setStatus(
             `Đã cập nhật ngày chốt nguồn ${updated.sourceType} thành ${formatVnDate(
               updated.asOfDate
@@ -2727,37 +2855,28 @@ export class KtxhOfflineApp {
       });
     });
 
-    // Confirm REV date
-    document.getElementById('btn-confirm-rev-date')?.addEventListener('click', (e) => {
-      const btn = e.currentTarget as HTMLElement;
-      const dsId = btn.getAttribute('data-dataset-id') || '';
-      const activeSession = this.getActiveSession();
-      const dateEl = document.getElementById('input-confirm-rev-date') as HTMLInputElement | null;
-      if (!activeSession) return;
-      try {
-        updateDatasetAsOfDateForSession(
-          this.workspace,
-          activeSession.id,
-          dsId,
-          dateEl?.value || '2026-10-19',
-          'Xác nhận ngày chốt thực tế'
-        );
-        this.triggerAutosave();
-        this.setStatus('Đã xác nhận ngày chốt cho nguồn Thu NSNN của phiên này.', 'success');
-      } catch (err) {
-        confirmDatasetAsOfDate(
-          this.workspace,
-          dsId,
-          dateEl?.value || '2026-10-19',
-          'Xác nhận ngày chốt thực tế'
-        );
-        this.triggerAutosave();
-        this.setStatus('Đã xác nhận ngày chốt cho nguồn Thu NSNN.', 'success');
-      }
+    document.getElementById('btn-load-latest-sources')?.addEventListener('click', () => {
+      this.openLatestSourcesModal();
     });
-
-    document.getElementById('btn-load-embedded-confirmed')?.addEventListener('click', () => {
-      this.loadEmbeddedReferenceWorkbooks('2026-10-19');
+    const closeLatest = () => { this.latestSourcesPreview = null; this.render(); };
+    document.getElementById('btn-close-latest-sources')?.addEventListener('click', closeLatest);
+    document.getElementById('btn-cancel-latest-sources')?.addEventListener('click', closeLatest);
+    document.getElementById('latest-sources-backdrop')?.addEventListener('click', e => {
+      if (e.target === document.getElementById('latest-sources-backdrop')) closeLatest();
+    });
+    document.getElementById('btn-confirm-latest-sources')?.addEventListener('click', () => {
+      const preview = this.latestSourcesPreview;
+      if (!preview || this.getActiveSession()?.id !== preview.sessionId) return closeLatest();
+      try {
+        const s = applyLatestSources(this.workspace, preview.sessionId, preview.plan);
+        this.latestSourcesPreview = null;
+        this.clearCellSelection(true);
+        this.triggerAutosave();
+        this.setStatus(`Đã nạp 3 nguồn mới nhất cho riêng phiên "${s.name}". Các phiên khác giữ nguyên.`, 'success');
+      } catch (err) {
+        this.latestSourcesPreview = null;
+        this.setStatus((err as Error).message, 'warning');
+      }
     });
 
     // Modals: Coverage & Indicators
@@ -2797,6 +2916,12 @@ export class KtxhOfflineApp {
       applyLiveTitleAndTextSettings();
     });
 
+    document.getElementById('setting-show-rev-realized-row')?.addEventListener('change',(e)=>{
+      if (!activeSession) return;
+      activeSession.settings.showRevRealizedRow=(e.target as HTMLInputElement).checked;
+      this.triggerAutosave();
+      this.render();
+    });
     document.getElementById('setting-show-rev-benchmark-row')?.addEventListener('change', (e) => {
       if (!activeSession) return;
       activeSession.settings.showRevBenchmarkRow = (e.target as HTMLInputElement).checked;
@@ -2924,7 +3049,7 @@ export class KtxhOfflineApp {
     });
     document.querySelectorAll('input[name="new-session-source-mode"]').forEach((rEl) => {
       rEl.addEventListener('change', () => {
-        const val = (rEl as HTMLInputElement).value as 'CURRENT' | 'EMBEDDED' | 'EMPTY';
+        const val = (rEl as HTMLInputElement).value as 'CURRENT' | 'LATEST' | 'EMPTY';
         if (val) this.newSessionSourceMode = val;
       });
     });
@@ -2935,7 +3060,7 @@ export class KtxhOfflineApp {
       const checkedRadio = document.querySelector(
         'input[name="new-session-source-mode"]:checked'
       ) as HTMLInputElement | null;
-      const mode = (checkedRadio?.value || this.newSessionSourceMode) as 'CURRENT' | 'EMBEDDED' | 'EMPTY';
+      const mode = (checkedRadio?.value || this.newSessionSourceMode) as 'CURRENT' | 'LATEST' | 'EMPTY';
       const prevSession = this.getActiveSession();
 
       let newSess: ReportSession;
@@ -2950,14 +3075,15 @@ export class KtxhOfflineApp {
           dataBindings: { ...prevSession.dataBindings },
           exactBindings: true,
         });
-      } else {
-        newSess = createReportSession(this.workspace, { name: sessionName });
-        if (mode === 'EMBEDDED' && window.__EMBEDDED_REFERENCE_FIXTURES__) {
-          this.showNewSessionModal = false;
-          this.clearCellSelection(true);
-          this.loadEmbeddedReferenceWorkbooks('2026-10-19');
+      } else if (mode === 'LATEST') {
+        const latest = chooseLatestSources(this.workspace, prevSession);
+        if (!latest.complete) {
+          this.setStatus('Chưa đủ 3 nguồn hợp lệ; hãy chọn nguồn và xác nhận ngày chốt trước.', 'warning');
           return;
         }
+        newSess = createReportSession(this.workspace, {name:sessionName, dataBindings:latest.bindings, exactBindings:true});
+      } else {
+        newSess = createReportSession(this.workspace, { name: sessionName });
       }
 
       this.workspace.activeSessionId = newSess.id;

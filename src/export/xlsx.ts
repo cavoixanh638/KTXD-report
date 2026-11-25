@@ -1,10 +1,9 @@
 import { zipSync, strToU8 } from 'fflate';
 import { EvaluatedSessionReport } from '../core/calculationTrace';
 import { analyzeSourceCoverage, filterCoverageForSession } from '../core/coverage';
-import { DEFAULT_INDICATORS } from '../core/indicators';
+import { DEFAULT_INDICATORS, reportMainStt, isSharedReportIndicator, isReportBenchmarkRate } from '../core/indicators';
 import { Dataset, Locality, ReportSession } from '../core/types';
-import { formatReportCellValue } from '../ui/reportStudio';
-import { formatVnDate } from '../core/sessions';
+import { formatReportCellValue, horizontalPageCapacity } from '../ui/reportStudio';
 import {
   getUncompletedProjectsForSession,
   getNq11ProjectsForSession,
@@ -110,6 +109,8 @@ const ST = {
   APPENDIX_LABEL_BOLD: 31,
   APPENDIX_TEXT_CENTER: 32,
   HEADER_SUBTABLE: 33,
+  BENCHMARK_PERCENT_NUM: 34,
+  BENCHMARK_PERCENT_ITALIC: 35,
 } as const;
 
 function sanitizeFontName(fontFamily?: string): string {
@@ -394,7 +395,7 @@ function buildStylesXml(settings: ReportSession['settings']): string {
     <numFmt numFmtId="165" formatCode="${areaFmt}"/>
     <numFmt numFmtId="166" formatCode="${pctFmt}"/>
   </numFmts>
-  <fonts count="7">
+  <fonts count="9">
     <font><sz val="${tableFontPt}"/><color rgb="FF000000"/><name val="${fontName}"/><family val="1"/></font>
     <font><b/><sz val="${titleFontPt}"/><color rgb="FF000000"/><name val="${fontName}"/><family val="1"/></font>
     <font><b/><sz val="${tableFontPt}"/><color rgb="FF000000"/><name val="${fontName}"/><family val="1"/></font>
@@ -402,6 +403,8 @@ function buildStylesXml(settings: ReportSession['settings']): string {
     <font><i/><sz val="${projFontPt}"/><color rgb="FF000000"/><name val="${fontName}"/><family val="1"/></font>
     <font><sz val="${projFontPt}"/><color rgb="FF000000"/><name val="${fontName}"/><family val="1"/></font>
     <font><i/><sz val="9"/><color rgb="FF334155"/><name val="${fontName}"/><family val="1"/></font>
+    <font><sz val="${tableFontPt + 1}"/><color rgb="FF000000"/><name val="${fontName}"/><family val="1"/></font>
+    <font><i/><sz val="${tableFontPt + 1}"/><color rgb="FF000000"/><name val="${fontName}"/><family val="1"/></font>
   </fonts>
   <fills count="3">
     <fill><patternFill patternType="none"/></fill>
@@ -428,7 +431,7 @@ function buildStylesXml(settings: ReportSession['settings']): string {
   <cellStyleXfs count="1">
     <xf numFmtId="0" fontId="0" fillId="0" borderId="0"/>
   </cellStyleXfs>
-  <cellXfs count="34">
+  <cellXfs count="36">
     <!-- 0: NORMAL -->
     <xf numFmtId="0" fontId="0" fillId="0" borderId="0" xfId="0"/>
     <!-- 1: TITLE -->
@@ -561,6 +564,14 @@ function buildStylesXml(settings: ReportSession['settings']): string {
     </xf>
     <!-- 33: HEADER_SUBTABLE -->
     <xf numFmtId="0" fontId="2" fillId="2" borderId="1" xfId="0" applyFont="1" applyFill="1" applyBorder="1" applyAlignment="1">
+      <alignment horizontal="center" vertical="center" wrapText="1"/>
+    </xf>
+    <!-- 34: BENCHMARK_PERCENT_NUM -->
+    <xf numFmtId="166" fontId="7" fillId="0" borderId="1" xfId="0" applyNumberFormat="1" applyFont="1" applyBorder="1" applyAlignment="1">
+      <alignment horizontal="center" vertical="center" wrapText="1"/>
+    </xf>
+    <!-- 35: BENCHMARK_PERCENT_ITALIC -->
+    <xf numFmtId="166" fontId="8" fillId="0" borderId="1" xfId="0" applyNumberFormat="1" applyFont="1" applyBorder="1" applyAlignment="1">
       <alignment horizontal="center" vertical="center" wrapText="1"/>
     </xf>
   </cellXfs>
@@ -702,13 +713,7 @@ export function exportSessionReportToXlsxBytes(params: {
   const { evaluated, baselineLocalities, datasets } = params;
   const { session, selectedLocalities, rows, tracesById } = evaluated;
 
-  // Enforce §7 Rule 6: cannot disable scope footnotes when exporting mixed-period datasets
-  if (!session.settings.showScopeFootnotes) {
-    throw new Error(
-      'BLOCKER_UNEXPLAINED_EXPORT: Báo cáo kết hợp nhiều nguồn có kỳ/ngày chốt khác nhau, không được tắt chú thích nguồn và phạm vi khi xuất chính thức.'
-    );
-  }
-
+  // Sheet 1 is intentionally clean; the mandatory audit sheets retain source/scope evidence.
   const fontFamily = sanitizeFontName(session.settings.fontFamily);
   const titleFontPt = Math.max(
     12,
@@ -814,7 +819,12 @@ export function exportSessionReportToXlsxBytes(params: {
       },
     ];
 
-    for (const loc of selectedLocalities) {
+    const shared = isSharedReportIndicator(r.indicator.id);
+    const reportRowNum = sheet1Rows.length + 1;
+    if (shared && selectedLocalities.length > 1) {
+      sheet1Merges.push(`C${reportRowNum}:${lastColLetter}${reportRowNum}`);
+    }
+    for (const loc of (shared ? selectedLocalities.slice(0, 1) : selectedLocalities)) {
       const cellEval = r.cellsByLocalityId[loc.id];
       if (!cellEval) {
         rowCells.push({
@@ -844,7 +854,9 @@ export function exportSessionReportToXlsxBytes(params: {
       ) {
         let styleIdx: number;
         if (cellEval.excelFormatType === 'PERCENT_RATIO') {
-          styleIdx = hasStt ? ST.PRIMARY_PERCENT_NUM : ST.SUB_PERCENT_ITALIC;
+          styleIdx = isReportBenchmarkRate(r.indicator.id)
+            ? (hasStt ? ST.BENCHMARK_PERCENT_NUM : ST.BENCHMARK_PERCENT_ITALIC)
+            : (hasStt ? ST.PRIMARY_PERCENT_NUM : ST.SUB_PERCENT_ITALIC);
         } else if (cellEval.excelFormatType === 'AREA') {
           styleIdx = hasStt ? ST.PRIMARY_AREA_NUM : ST.SUB_AREA_ITALIC_NUM;
         } else {
@@ -872,6 +884,13 @@ export function exportSessionReportToXlsxBytes(params: {
       }
     }
 
+    // Keep borders/styles across the merged range without copying the value.
+    if (shared && selectedLocalities.length > 1) {
+      const anchorStyle = rowCells[2]?.styleIndex ?? ST.PRIMARY_TEXT_CENTER;
+      for (let i = 1; i < selectedLocalities.length; i++) {
+        rowCells.push({ type: 's', value: '', styleIndex: anchorStyle });
+      }
+    }
     sheet1Rows.push(rowCells);
     sheet1RowOpts.push({ minHeightPt: 21, fontSizePt: tableFontPt, padPt: 6 });
   }
@@ -885,7 +904,7 @@ export function exportSessionReportToXlsxBytes(params: {
 
     // Dòng STT 8: Số dự án chưa hoàn thành GPMB (bold, top-aligned, white fill)
     const row8Cells: Array<XlsxCellInput | null> = [
-      { type: 's', value: '8', styleIndex: ST.ROW8_STT_BOLD_TOP },
+      { type: 's', value: reportMainStt(session,'8'), styleIndex: ST.ROW8_STT_BOLD_TOP },
       {
         type: 's',
         value:
@@ -948,7 +967,7 @@ export function exportSessionReportToXlsxBytes(params: {
       selectedLocalities,
     });
     const row9Cells: Array<XlsxCellInput | null> = [
-      { type: 's', value: '9', styleIndex: ST.ROW9_STT_BOLD_TOP },
+      { type: 's', value: reportMainStt(session,'9'), styleIndex: ST.ROW9_STT_BOLD_TOP },
       {
         type: 's',
         value:
@@ -1025,47 +1044,7 @@ export function exportSessionReportToXlsxBytes(params: {
     }
   }
 
-  // Footnote row on Sheet 1 (merged cleanly across full table width)
-  sheet1Rows.push([]);
-  sheet1RowOpts.push({ minHeightPt: 10 });
-  const footnoteRowNum = sheet1Rows.length + 1;
-  sheet1Merges.push(`A${footnoteRowNum}:${lastColLetter}${footnoteRowNum}`);
-  const revDate = datasets.REV?.asOfDate
-    ? formatVnDate(datasets.REV.asOfDate)
-    : '19/10/2026';
-  const disbDate = datasets.DISB?.asOfDate
-    ? formatVnDate(datasets.DISB.asOfDate)
-    : '15/10/2026';
-  const gpmbDate = datasets.GPMB?.asOfDate
-    ? formatVnDate(datasets.GPMB.asOfDate)
-    : '26/10/2026';
-  const gpmbUnits = datasets.GPMB?.unitCount || 108;
-  const gpmbProjects = datasets.GPMB?.projectRowCount || 422;
-  const footnoteBody = `Thu NSNN: kỳ 10T/2026 (ngày chốt: ${revDate}, phạm vi 113/114 địa phương, thiếu Đặc khu Bạch Long Vĩ); Giải ngân: ${disbDate} (114/114 địa phương); GPMB: ${gpmbDate} (${gpmbUnits}/114 địa bàn, ${gpmbProjects} dự án, chỉ tính theo diện tích SUM(I)/SUM(D)).`;
-  sheet1Rows.push([
-    {
-      type: 's',
-      value: `Ghi chú nguồn: ${footnoteBody}`,
-      styleIndex: ST.FOOTNOTE_TEXT,
-      richRuns: [
-        {
-          text: 'Ghi chú nguồn: ',
-          bold: true,
-          italic: false,
-          sizePt: 9,
-          colorHex: 'FF1E293B',
-        },
-        {
-          text: footnoteBody,
-          bold: false,
-          italic: true,
-          sizePt: 9,
-          colorHex: 'FF334155',
-        },
-      ],
-    },
-  ]);
-  sheet1RowOpts.push({ minHeightPt: 22, fontSizePt: 9, lineHeightPt: 12.5, padPt: 6 });
+  // Source metadata is recorded in sheet 2, not in the report body.
 
   // Column widths mirroring Webapp proportions (preserving col B = 46 at default 240px for PH1 test gate)
   const sttColWidth = 6;
@@ -1089,12 +1068,12 @@ export function exportSessionReportToXlsxBytes(params: {
         : session.settings.paperSize === 'A3'
         ? 275
         : 190;
-    const maxPerPage = session.settings.paperSize === 'A3' ? 12 : 7;
+    const maxPerPage = horizontalPageCapacity(session);
     const colsOnPage = Math.max(1, Math.min(selectedLocalities.length, maxPerPage));
     const availablePerCol = Math.floor(
       (pageBudget - sttColWidth - indColWidth) / colsOnPage
     );
-    locColWidth = Math.max(20, Math.min(32, availablePerCol));
+    locColWidth = Math.max(colsOnPage > 7 ? 9 : 20, Math.min(32, availablePerCol));
   }
 
   const sheet1ColWidths: number[] = [
@@ -1182,6 +1161,22 @@ export function exportSessionReportToXlsxBytes(params: {
     ]);
   }
 
+  // Preserve dynamic scope/date metadata independently of whether a source has missing rows.
+  sheet2Rows.push([]);
+  for (const kind of ['REV', 'DISB', 'GPMB'] as const) {
+    const ds = datasets[kind];
+    if (!ds) continue;
+    sheet2Rows.push([
+      { type: 's', value: 'Tổng hợp phạm vi nguồn', styleIndex: ST.TEXT_LEFT_MID },
+      { type: 's', value: kind, styleIndex: ST.PRIMARY_TEXT_CENTER },
+      { type: 's', value: 'Toàn bộ nguồn', styleIndex: ST.TEXT_LEFT_MID },
+      { type: 's', value: ds.asOfStatus || 'Chưa xác nhận', styleIndex: ST.PRIMARY_TEXT_CENTER },
+      { type: 's', value: ds.sourceFilename, styleIndex: ST.TEXT_LEFT_MID },
+      { type: 's', value: `Phạm vi ${ds.unitCount ?? 0}/${baselineLocalities.length} địa phương; ${ds.periodLabel || 'Kỳ theo nguồn'}`, styleIndex: ST.TEXT_LEFT_MID },
+      { type: 's', value: ds.asOfDate || 'Chưa xác nhận', styleIndex: ST.PRIMARY_TEXT_CENTER },
+      { type: 's', value: kind === 'GPMB' ? 'SUM(I ghi nhận)/SUM(D); không bình quân tỷ lệ dự án' : 'Phép tính theo trường nguồn đã xác minh; xem Nhật ký phép tính', styleIndex: ST.TEXT_LEFT_MID },
+    ]);
+  }
   const sheet2Xml = buildWorksheetXml({
     rows: sheet2Rows,
     colWidths: [24, 12, 22, 22, 22, 50, 14, 38],

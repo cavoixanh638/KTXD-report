@@ -8,9 +8,13 @@ import {
   Workspace,
 } from './types';
 import { createLocalityFromName } from './localities';
+import { chooseLatestSources, hasTrustedSourceDate, isValidSourceDate, SOURCE_TYPES, LatestSourcePlan } from './latestSources';
+import { sourceMappingProblem, assessSourceHistory } from './sourceValidation';
 import {
   formatVnDateText,
   replaceDateInLabel,
+  normalizeLocalityReportLabel,
+  formatBenchmarkReportLabel,
   TEMPLATE_14_ROWS_DEFAULT,
 } from './indicators';
 
@@ -47,6 +51,23 @@ export function registerDatasetInWorkspace(
     workspace.datasets.push(dataset);
   } else {
     // Only update if confirming asOfDate on the exact same dataset hash
+    const previous = workspace.datasets[existingIdx];
+    // A repeat import of identical workbook content must not win a same-date tie.
+    if (previous.workbookSha256 === dataset.workbookSha256 && previous.importedAt) {
+      dataset.importedAt = previous.importedAt;
+      const sameMapping = previous.sourceType === dataset.sourceType &&
+        previous.mappingVersion === dataset.mappingVersion &&
+        previous.schemaFingerprint === dataset.schemaFingerprint &&
+        previous.sourceSheet === dataset.sourceSheet;
+      // Reuse a confirmed dataset with identical content/mapping, especially a
+      // manually dated CSV. Never erase its date merely because it is reimported.
+      // A genuinely different mapping still follows the existing reparse path.
+      if (sameMapping && !sourceMappingProblem(previous) && hasTrustedSourceDate(previous) &&
+          (previous.asOfStatus === 'MANUAL_CONFIRMED' ||
+           !hasTrustedSourceDate(dataset) || previous.asOfDate === dataset.asOfDate)) {
+        dataset = previous;
+      }
+    }
     workspace.datasets[existingIdx] = dataset;
   }
 
@@ -80,6 +101,19 @@ export function registerDatasetInWorkspace(
   return dataset;
 }
 
+/** Synchronize metadata/provenance after an explicit cutoff confirmation. */
+function updateConfirmedPeriodMetadata(ds: Dataset): void {
+  if (ds.sourceType === 'DISB' || ds.sourceType === 'GPMB' || ds.sourceType === 'REV') {
+    const label = 'Đến ngày ' + formatVnDate(ds.asOfDate);
+    if (!ds.periodLabel || /^(?:Chưa xác nhận|Đến|Lũy kế đến)/i.test(ds.periodLabel)) ds.periodLabel = label;
+    if (!ds.reportPeriodLabel || /^(?:Chưa xác nhận|Đến|Lũy kế đến)/i.test(ds.reportPeriodLabel)) ds.reportPeriodLabel = label;
+  }
+  for (const rec of [...ds.records, ds.summaryRecord, ds.citySummaryRecord, ds.unplannedDisbursementRecord]) {
+    if (!rec) continue;
+    for (const metric of Object.values(rec.metrics)) metric.provenance.asOfDate = ds.asOfDate;
+  }
+}
+
 export function confirmDatasetAsOfDate(
   workspace: Workspace,
   datasetId: string,
@@ -90,12 +124,14 @@ export function confirmDatasetAsOfDate(
   if (!ds) {
     throw new Error(`Dataset ${datasetId} not found`);
   }
-  if (!/^\d{4}-\d{2}-\d{2}$/.test(confirmedDate.trim())) {
+  if (!isValidSourceDate(confirmedDate.trim())) {
     throw new Error('Ngày chốt phải có định dạng YYYY-MM-DD hợp lệ.');
   }
 
   ds.asOfDate = confirmedDate.trim();
   ds.asOfStatus = 'MANUAL_CONFIRMED';
+  ds.periodEnd = ds.asOfDate;
+  ds.periodStart = ds.asOfDate.slice(0,4)+'-01-01';
   ds.asOfDateConfirmation = {
     confirmedByUser: true,
     confirmedAt: new Date().toISOString(),
@@ -104,12 +140,8 @@ export function confirmDatasetAsOfDate(
   // Clear blocker issue for missing asOfDate
   ds.issues = ds.issues.filter((i) => i.ruleId !== 'MISSING_CONFIRMED_AS_OF_DATE');
 
-  // Update provenance asOfDate in records
-  for (const rec of ds.records) {
-    for (const m of Object.values(rec.metrics)) {
-      m.provenance.asOfDate = ds.asOfDate;
-    }
-  }
+  updateConfirmedPeriodMetadata(ds);
+  assessSourceHistory(ds,workspace);
 
   syncReportLabelsWithDatasetDates(workspace);
   workspace.updatedAt = new Date().toISOString();
@@ -152,18 +184,25 @@ export function syncReportLabelsWithDatasetDates(workspace: Workspace): void {
       GPMB_BENCHMARK_AREA_RATE: formatVnDate(datasets.GPMB?.asOfDate),
     };
 
+    const expectedCount = getSessionLocalitiesBaseline(workspace, session, datasets).length || 114;
     for (const r of session.templateRows) {
+      r.customLabel = normalizeLocalityReportLabel(r.indicatorId, r.customLabel);
       const dateVn = dateByIndicator[r.indicatorId];
-      if (dateVn) {
-        r.customLabel = replaceDateInLabel(r.customLabel, dateVn);
+      if (dateVn) r.customLabel = replaceDateInLabel(r.customLabel, dateVn);
+      if (r.indicatorId === 'DISB_BENCHMARK_RATE' || r.indicatorId === 'GPMB_BENCHMARK_AREA_RATE') {
+        const ds = r.indicatorId === 'DISB_BENCHMARK_RATE' ? datasets.DISB : datasets.GPMB;
+        r.customLabel = formatBenchmarkReportLabel({
+          indicatorId: r.indicatorId, customLabel: r.customLabel,
+          unitCount: ds?.unitCount, expectedCount, asOfDate: ds?.asOfDate,
+        });
       }
     }
-
-    if (session.settings.revBenchmarkRowCustomLabel && dateByIndicator.REV_RATE_Y) {
-      session.settings.revBenchmarkRowCustomLabel = replaceDateInLabel(
-        session.settings.revBenchmarkRowCustomLabel,
-        dateByIndicator.REV_RATE_Y
-      );
+    if (session.settings.revBenchmarkRowCustomLabel) {
+      session.settings.revBenchmarkRowCustomLabel = formatBenchmarkReportLabel({
+        indicatorId: 'REV_BENCHMARK_RATE',
+        customLabel: session.settings.revBenchmarkRowCustomLabel,
+        unitCount: datasets.REV?.unitCount, expectedCount, asOfDate: datasets.REV?.asOfDate,
+      });
     }
   }
 }
@@ -236,20 +275,20 @@ export function migrateLegacySessionLabels(workspace: Workspace): void {
   const legacyToNewMap: Record<string, string> = {
     'Dự toán thu NSNN năm': 'Dự toán thu NSNN giao từng địa phương tại QĐ 5055',
     'Tỷ lệ thu NSNN so với dự toán':
-      'Tỷ lệ thu NSNN của từng xã so với dự toán (đến ngày 19/10/2026)',
+      'Tỷ lệ thu NSNN của từng địa phương so với dự toán (đến ngày 19/10/2026)',
     'Kế hoạch vốn đầu tư công sau điều chỉnh':
-      'Kế hoạch vốn đầu tư công sau điều chỉnh, bổ sung',
+      'Kế hoạch vốn đầu tư công của từng địa phương sau điều chỉnh, bổ sung',
     'Kế hoạch vốn đầu tư công sau NQ điều chỉnh, bổ sung của HĐND':
-      'Kế hoạch vốn đầu tư công sau điều chỉnh, bổ sung',
+      'Kế hoạch vốn đầu tư công của từng địa phương sau điều chỉnh, bổ sung',
     'Tỷ lệ giải ngân chung của 114 địa phương':
-      'Tỷ lệ giải ngân chung của các địa phương (đến ngày 15/10/2026)',
+      'Tỷ lệ giải ngân trung bình của 114 địa phương (đến ngày 15/10/2026)',
     'Tỷ lệ giải ngân của địa phương': 'Tỷ lệ giải ngân của từng địa phương',
     'Nhận xét tỷ lệ giải ngân':
       'Kết quả giải ngân so với tỷ lệ trung bình',
-    'Kinh phí phân bổ GPMB': 'Kinh phí phân bổ GPMB cho từng xã',
-    'Diện tích phải GPMB': 'Diện tích phải GPMB của từng xã',
+    'Kinh phí phân bổ GPMB': 'Kinh phí phân bổ GPMB cho từng địa phương',
+    'Diện tích phải GPMB': 'Diện tích phải GPMB của từng địa phương',
     'Tỷ lệ GPMB của danh mục địa bàn có dữ liệu (108/114 địa bàn)':
-      'Tỷ lệ GPMB trung bình của các địa phương (đến ngày 26/10/2026)',
+      'Tỷ lệ GPMB trung bình của 114 địa phương (đến ngày 26/10/2026)',
     'Tỷ lệ GPMB địa phương theo diện tích':
       'Tỷ lệ GPMB của từng địa phương',
     'Đánh giá GPMB':
@@ -258,14 +297,6 @@ export function migrateLegacySessionLabels(workspace: Workspace): void {
 
   for (const s of workspace.sessions) {
     if (!s || !s.settings) continue;
-    if (
-      s.settings.revBenchmarkRowCustomLabel &&
-      /^Tỷ lệ thu NSNN chung của \d+\/\d+ địa phương có dữ liệu/i.test(
-        s.settings.revBenchmarkRowCustomLabel.trim()
-      )
-    ) {
-      delete s.settings.revBenchmarkRowCustomLabel;
-    }
     if (!Array.isArray(s.templateRows)) continue;
     for (const r of s.templateRows) {
       if (
@@ -278,8 +309,8 @@ export function migrateLegacySessionLabels(workspace: Workspace): void {
           .replace(/^Tỷ lệ thu NSNN so với dự toán/i, '')
           .trim();
         r.customLabel = rest
-          ? `Tỷ lệ thu NSNN của từng xã so với dự toán ${rest}`
-          : 'Tỷ lệ thu NSNN của từng xã so với dự toán (đến ngày 19/10/2026)';
+          ? `Tỷ lệ thu NSNN của từng địa phương so với dự toán ${rest}`
+          : 'Tỷ lệ thu NSNN của từng địa phương so với dự toán (đến ngày 19/10/2026)';
       } else if (r.customLabel && legacyToNewMap[r.customLabel]) {
         r.customLabel = legacyToNewMap[r.customLabel];
       }
@@ -289,7 +320,7 @@ export function migrateLegacySessionLabels(workspace: Workspace): void {
           r.customLabel === 'Kế hoạch vốn đầu tư công sau NQ điều chỉnh, bổ sung của HĐND' ||
           !r.customLabel)
       ) {
-        r.customLabel = 'Kế hoạch vốn đầu tư công sau điều chỉnh, bổ sung';
+        r.customLabel = 'Kế hoạch vốn đầu tư công của từng địa phương sau điều chỉnh, bổ sung';
       }
     }
     if (
@@ -719,7 +750,7 @@ export function updateDatasetAsOfDateForSession(
     throw new Error(`Dataset ${datasetId} not found`);
   }
   const cleanDate = newDateIso.trim();
-  if (!/^\d{4}-\d{2}-\d{2}$/.test(cleanDate)) {
+  if (!isValidSourceDate(cleanDate)) {
     throw new Error('Ngày chốt phải có định dạng YYYY-MM-DD hợp lệ.');
   }
 
@@ -742,6 +773,8 @@ export function updateDatasetAsOfDateForSession(
 
   targetDs.asOfDate = cleanDate;
   targetDs.asOfStatus = 'MANUAL_CONFIRMED';
+  targetDs.periodEnd = cleanDate;
+  targetDs.periodStart = cleanDate.slice(0,4)+'-01-01';
   targetDs.asOfDateConfirmation = {
     confirmedByUser: true,
     confirmedAt: new Date().toISOString(),
@@ -749,11 +782,8 @@ export function updateDatasetAsOfDateForSession(
   };
   targetDs.issues = targetDs.issues.filter((i) => i.ruleId !== 'MISSING_CONFIRMED_AS_OF_DATE');
 
-  for (const rec of targetDs.records) {
-    for (const m of Object.values(rec.metrics)) {
-      m.provenance.asOfDate = targetDs.asOfDate;
-    }
-  }
+  updateConfirmedPeriodMetadata(targetDs);
+  assessSourceHistory(targetDs,workspace);
 
   syncSessionBenchmarkBindingForDataset(workspace, session, targetDs);
   session.sessionRevision += 1;
@@ -854,4 +884,18 @@ export function resolveSessionDatasets(
       ? workspace.datasets.find((d) => d.id === session.dataBindings.GPMB)
       : undefined,
   };
+}
+
+/** Commit only a complete, still-current preview; all validation precedes mutation. */
+export function applyLatestSources(workspace: Workspace, sessionId: string, preview: LatestSourcePlan): ReportSession {
+  const session = workspace.sessions.find(s => s.id === sessionId);
+  if (!session) throw new Error('Không tìm thấy phiên báo cáo.');
+  const current = chooseLatestSources(workspace, session);
+  if (!preview.complete || !current.complete || SOURCE_TYPES.some(t => current.bindings[t] !== preview.bindings[t])) {
+    throw new Error('Bộ nguồn chưa đủ hoặc đã thay đổi; hãy xem lại trước khi nạp.');
+  }
+  for (const t of SOURCE_TYPES) {
+    if (session.dataBindings[t] !== current.bindings[t]) rebindSessionDataset(workspace, sessionId, t, current.bindings[t]!);
+  }
+  return session;
 }

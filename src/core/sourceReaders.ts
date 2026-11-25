@@ -1,11 +1,13 @@
 import { unzipSync } from 'fflate';
 import { Decimal, sha256Hex } from './decimal';
+import { dateFromReportTitle, isValidSourceDate } from './latestSources';
+import { resolveDisbLayout, resolveGroupedGpmbHeaders, resolveFlatGpmbHeaders, attachSourceValidation } from './sourceValidation';
 import {
   AdjustedScenarioCandidate,
   CalculationTrace,
   Dataset,
   DisbSchemaFingerprint,
-  getDisbSchemaProfile,
+  remapDisbProfile,
   IdentityCheckResult,
   Locality,
   MetricCellValue,
@@ -464,6 +466,108 @@ export function getCellNumber(
   return c.value;
 }
 
+/** Normalize ONLY header labels, not locality identity. */
+function headerKey(value: string): string {
+  return value.normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/đ/g, 'd').replace(/Đ/g, 'D').toLowerCase().replace(/\s+/g, ' ').trim();
+}
+function isLocalityName(value: string): boolean {
+  return /^(xã|phường|đặc khu)\s+\S/iu.test(canonicalizeLocalityName(value));
+}
+function localityRows(sheet: ParsedWorkbookSheet, column='B'): number[] {
+  return [...sheet.cells.values()]
+    .filter(c => c.col === column && isLocalityName(String(c.value ?? '')))
+    .map(c => c.row).sort((a,b) => a-b);
+}
+function explicitTitleDate(title: string): string | undefined {
+  const match = title.match(/(?:đến(?:\s+hết)?\s+ngày|tính\s+đến\s+ngày)\s+(\d{1,2})[./-](\d{1,2})[./-](\d{4})/iu);
+  if (!match) return undefined;
+  const [,day,month,year] = match;
+  const iso = year + '-' + month.padStart(2,'0') + '-' + day.padStart(2,'0');
+  const d = new Date(iso+'T00:00:00Z');
+  return Number.isFinite(d.getTime()) && d.toISOString().slice(0,10)===iso ? iso : undefined;
+}
+interface RevenueHeaderMapping {
+  colMap: Record<string,string>;
+  row: number;
+  localityCol:string;
+  sttCol:string;
+  headerRows:number[];
+  titleCell?:string;
+}
+/** Header-based semantic mapping. Distinguish annual, period, actual and
+ * ratio groups by their labels AND their positions relative to group anchors;
+ * duplicate/ambiguous required headers are rejected, never guessed. */
+export function resolveRevenueHeader(sheet: ParsedWorkbookSheet): RevenueHeaderMapping | null {
+  const matches: RevenueHeaderMapping[] = [];
+  const index=(col:string)=>[...col].reduce((n,c)=>n*26+c.charCodeAt(0)-64,0);
+  const headersAt=(row:number)=>[...sheet.cells.values()].filter(c=>c.row===row&&c.value!==null&&String(c.value).trim()!=='').map(c=>({col:c.col,index:index(c.col),key:headerKey(String(c.value))})).sort((a,b)=>a.index-b.index);
+  for (let r=1;r<=Math.min(sheet.maxRow-1,40);r++) {
+    const headers=headersAt(r);
+    const pick = (pred:(x:typeof headers[number])=>boolean) => {
+      const a=headers.filter(pred);return a.length===1?a[0]:undefined;
+    };
+    const locality=pick(x=>/^(don vi|dia phuong|xa phuong|xa\/phuong|xa, phuong, dac khu)$/.test(x.key));
+    const stt=pick(x=>/^(stt|so thu tu)$/.test(x.key));
+    if(!locality||!stt||!localityRows(sheet,locality.col).some(row=>row>r))continue;
+    // The total actually realized must explicitly be a cumulative actual amount,
+    // not a rate, budget, plan, or cumulative non-land subtotal.
+    const actual = pick(x=>/^(luy ke (thuc hien|thu)|thuc hien luy ke)/.test(x.key) && !/tru|khong|ty le|%/.test(x.key));
+    if (!actual) continue;
+    const period = pick(x=>x.index<actual.index && /^(ke hoach thu|ke hoach tong thu)/.test(x.key) && !/tru|khong|tien.*dat/.test(x.key));
+    if (!period) continue;
+    const annual = pick(x=>x.index<period.index && /^tong thu nsnn/.test(x.key) && !/tru|khong/.test(x.key));
+    const isLand = (key:string) => /^(thu )?tien su dung dat(?:\s|$)/.test(key) && !/tru|khong|ke hoach|thue|ty le/.test(key);
+    const isNonland = (key:string) => /(?:tru|khong(?: gom| bao gom)?|loai tru)\s+(?:thu\s+)?tien (?:su dung )?dat/.test(key);
+    const annualLand = pick(x=>x.index> (annual?.index??0) && x.index<period.index && isLand(x.key));
+    const annualNonland = pick(x=>x.index>(annual?.index??0) && x.index<period.index && isNonland(x.key));
+    const periodLand = pick(x=>x.index>period.index && x.index<actual.index && /tien su dung dat/.test(x.key) && !isNonland(x.key) && !/thue/.test(x.key));
+    const periodNonland = pick(x=>x.index>period.index && x.index<actual.index && isNonland(x.key));
+    const actualNonland = pick(x=>x.index>actual.index && /luy ke|thuc hien/.test(x.key) && isNonland(x.key));
+    if (!annual || !annualLand || !annualNonland || !periodLand || !periodNonland || !actualNonland) continue;
+    if(Math.max(locality.index,stt.index)>=annual.index)continue;
+    const actualLand = pick(x=>x.index>actual.index && x.index<actualNonland.index && isLand(x.key));
+    if (!actualLand) continue;
+    const result:Record<string,string> = {
+      [annual.col]:'annual_total_budget', [annualLand.col]:'annual_land_budget', [annualNonland.col]:'annual_nonland_budget',
+      [period.col]:'period_total_plan', [periodLand.col]:'period_land_plan', [periodNonland.col]:'period_nonland_plan',
+      [actual.col]:'actual_total_revenue', [actualLand.col]:'actual_land_revenue', [actualNonland.col]:'actual_nonland_revenue',
+    };
+    const components:Record<string,RegExp> = {
+      actual_nonstate_sector:/thu tu khu vuc kinh te ngoai quoc doanh/,
+      tax_vat:/^thue gtgt$/, tax_excise:/^thue ttdb$/, tax_cit:/^thue tndn$/, tax_resource:/^thue tai nguyen$/,
+    };
+    for (const [field,rx] of Object.entries(components)) {
+      const item=pick(x=>x.index>actual.index&&x.index<actualNonland.index&&rx.test(x.key));
+      if (item) result[item.col]=field;
+    }
+    // Rates are QA only. A pair of repeated labels is not enough to
+    // distinguish annual-vs-period: require explicit parent group headings.
+    const tail=headers.filter(x=>x.index>actualNonland.index&&x.key);
+    let headerRows=[r];
+    for(let upper=r-1;upper>=Math.max(1,r-3);upper--){
+      const groupHeads=headersAt(upper).filter(x=>x.index>actualNonland.index&&/^ty le/.test(x.key));
+      const y=groupHeads.filter(x=>/du toan/.test(x.key)&&!/ke hoach/.test(x.key));
+      const p=groupHeads.filter(x=>/ke hoach/.test(x.key)&&!/du toan/.test(x.key));
+      if(y.length!==1||p.length!==1||groupHeads.length!==2)continue;
+      const groups=[{...y[0],suffix:'y'},{...p[0],suffix:'p'}].sort((a,b)=>a.index-b.index);
+      for(let i=0;i<groups.length;i++){
+        const g=groups[i],end=groups[i+1]?.index??16385;
+        const children=tail.filter(c=>c.index>=g.index&&c.index<end);
+        const roles=[['total',(key:string)=>/^tong thu nsnn$/.test(key)],['land',isLand],['nonland',isNonland]] as const;
+        for(const [role,match] of roles){
+          const hits=children.filter(c=>match(c.key));
+          if(hits.length===1)result[hits[0].col]='source_rate_'+role+'_'+g.suffix;
+        }
+      }
+      headerRows=[upper,r];break;
+    }
+    const titleCandidates=[...sheet.cells.values()].filter(c=>c.row<r&&/thu nsnn|thu ngan sach/.test(headerKey(String(c.value??'')))&&/tong hop|tinh hinh|bao cao/.test(headerKey(String(c.value??''))));
+    const titleCell=titleCandidates.length===1?titleCandidates[0].address:undefined;
+    matches.push({colMap:result,row:r,localityCol:locality.col,sttCol:stt.col,headerRows,titleCell});
+  }
+  return matches.length===1?matches[0]:null;
+}
+
 export function detectSheetFingerprint(
   sheet: ParsedWorkbookSheet
 ):
@@ -479,7 +583,6 @@ export function detectSheetFingerprint(
   const b7 = getCellText(sheet, 'B7');
   const b10 = getCellText(sheet, 'B10');
   const b12 = getCellText(sheet, 'B12');
-  const b13 = getCellText(sheet, 'B13');
   const b11 = getCellText(sheet, 'B11');
 
   // Check RESULT_TEMPLATE_V1
@@ -490,121 +593,18 @@ export function detectSheetFingerprint(
     return 'RESULT_TEMPLATE_V1';
   }
 
-  // Check GPMB_FLAT (flat table in CSV or XLSX)
-  for (let r = 1; r <= Math.min(5, sheet.maxRow); r++) {
-    const rowTexts: string[] = [];
-    for (let c = 1; c <= 40; c++) {
-      const col = colIndexToLetter(c);
-      const txt = getCellText(sheet, `${col}${r}`).toLowerCase().trim();
-      if (txt) rowTexts.push(txt);
-    }
-    const hasLocality = rowTexts.some((t) =>
-      /phường\s*xã|xã\s*phường|địa\s*bàn|địa\s*phương|phường\/xã/.test(t)
-    );
-    const hasDeclaredArea = rowTexts.some((t) =>
-      /tổng\s*dt\s*gpmb|tổng\s*diện\s*tích\s*phải\s*gpmb|dt\s*gpmb|diện\s*tích\s*phải\s*gpmb/.test(t)
-    );
-    const hasRecordedArea = rowTexts.some((t) =>
-      /dt\s*đã\s*thu\s*hồi|diện\s*tích\s*đã\s*gpmb|dt\s*đã\s*gpmb|đã\s*thu\s*hồi/.test(t)
-    );
-    if (hasLocality && hasDeclaredArea && hasRecordedArea) {
-      return 'GPMB_FLAT';
-    }
-  }
+  // Resolve semantic roles across all populated columns (not a fixed 40-column window).
+  try { if(resolveFlatGpmbHeaders(sheet))return 'GPMB_FLAT'; }
+  catch { return 'SCHEMA_MODIFIED_NEEDS_MAPPING'; }
 
-  // Check commune-allocated disbursement layouts (DISB_PHAN_CAP_XA_V2: 15 cols A..O; DISB_PHAN_CAP_XA_V1: 12 cols A..L)
-  const c3 = getCellText(sheet, 'C3').toLowerCase();
-  const f3 = getCellText(sheet, 'F3').toLowerCase();
-  const g3 = getCellText(sheet, 'G3').toLowerCase();
-  const j3 = getCellText(sheet, 'J3').toLowerCase();
-  const k3 = getCellText(sheet, 'K3').toLowerCase();
-  const n3 = getCellText(sheet, 'N3').toLowerCase();
-  const d5 = getCellText(sheet, 'D5').toLowerCase();
-  const e5 = getCellText(sheet, 'E5').toLowerCase();
-  const g5 = getCellText(sheet, 'G5').toLowerCase();
-  const h5 = getCellText(sheet, 'H5').toLowerCase();
+  try {
+    const disb=resolveDisbLayout(sheet);
+    if(disb)return disb.fingerprint;
+  } catch { return 'SCHEMA_MODIFIED_NEEDS_MAPPING'; }
+  if(a1.toLowerCase().includes('giải ngân')||(b7.toUpperCase().includes('TỔNG SỐ')&&b12.toLowerCase().includes('địa phương')))return 'SCHEMA_MODIFIED_NEEDS_MAPPING';
 
-  const isPhanCapXaSheet =
-    !b12.toLowerCase().includes('địa phương') &&
-    (b7.toUpperCase().includes('TỔNG SỐ') || a1.toLowerCase().includes('giải ngân'));
-
-  // 15-col layout MUST be checked before 12-col V1 because both share D5/E5 source headers
-  const isPhanCapXaV2Header =
-    isPhanCapXaSheet &&
-    (f3.includes('sau điều chỉnh') ||
-      (c3.includes('đầu năm') && f3.includes('kế hoạch vốn') && j3.includes('giải ngân')) ||
-      (d5.includes('sử dụng đất') &&
-        e5.includes('mục tiêu') &&
-        (g5.includes('sử dụng đất') || h5.includes('mục tiêu') || j3.includes('giải ngân') || n3.includes('tỷ lệ'))));
-
-  if (isPhanCapXaV2Header) {
-    const b8 = getCellText(sheet, 'B8');
-    const c8 = sheet.cells.get('C8');
-    const f8 = sheet.cells.get('F8');
-    const j8 = sheet.cells.get('J8');
-    if (
-      !b8 ||
-      typeof sheet.cells.get('B8')?.value !== 'string' ||
-      !c8 ||
-      c8.cellType !== 'n' ||
-      !f8 ||
-      f8.cellType !== 'n' ||
-      !j8 ||
-      j8.cellType !== 'n'
-    ) {
-      return 'SCHEMA_MODIFIED_NEEDS_MAPPING';
-    }
-    return 'DISB_PHAN_CAP_XA_V2';
-  }
-
-  const isPhanCapXaV1Header =
-    isPhanCapXaSheet &&
-    !c3.includes('đầu năm') &&
-    !f3.includes('sau điều chỉnh') &&
-    ((c3.includes('kế hoạch vốn') && g3.includes('giải ngân') && k3.includes('tỷ lệ')) ||
-      (d5.includes('sử dụng đất') &&
-        e5.includes('mục tiêu') &&
-        !g5.includes('sử dụng đất') &&
-        !j3.includes('giải ngân')));
-
-  if (isPhanCapXaV1Header) {
-    const b8 = getCellText(sheet, 'B8');
-    const c8 = sheet.cells.get('C8');
-    const g8 = sheet.cells.get('G8');
-    if (
-      !b8 ||
-      typeof sheet.cells.get('B8')?.value !== 'string' ||
-      !c8 ||
-      c8.cellType !== 'n' ||
-      !g8 ||
-      g8.cellType !== 'n'
-    ) {
-      return 'SCHEMA_MODIFIED_NEEDS_MAPPING';
-    }
-    return 'DISB_PHAN_CAP_XA_V1';
-  }
-
-  // Check DISB_V1
-  if (
-    a1.toLowerCase().includes('giải ngân') ||
-    (b7.toUpperCase().includes('TỔNG SỐ') && b12.toLowerCase().includes('địa phương'))
-  ) {
-    // Verify column positions B (locality name), F (adjusted plan numeric), I (disbursed numeric)
-    const f13 = sheet.cells.get('F13');
-    const i13 = sheet.cells.get('I13');
-    if (
-      !b13 ||
-      typeof sheet.cells.get('B13')?.value !== 'string' ||
-      !f13 ||
-      f13.cellType !== 'n' ||
-      !i13 ||
-      i13.cellType !== 'n'
-    ) {
-      return 'SCHEMA_MODIFIED_NEEDS_MAPPING';
-    }
-    return 'DISB_V1';
-  }
-
+  // Check header-based REV first; retain recognition of the hash-verified reference for compatibility.
+  if (resolveRevenueHeader(sheet)) return 'REV_V1';
   // Check REV_V1
   if (
     a3.toUpperCase().includes('THU NSNN') ||
@@ -625,17 +625,10 @@ export function detectSheetFingerprint(
     return 'REV_V1';
   }
 
-  // Check GPMB_V1
-  if (
-    a1.toUpperCase().includes('GIẢI PHÓNG MẶT BẰNG') ||
-    getCellText(sheet, 'D2').toLowerCase().includes('diện tích')
-  ) {
-    const d4 = sheet.cells.get('D4');
-    if (!d4 || d4.cellType !== 'n') {
-      return 'SCHEMA_MODIFIED_NEEDS_MAPPING';
-    }
-    return 'GPMB_V1';
-  }
+  // Grouped GPMB: classify by semantic roles, not by whether D4 happens to be a number.
+  try { if(resolveGroupedGpmbHeaders(sheet))return 'GPMB_V1'; }
+  catch { return 'SCHEMA_MODIFIED_NEEDS_MAPPING'; }
+  if(a1.toUpperCase().includes('GIẢI PHÓNG MẶT BẰNG'))return 'SCHEMA_MODIFIED_NEEDS_MAPPING';
 
   return 'UNKNOWN';
 }
@@ -802,7 +795,7 @@ export interface ImportOptions {
 }
 
 function isDisbFingerprint(fp: string): fp is DisbSchemaFingerprint {
-  return fp === 'DISB_V1' || fp === 'DISB_PHAN_CAP_XA_V1' || fp === 'DISB_PHAN_CAP_XA_V2';
+  return fp === 'DISB_V1' || fp === 'DISB_TOTAL_LOCALITY_V2' || fp === 'DISB_PHAN_CAP_XA_V1' || fp === 'DISB_PHAN_CAP_XA_V2';
 }
 
 export function importDisbursementWorkbook(
@@ -826,9 +819,8 @@ export function importDisbursementWorkbook(
     targetSheet = wb.sheets.find((s) => s.name === options.manualSheetName);
     if (targetSheet) {
       const detected = detectSheetFingerprint(targetSheet);
-      if (isDisbFingerprint(detected)) {
-        targetFp = detected;
-      }
+      if (!isDisbFingerprint(detected)) throw new Error('BLOCKER_MAPPING_REQUIRED: Sheet giải ngân chọn tay không khớp cấu trúc đã xác minh.');
+      targetFp = detected;
     }
     importSelectionMode = 'MANUAL_CONFIRMED';
   } else {
@@ -847,7 +839,7 @@ export function importDisbursementWorkbook(
       );
       if (modified) {
         throw new Error(
-          'BLOCKER_MAPPING_REQUIRED: Cấu trúc cột file Giải ngân thay đổi, yêu cầu mở Mapping Wizard (PH2-01).'
+          'BLOCKER_MAPPING_REQUIRED: Chưa xác minh được nhóm tiêu đề, phạm vi hoặc vị trí cột giải ngân. Không nạp file để tránh sai số liệu.'
         );
       }
       throw new Error(
@@ -860,25 +852,35 @@ export function importDisbursementWorkbook(
     throw new Error('Sheet not found in DISB workbook.');
   }
 
-  const profile = getDisbSchemaProfile(targetFp);
-  const a1Text = getCellText(targetSheet, 'A1');
-  const dateMatch = a1Text.match(/(\d{1,2})\/(\d{1,2})\/(\d{4})/);
-  const detectedDate = dateMatch
-    ? `${dateMatch[3]}-${dateMatch[2].padStart(2, '0')}-${dateMatch[1].padStart(2, '0')}`
-    : '2026-10-15';
-  const asOfDate = options.confirmedAsOfDate || detectedDate;
-  const datasetId = `DISB_${wb.sha256.slice(0, 12)}`;
+  const layout=resolveDisbLayout(targetSheet);
+  if(!layout||layout.fingerprint!==targetFp)throw new Error('BLOCKER_MAPPING_REQUIRED: Không xác minh được nhóm cột giải ngân.');
+  const profile=remapDisbProfile(layout);
+  if(targetFp==='DISB_TOTAL_LOCALITY_V2'&&layout.columns.L)profile.colMap[layout.columns.L]='source_disbursed_rate_initial';
+  const headerRows=layout.headerRows;
+  const a1Text = getCellText(targetSheet,layout.titleCell);
+  const detectedDate = dateFromReportTitle(a1Text);
+  const manualDate = options.confirmedAsOfDate?.trim();
+  if (manualDate && !isValidSourceDate(manualDate)) throw new Error('Ngày chốt không hợp lệ.');
+  const asOfDate = manualDate || detectedDate || '';
+  const asOfStatus: Dataset['asOfStatus'] = manualDate ? 'MANUAL_CONFIRMED' : detectedDate ? 'DETECTED_CONFIRMED' : 'REQUIRES_USER_CONFIRMATION';
+  const datasetId = `DISB_${wb.sha256.slice(0, 12)}__GUARD1`;
   const mappingVersion = profile.mappingVersion;
 
   const localities: Locality[] = [];
   const records: SourceRecord[] = [];
   const issues: QualityIssue[] = [];
+  if (!asOfDate) issues.push({
+    id: `${datasetId}_BLOCKER_AS_OF_DATE`, ruleId: 'MISSING_CONFIRMED_AS_OF_DATE',
+    severity: 'BLOCKER', status: 'OPEN', datasetId, sourceType: 'DISB', rowId: 'HEADER_'+layout.titleCell,
+    sourceRow: Number(layout.titleCell.match(/\d+$/)?.[0]||1), localityId: 'ALL', localityName: 'Toàn bộ nguồn', fieldId: 'asOfDate',
+    sourceCell: layout.titleCell, observed: null, explanation: 'Không xác định được ngày chốt từ tiêu đề báo cáo. Cần xác nhận ngày chốt thực tế; không dùng tên file hoặc ngày mặc định.',
+  });
   const identityChecks: IdentityCheckResult[] = [];
 
   const parseDisbRow = (row: number, locId: string, locName: string): SourceRecord => {
     const metrics: Record<string, MetricCellValue> = {};
     for (const [col, fieldId] of Object.entries(profile.colMap)) {
-      const unit = col === profile.rateCol ? 'ratio' : 'million_vnd';
+      const unit = fieldId.startsWith('source_disbursed_rate') ? 'ratio' : 'million_vnd';
       const mCell = buildMetricCell(
         targetSheet,
         col,
@@ -937,44 +939,29 @@ export function importDisbursementWorkbook(
     };
   };
 
-  const citySummaryRecord = profile.hasCitySummary
-    ? parseDisbRow(7, 'CITY_TOTAL', 'TỔNG SỐ TOÀN THÀNH PHỐ')
+  const citySummaryRecord = layout.citySummaryRow!==undefined
+    ? parseDisbRow(layout.citySummaryRow, 'CITY_TOTAL', 'TỔNG SỐ TOÀN THÀNH PHỐ')
     : undefined;
-  const summaryRecord = parseDisbRow(
+  const summaryRecord = profile.summaryRow > 0 ? parseDisbRow(
     profile.summaryRow,
     'LOCALITIES_BLOCK_114',
     profile.isPhanCapXa
-      ? 'Khối 114 địa phương (vốn phân cấp cấp xã, dòng 7)'
-      : 'Khối địa phương (dòng 12)'
-  );
-  const unplannedDisbursementRecord = profile.hasUnplannedRow
-    ? parseDisbRow(145, 'UNPLANNED_ROW_145', 'Giải ngân ngoài kế hoạch (dòng 145)')
+      ? 'Khối địa phương (vốn phân cấp cấp xã, dòng '+profile.summaryRow+')'
+      : 'Khối địa phương (dòng '+profile.summaryRow+')'
+  ) : undefined;
+  const unplannedDisbursementRecord = layout.unplannedRow!==undefined
+    ? parseDisbRow(layout.unplannedRow, 'UNPLANNED_ROW_'+layout.unplannedRow, 'Giải ngân ngoài kế hoạch (dòng '+layout.unplannedRow+')')
     : undefined;
 
   const eqDefs = profile.eqDefs;
-  const rowStart = profile.rowStart;
-  const rowEnd = profile.isPhanCapXa
-    ? Math.max(profile.defaultRowEnd, targetSheet.maxRow)
-    : profile.defaultRowEnd;
+  const candidateRows = layout.dataRows;
+  const seenLocalities = new Set<string>();
 
-  for (let row = rowStart; row <= rowEnd; row++) {
-    const rawName = getCellText(targetSheet, `B${row}`).trim();
-    if (!rawName) continue;
-    if (profile.isPhanCapXa) {
-      const lowerName = rawName.toLowerCase();
-      if (lowerName.startsWith('tổng') || lowerName.startsWith('ghi chú')) {
-        continue;
-      }
-      const aCell = targetSheet.cells.get(`A${row}`);
-      const planCell = targetSheet.cells.get(`${profile.planCol}${row}`);
-      const disbCell = targetSheet.cells.get(`${profile.disbCol}${row}`);
-      const looksLikeLocalityRow =
-        aCell?.cellType === 'n' ||
-        (planCell?.cellType === 'n' && disbCell?.cellType === 'n');
-      if (!looksLikeLocalityRow) continue;
-    }
-
-    const loc = createLocalityFromName(rawName, `${wb.filename}!${targetSheet.name}!B${row}`);
+  for (const row of candidateRows) {
+    const rawName = getCellText(targetSheet, layout.columns.B+row).trim();
+    const loc = createLocalityFromName(rawName, wb.filename+'!'+targetSheet.name+'!'+layout.columns.B+row);
+    if (seenLocalities.has(loc.id)) throw new Error('BLOCKER_DUPLICATE_LOCALITY: '+loc.canonicalNameNFC+' tại dòng '+row);
+    seenLocalities.add(loc.id);
     localities.push(loc);
 
     const rec = parseDisbRow(row, loc.id, loc.canonicalNameNFC);
@@ -1161,27 +1148,23 @@ export function importDisbursementWorkbook(
     sheetIndex: targetSheet.index,
     sheetVisibility: targetSheet.state,
     schemaFingerprint: targetFp,
+    disbLayout:layout,
     importSelectionMode,
     manualSelectionReason: options.manualSelectionReason,
     mappingVersion,
     calculationPolicyVersion: 'V2.2_R06',
     unitCount: records.length,
     asOfDate,
-    reportPeriodLabel: `Đến hết ngày ${asOfDate.split('-').reverse().join('/')}`,
-    periodLabel: `Đến hết ngày ${asOfDate.split('-').reverse().join('/')}`,
-    periodStart: '2026-01-01',
-    periodEnd: asOfDate,
-    asOfStatus: 'DETECTED_CONFIRMED',
-    asOfDateEvidence:
-      targetFp === 'DISB_PHAN_CAP_XA_V2'
-        ? `Sheet ${targetSheet.name}!A1 ("${a1Text.trim()}"). Báo cáo nguồn vốn phân cấp cho cấp xã (gồm KHV đầu năm C–E, sau điều chỉnh F–I, giải ngân J–M, tỷ lệ N, ghi chú O; không gồm dự án khối TP).`
-        : targetFp === 'DISB_PHAN_CAP_XA_V1'
-        ? `Sheet ${targetSheet.name}!A1 ("${a1Text.trim()}"). Báo cáo nguồn vốn phân cấp cho cấp xã (12 cột A–L, không bao gồm dự án khối TP và không có cột KHV trước điều chỉnh).`
-        : `Sheet ${targetSheet.name}!A1 ("${a1Text.trim()}"). Không dùng ngày 22/10 ở cột P hay 25/9 ở cột Q làm ngày chốt.`,
+    reportPeriodLabel: asOfDate ? `Đến hết ngày ${asOfDate.split('-').reverse().join('/')}` : 'Chưa xác nhận ngày chốt',
+    periodLabel: asOfDate ? `Đến hết ngày ${asOfDate.split('-').reverse().join('/')}` : 'Chưa xác nhận ngày chốt',
+    periodStart: asOfDate ? asOfDate.slice(0,4)+'-01-01' : undefined,
+    periodEnd: asOfDate || undefined,
+    asOfStatus,
+    asOfDateEvidence: detectedDate ? `VERIFIED_TITLE_DATE:${detectedDate} Sheet ${targetSheet.name}!${layout.titleCell} ("${a1Text.trim()}")` : `Sheet ${targetSheet.name}!${layout.titleCell}: chưa xác định ngày chốt`,
     asOfDateConfirmation: {
-      confirmedByUser: true,
-      confirmedAt: new Date().toISOString(),
-      reason: options.asOfConfirmationReason || 'Trích xuất rõ ràng từ tiêu đề ô A1',
+      confirmedByUser: !!manualDate,
+      confirmedAt: manualDate ? new Date().toISOString() : null,
+      reason: options.asOfConfirmationReason,
     },
     importedAt: new Date().toISOString(),
     records,
@@ -1193,6 +1176,7 @@ export function importDisbursementWorkbook(
     allSheetsMeta,
   };
 
+  attachSourceValidation(dataset,targetSheet,headerRows);
   return { dataset, localities };
 }
 
@@ -1229,7 +1213,7 @@ export function importRevenueWorkbook(
       );
       if (modified) {
         throw new Error(
-          'BLOCKER_MAPPING_REQUIRED: Cấu trúc cột file Thu NSNN thay đổi, yêu cầu mở Mapping Wizard (PH2-01).'
+          'BLOCKER_MAPPING_REQUIRED: Chưa xác minh được tiêu đề nguồn Thu NSNN. Không nạp file để tránh sai số liệu.'
         );
       }
       throw new Error(
@@ -1246,15 +1230,24 @@ export function importRevenueWorkbook(
   const hasUserConfirmedDate = Boolean(
     options.confirmedAsOfDate && options.confirmedAsOfDate.trim().length > 0
   );
-  const asOfDate = hasUserConfirmedDate ? options.confirmedAsOfDate!.trim() : '';
+  const semanticMapping = resolveRevenueHeader(targetSheet);
+  const isOriginalReference = wb.sha256 === 'b41227d1444c581e6f3b65d761fad8918b65aedfbd8114443e6dee9d4938356f' && targetSheet.name==='10T-19.10' && targetSheet.index===0;
+  const titleCell=isOriginalReference?'A3':semanticMapping?.titleCell;
+  const title = titleCell?getCellText(targetSheet,titleCell):'';
+  const titleDate = explicitTitleDate(title);
+  if (hasUserConfirmedDate && !isValidSourceDate(options.confirmedAsOfDate!.trim())) throw new Error('Ngày chốt không hợp lệ.');
+  const asOfDate = hasUserConfirmedDate ? options.confirmedAsOfDate!.trim() : (titleDate || '');
   const asOfStatus: Dataset['asOfStatus'] = hasUserConfirmedDate
     ? 'MANUAL_CONFIRMED'
-    : 'REQUIRES_USER_CONFIRMATION';
-
-  const datasetId = `REV_${wb.sha256.slice(0, 12)}`;
-  const mappingVersion = 'REV_ADAPTER_V2.2';
-
-  const colMap: Record<string, string> = {
+    : titleDate ? 'DETECTED_CONFIRMED' : 'REQUIRES_USER_CONFIRMATION';
+  const datasetId = `REV_${wb.sha256.slice(0, 12)}__GUARD1`;
+  // Only the authorized, byte-identical original workbook is allowed to use
+  // the legacy fixed map. Any other workbook must pass semantic recognition.
+  if (!semanticMapping && !isOriginalReference) {
+    throw new Error('BLOCKER_MAPPING_REQUIRED: Không nhận diện duy nhất tiêu đề các cột dự toán/kế hoạch/thực hiện/thu tiền đất/thu trừ tiền đất; không được lấy theo cột R/W cố định.');
+  }
+  const mappingVersion = isOriginalReference ? 'REV_ADAPTER_V2.2' : 'REV_HEADER_SEMANTIC_V3';
+  const legacyMap: Record<string, string> = {
     C: 'annual_total_budget',
     D: 'annual_land_budget',
     E: 'annual_nonland_budget',
@@ -1277,8 +1270,9 @@ export function importRevenueWorkbook(
     AC: 'source_rate_nonland_p',
   };
 
+  const colMap = isOriginalReference ? legacyMap : semanticMapping!.colMap;
   const issues: QualityIssue[] = [];
-  if (!hasUserConfirmedDate) {
+  if (!asOfDate) {
     issues.push({
       id: `${datasetId}_BLOCKER_AS_OF_DATE`,
       ruleId: 'MISSING_CONFIRMED_AS_OF_DATE',
@@ -1286,22 +1280,22 @@ export function importRevenueWorkbook(
       status: 'OPEN',
       datasetId,
       sourceType: 'REV',
-      rowId: 'HEADER_A3',
-      sourceRow: 3,
+      rowId: 'HEADER_'+(titleCell||'UNKNOWN'),
+      sourceRow: Number(titleCell?.match(/\d+$/)?.[0]||3),
       localityId: 'ALL',
       localityName: 'Toàn bộ nguồn Thu NSNN',
       fieldId: 'asOfDate',
-      sourceCell: 'A3',
+      sourceCell: titleCell||'A3',
       observed: null,
       explanation:
-        'Tiêu đề "10 tháng năm 2026" và tên sheet "10T-19.10" chưa chứng minh được ngày chốt cụ thể (không tự gán 19/10 hay 31/10). Yêu cầu người dùng nhập/xác nhận ngày chốt thực tế.',
+        'Không xác định duy nhất ngày chốt cụ thể trong tiêu đề báo cáo. Không tự gán ngày theo tên file, tên sheet hoặc kỳ tháng. Yêu cầu xác nhận ngày chốt thực tế.',
     });
   }
 
   const parseRevRow = (row: number, locId: string, locName: string): SourceRecord => {
     const metrics: Record<string, MetricCellValue> = {};
     for (const [col, fieldId] of Object.entries(colMap)) {
-      const isRatio = ['X', 'Y', 'Z', 'AA', 'AB', 'AC'].includes(col);
+      const isRatio = fieldId.startsWith('source_rate_');
       const unit = isRatio ? 'ratio' : 'million_vnd';
       metrics[fieldId] = buildMetricCell(
         targetSheet,
@@ -1323,15 +1317,25 @@ export function importRevenueWorkbook(
     };
   };
 
-  const summaryRecord = parseRevRow(10, 'REV_AVAILABLE_113', 'Tổng cộng 113 địa phương (dòng 10)');
+  const localityCol=isOriginalReference?'B':semanticMapping!.localityCol;
+  const dataRows = localityRows(targetSheet,localityCol).filter(row=>row>(semanticMapping?.row??8));
+  const seen = new Set<string>();
   const records: SourceRecord[] = [];
-
-  for (let row = 11; row <= 123; row++) {
-    const rawName = getCellText(targetSheet, `B${row}`);
+  for (const row of dataRows) {
+    const rawName = getCellText(targetSheet, localityCol+row);
     const canonical = canonicalizeLocalityName(rawName);
     const locId = makeLocalityId(canonical);
+    if (seen.has(locId)) throw new Error('BLOCKER_DUPLICATE_LOCALITY: '+canonical+' tại dòng '+row);
+    seen.add(locId);
     records.push(parseRevRow(row, locId, canonical));
   }
+  if (!records.length) throw new Error('BLOCKER_MAPPING_REQUIRED: Không có dòng địa phương được nhận diện.');
+  const totalRow = Array.from({length:Math.max(0,dataRows[0]-1)},(_,i)=>i+1)
+    .find(row=>/^tong so|^tong cong$/.test(headerKey(getCellText(targetSheet,localityCol+row))));
+  const summaryRecord = totalRow ? parseRevRow(totalRow,'REV_AVAILABLE_113','Tổng các địa phương (dòng '+totalRow+')') : undefined;
+  const monthMatch = title.match(/(\d{1,2})\s*tháng\s*(?:đầu\s*)?(?:năm\s*)?(\d{4})/iu);
+  const periodLabel = titleDate ? 'Lũy kế đến ngày '+titleDate.split('-').reverse().join('/') :
+    monthMatch ? monthMatch[1]+' tháng đầu năm '+monthMatch[2] : 'Kỳ theo tiêu đề nguồn';
 
   const dataset: Dataset = {
     id: datasetId,
@@ -1349,13 +1353,14 @@ export function importRevenueWorkbook(
     calculationPolicyVersion: 'V2.2_R06',
     unitCount: records.length,
     asOfDate,
-    reportPeriodLabel: '10 tháng đầu năm 2026',
-    periodLabel: '10 tháng đầu năm 2026',
-    periodStart: '2026-01-01',
-    periodEnd: '2026-10-31',
+    reportPeriodLabel: isOriginalReference ? '10 tháng đầu năm 2026' : periodLabel,
+    periodLabel: isOriginalReference ? '10 tháng đầu năm 2026' : periodLabel,
+    periodStart: asOfDate ? asOfDate.slice(0,4)+'-01-01' : '2026-01-01',
+    periodEnd: isOriginalReference ? '2026-10-31' : asOfDate || undefined,
     asOfStatus,
     asOfDateEvidence:
-      'Sheet 10T-19.10, tiêu đề A3 ghi "10 THÁNG NĂM 2026"; không có ngày chốt rõ ràng trong tiêu đề, yêu cầu người dùng xác nhận.',
+      titleDate ? `Sheet ${targetSheet.name}!${titleCell}: ${title.trim()}` :
+      `Sheet ${targetSheet.name}!${titleCell||'chưa xác định tiêu đề'}: ${title.trim()}; chưa có ngày chốt cụ thể, yêu cầu người dùng xác nhận.`,
     asOfDateConfirmation: {
       confirmedByUser: hasUserConfirmedDate,
       confirmedAt: hasUserConfirmedDate ? new Date().toISOString() : null,
@@ -1368,6 +1373,7 @@ export function importRevenueWorkbook(
     allSheetsMeta,
   };
 
+  attachSourceValidation(dataset,targetSheet,isOriginalReference?[7,8]:semanticMapping!.headerRows);
   return { dataset };
 }
 
@@ -1410,82 +1416,47 @@ export function importGpmbWorkbook(
   }
 
   const sheetFp = detectSheetFingerprint(targetSheet);
-  const isFlatTable = sheetFp === 'GPMB_FLAT';
+  if(sheetFp!=='GPMB_V1'&&sheetFp!=='GPMB_FLAT') throw new Error('BLOCKER_MAPPING_REQUIRED: Sheet GPMB không khớp cấu trúc nguồn.');
+  const flatMapping = sheetFp==='GPMB_FLAT'?resolveFlatGpmbHeaders(targetSheet):null;
+  if(sheetFp==='GPMB_FLAT'&&!flatMapping)throw new Error('BLOCKER_MAPPING_REQUIRED: Không xác minh được tiêu đề GPMB bảng phẳng.');
+  const isFlatTable = !!flatMapping;
+  const groupedMapping = isFlatTable?null:resolveGroupedGpmbHeaders(targetSheet);
+  if(!flatMapping&&!groupedMapping)throw new Error('BLOCKER_MAPPING_REQUIRED: Không xác minh được nhóm tiêu đề GPMB.');
+  const headerRows = flatMapping?[flatMapping.row]:[groupedMapping!.row];
+  const groupTotals:SourceRecord[]=[];
 
   const a1Text = getCellText(targetSheet, 'A1');
-  let detectedDate = '2026-10-26';
-  const dateMatch = a1Text.match(/(\d{1,2})\/(\d{1,2})\/(\d{4})/);
-  if (dateMatch) {
-    detectedDate = `${dateMatch[3]}-${dateMatch[2].padStart(2, '0')}-${dateMatch[1].padStart(2, '0')}`;
-  } else {
-    const fnMatch = filename.match(/(\d{1,2})[\.\-](\d{1,2})[\.\-](\d{2,4})/);
-    if (fnMatch) {
-      const year = fnMatch[3].length === 2 ? `20${fnMatch[3]}` : fnMatch[3];
-      detectedDate = `${year}-${fnMatch[2].padStart(2, '0')}-${fnMatch[1].padStart(2, '0')}`;
-    }
-  }
-  const asOfDate = options.confirmedAsOfDate || detectedDate;
-  const datasetId = `GPMB_${wb.sha256.slice(0, 12)}`;
+  // Flat tables often contain only project deadlines, not a report cutoff.
+  const detectedDate = isFlatTable ? undefined : dateFromReportTitle(a1Text);
+  const manualDate = options.confirmedAsOfDate?.trim();
+  if (manualDate && !isValidSourceDate(manualDate)) throw new Error('Ngày chốt không hợp lệ.');
+  const asOfDate = manualDate || detectedDate || '';
+  const asOfStatus: Dataset['asOfStatus'] = manualDate ? 'MANUAL_CONFIRMED' : detectedDate ? 'DETECTED_CONFIRMED' : 'REQUIRES_USER_CONFIRMATION';
+  const datasetId = `GPMB_${wb.sha256.slice(0, 12)}__GUARD1`;
   const mappingVersion = isFlatTable ? 'GPMB_FLAT_ADAPTER_V2.2' : 'GPMB_ADAPTER_V2.2';
 
   const records: SourceRecord[] = [];
   const issues: QualityIssue[] = [];
+  if (!asOfDate) issues.push({
+    id: `${datasetId}_BLOCKER_AS_OF_DATE`, ruleId: 'MISSING_CONFIRMED_AS_OF_DATE',
+    severity: 'BLOCKER', status: 'OPEN', datasetId, sourceType: 'GPMB', rowId: 'HEADER_A1',
+    sourceRow: 1, localityId: 'ALL', localityName: 'Toàn bộ nguồn', fieldId: 'asOfDate',
+    sourceCell: 'A1', observed: null, explanation: 'Không xác định được ngày chốt từ tiêu đề báo cáo. Cần xác nhận ngày chốt thực tế; không dùng tên file hoặc ngày mặc định.',
+  });
   const localityGroupSummaries: Record<
     string,
-    { row: number; rawM: string | number | null; formulaM?: string }
+    { row: number; rawM: string | number | null; formulaM?: string; columnM?:string }
   > = {};
 
-  if (isFlatTable) {
-    let headerRow = 1;
-    let colMapFlat: {
-      sttCol?: string;
-      projectCol?: string;
-      localityCol?: string;
-      capitalTypeCol?: string;
-      declaredAreaCol?: string;
-      recordedAreaCol?: string;
-      allocatedBudgetCol?: string;
-      paidAmountCol?: string;
-      declaredOrgsCol?: string;
-      declaredHouseholdsCol?: string;
-      doneOrgsCol?: string;
-      doneHouseholdsCol?: string;
-      rateCol?: string;
-      deadlineCol?: string;
-    } = {};
-
-    for (let r = 1; r <= Math.min(5, targetSheet.maxRow); r++) {
-      const found: typeof colMapFlat = {};
-      for (let c = 1; c <= 40; c++) {
-        const col = colIndexToLetter(c);
-        const txt = getCellText(targetSheet, `${col}${r}`).toLowerCase().trim();
-        if (!txt) continue;
-        if (/^stt$|^số\s*thứ\s*tự$/i.test(txt)) found.sttCol = col;
-        else if (/^dự\s*án$|^tên\s*dự\s*án$/i.test(txt)) found.projectCol = col;
-        else if (/^phường\s*xã$|^xã\s*phường$|^địa\s*bàn$|^địa\s*phương$/i.test(txt)) found.localityCol = col;
-        else if (/^nguồn\s*vốn$|^nguồn\s*ngân\s*sách$/i.test(txt)) found.capitalTypeCol = col;
-        else if (/tổng\s*dt\s*gpmb|tổng\s*diện\s*tích\s*phải\s*gpmb|dt\s*gpmb/i.test(txt)) found.declaredAreaCol = col;
-        else if (/dt\s*đã\s*thu\s*hồi|diện\s*tích\s*đã\s*gpmb|dt\s*đã\s*gpmb|đã\s*thu\s*hồi/i.test(txt)) found.recordedAreaCol = col;
-        else if (/tiền\s*phân\s*bổ|kinh\s*phí\s*phân\s*bổ/i.test(txt)) found.allocatedBudgetCol = col;
-        else if (/đã\s*chi\s*gpmb|tiền\s*đã\s*chi/i.test(txt)) found.paidAmountCol = col;
-        else if (/tổ\s*chức\s*bị\s*thu\s*hồi/i.test(txt)) found.declaredOrgsCol = col;
-        else if (/hộ\s*dân\s*bị\s*thu\s*hồi/i.test(txt)) found.declaredHouseholdsCol = col;
-        else if (/^số\s*tổ\s*chức$/i.test(txt)) found.doneOrgsCol = col;
-        else if (/^số\s*hộ\s*dân$/i.test(txt)) found.doneHouseholdsCol = col;
-        else if (/tỷ\s*lệ\s*gpmb/i.test(txt)) found.rateCol = col;
-        else if (/hạn\s*hoàn\s*thành|thời\s*hạn|tiến\s*độ\s*hoàn\s*thành/i.test(txt)) found.deadlineCol = col;
-      }
-      if (found.localityCol && (found.declaredAreaCol || found.recordedAreaCol)) {
-        headerRow = r;
-        colMapFlat = found;
-        break;
-      }
-    }
+  if (isFlatTable && flatMapping) {
+    const headerRow = flatMapping.row;
+    const colMapFlat = flatMapping.columns;
 
     for (let row = headerRow + 1; row <= targetSheet.maxRow; row++) {
       const locText = colMapFlat.localityCol ? getCellText(targetSheet, `${colMapFlat.localityCol}${row}`).trim() : '';
       const projText = colMapFlat.projectCol ? getCellText(targetSheet, `${colMapFlat.projectCol}${row}`).trim() : '';
       if (!locText && !projText) continue;
+      if (!locText || !projText || !isLocalityName(locText)) throw new Error('BLOCKER_MAPPING_REQUIRED: Dòng '+row+' GPMB thiếu/không rõ địa phương hoặc tên dự án.');
 
       const normLoc = canonicalizeLocalityName(locText);
       const locId = makeLocalityId(normLoc);
@@ -1653,7 +1624,8 @@ export function importGpmbWorkbook(
       }
     }
   } else {
-    const colMap: Record<string, { fieldId: string; unit: string }> = {
+    const g=groupedMapping!.columns;
+    const canonicalMap: Record<string, { fieldId: string; unit: string }> = {
       D: { fieldId: 'gpmb_declared_area', unit: 'm2' },
       E: { fieldId: 'gpmb_declared_orgs', unit: 'org_count' },
       F: { fieldId: 'gpmb_declared_households', unit: 'household_count' },
@@ -1666,12 +1638,14 @@ export function importGpmbWorkbook(
       M: { fieldId: 'gpmb_source_reported_rate', unit: 'percent_100' },
     };
 
+    const colMap=Object.fromEntries(Object.entries(canonicalMap).map(([role,def])=>[g[role],def]));
     let currentLocalityName = '';
     let currentLocalityId = '';
+    const seenProjects = new Set<string>();
 
-    for (let row = 3; row <= targetSheet.maxRow; row++) {
-      const cellA = targetSheet.cells.get(`A${row}`);
-      const textB = getCellText(targetSheet, `B${row}`);
+    for (let row = groupedMapping!.row+1; row <= targetSheet.maxRow; row++) {
+      const cellA = targetSheet.cells.get(`${g.A}${row}`);
+      const textB = getCellText(targetSheet, `${g.B}${row}`);
       const normB = canonicalizeLocalityName(textB);
 
     const isGroupHeader =
@@ -1683,24 +1657,28 @@ export function importGpmbWorkbook(
     if (isGroupHeader) {
       currentLocalityName = normB;
       currentLocalityId = makeLocalityId(normB);
-      const cellM = targetSheet.cells.get(`M${row}`);
+      if(localityGroupSummaries[currentLocalityId])throw new Error('BLOCKER_MAPPING_REQUIRED: Trùng nhóm địa bàn '+normB+' dòng '+row+'.');
+      const cellM = targetSheet.cells.get(`${g.M}${row}`);
       localityGroupSummaries[currentLocalityId] = {
         row,
         rawM: cellM?.value ?? null,
         formulaM: cellM?.formula,
+        columnM:g.M,
       };
+      const metrics:Record<string,MetricCellValue>={};
+      for(const [col,def] of Object.entries(colMap))metrics[def.fieldId]=buildMetricCell(targetSheet,col,row,def.unit,wb,asOfDate,mappingVersion);
+      groupTotals.push({id:datasetId+'_GROUP_'+row,datasetId,localityId:currentLocalityId,localityName:currentLocalityName,sourceRow:row,metrics});
       continue;
     }
 
-    if (
-      cellA &&
-      cellA.cellType === 'n' &&
-      typeof cellA.value === 'number' &&
-      Number.isInteger(cellA.value) &&
-      cellA.value >= 1 &&
-      cellA.value <= 422
-    ) {
-      const stt = cellA.value;
+    const rawStt=cellA?.value;
+    const numericStt=typeof rawStt==='number'?rawStt:typeof rawStt==='string'&&/^\d+$/.test(rawStt.trim())?Number(rawStt):NaN;
+    if (Number.isSafeInteger(numericStt)&&numericStt>=1) {
+      const stt = numericStt;
+      if (!currentLocalityId || !normB) throw new Error('BLOCKER_MAPPING_REQUIRED: Dự án dòng '+row+' chưa có địa bàn/tên dự án rõ ràng.');
+      const projectKey=currentLocalityId+'|'+stt;
+      if(seenProjects.has(projectKey))throw new Error('BLOCKER_MAPPING_REQUIRED: Trùng STT dự án trong địa bàn tại dòng '+row+'.');
+      seenProjects.add(projectKey);
       const metrics: Record<string, MetricCellValue> = {};
       for (const [col, def] of Object.entries(colMap)) {
         metrics[def.fieldId] = buildMetricCell(
@@ -1724,20 +1702,20 @@ export function importGpmbWorkbook(
         projectRowId: projectRecordId,
         projectStt: stt,
         projectName: normB,
-        capitalType: getCellText(targetSheet, `C${row}`).trim(),
+        capitalType: getCellText(targetSheet, `${g.C}${row}`).trim(),
         metrics,
       });
 
       // Quality Checks per §4.3, §12.1, T29, T33, T60
-      const dVal = getCellNumber(targetSheet, `D${row}`);
-      const eVal = getCellNumber(targetSheet, `E${row}`);
-      const fVal = getCellNumber(targetSheet, `F${row}`);
-      const gVal = getCellNumber(targetSheet, `G${row}`);
-      const iVal = getCellNumber(targetSheet, `I${row}`);
-      const jVal = getCellNumber(targetSheet, `J${row}`);
-      const kVal = getCellNumber(targetSheet, `K${row}`);
-      const lVal = getCellNumber(targetSheet, `L${row}`);
-      const mVal = getCellNumber(targetSheet, `M${row}`);
+      const dVal = getCellNumber(targetSheet, `${g.D}${row}`);
+      const eVal = getCellNumber(targetSheet, `${g.E}${row}`);
+      const fVal = getCellNumber(targetSheet, `${g.F}${row}`);
+      const gVal = getCellNumber(targetSheet, `${g.G}${row}`);
+      const iVal = getCellNumber(targetSheet, `${g.I}${row}`);
+      const jVal = getCellNumber(targetSheet, `${g.J}${row}`);
+      const kVal = getCellNumber(targetSheet, `${g.K}${row}`);
+      const lVal = getCellNumber(targetSheet, `${g.L}${row}`);
+      const mVal = getCellNumber(targetSheet, `${g.M}${row}`);
 
       const overChecks: Array<{
         ruleId: string;
@@ -1750,39 +1728,39 @@ export function importGpmbWorkbook(
       }> = [
         {
           ruleId: 'GPMB_I_GT_D',
-          numCol: 'I',
-          denCol: 'D',
+          numCol: g.I,
+          denCol: g.D,
           numV: iVal,
           denV: dVal,
           fieldId: 'gpmb_recorded_area',
-          desc: 'Diện tích đã GPMB (I) lớn hơn diện tích phải GPMB (D)',
+          desc: 'Diện tích đã GPMB lớn hơn diện tích phải GPMB',
         },
         {
           ruleId: 'GPMB_J_GT_G',
-          numCol: 'J',
-          denCol: 'G',
+          numCol: g.J,
+          denCol: g.G,
           numV: jVal,
           denV: gVal,
           fieldId: 'gpmb_paid_amount',
-          desc: 'Kinh phí đã chi GPMB (J) lớn hơn kinh phí phân bổ (G)',
+          desc: 'Kinh phí đã chi GPMB lớn hơn kinh phí phân bổ',
         },
         {
           ruleId: 'GPMB_K_GT_E',
-          numCol: 'K',
-          denCol: 'E',
+          numCol: g.K,
+          denCol: g.E,
           numV: kVal,
           denV: eVal,
           fieldId: 'gpmb_done_orgs',
-          desc: 'Số tổ chức đã GPMB (K) lớn hơn số tổ chức phải thu hồi (E)',
+          desc: 'Số tổ chức đã GPMB lớn hơn số tổ chức phải thu hồi',
         },
         {
           ruleId: 'GPMB_L_GT_F',
-          numCol: 'L',
-          denCol: 'F',
+          numCol: g.L,
+          denCol: g.F,
           numV: lVal,
           denV: fVal,
           fieldId: 'gpmb_done_households',
-          desc: 'Số hộ đã GPMB (L) lớn hơn số hộ phải thu hồi (F)',
+          desc: 'Số hộ đã GPMB lớn hơn số hộ phải thu hồi',
         },
       ];
 
@@ -1829,11 +1807,11 @@ export function importGpmbWorkbook(
           localityId: currentLocalityId,
           localityName: currentLocalityName,
           fieldId: 'gpmb_recorded_area',
-          sourceCell: `I${row}`,
-          sourceCells: { declared: `D${row}`, recorded: `I${row}`, reportedM: `M${row}` },
+          sourceCell: `${g.I}${row}`,
+          sourceCells: { declared: `${g.D}${row}`, recorded: `${g.I}${row}`, reportedM: `${g.M}${row}` },
           observed: iVal,
           expected: dVal,
-          explanation: `Dự án STT ${stt} (dòng ${row}, ${currentLocalityName}) có D${row}=${dVal} m² nhưng thiếu kết quả I${row}/M${row} (MISSING). Giữ D trong mẫu số và gắn cờ PARTIAL_AGGREGATE, không gán I=0.`,
+          explanation: `Dự án STT ${stt} (dòng ${row}, ${currentLocalityName}) có ${g.D}${row}=${dVal} m² nhưng thiếu kết quả ${g.I}${row}/${g.M}${row} (MISSING). Giữ diện tích phải GPMB trong mẫu số và gắn cờ PARTIAL_AGGREGATE, không gán số đã GPMB=0.`,
         });
       }
 
@@ -1855,20 +1833,23 @@ export function importGpmbWorkbook(
             localityId: currentLocalityId,
             localityName: currentLocalityName,
             fieldId: 'gpmb_source_reported_rate',
-            sourceCell: `M${row}`,
+            sourceCell: `${g.M}${row}`,
             sourceCells: {
-              declared: `D${row}`,
-              recorded: `I${row}`,
-              reportedPercent: `M${row}`,
+              declared: `${g.D}${row}`,
+              recorded: `${g.I}${row}`,
+              reportedPercent: `${g.M}${row}`,
             },
             observed: mVal,
             expected: recomputedPct,
             delta: deltaPp,
             threshold: 0.1,
-            explanation: `Cột M dòng dự án ${row} (STT ${stt}, ${currentLocalityName}) ghi ${mVal}%, lệch ${deltaPp.toFixed(2)} điểm % so với 100*I${row}/D${row} (${recomputedPct.toFixed(2)}%). Báo cáo chỉ tính theo SUM(I)/SUM(D), không dùng cột M để tính trung bình.`,
+            explanation: `Cột ${g.M} dòng dự án ${row} (STT ${stt}, ${currentLocalityName}) ghi ${mVal}%, lệch ${deltaPp.toFixed(2)} điểm % so với 100*${g.I}${row}/${g.D}${row} (${recomputedPct.toFixed(2)}%). Báo cáo chỉ tính theo SUM(${g.I})/SUM(${g.D}), không dùng cột ${g.M} để tính trung bình.`,
           });
         }
       }
+    } else if (textB.trim() && !/^(tong so|tong cong|tong hop|ghi chu)(\b|$)/.test(headerKey(textB)) &&
+      [g.D,g.G,g.I,g.J].some(c=>{const cell=targetSheet.cells.get(c+row);return cell&&cell.value!==null&&String(cell.value).trim()!=='';})) {
+      throw new Error('BLOCKER_MAPPING_REQUIRED: Dòng GPMB '+row+' có số liệu nhưng không xác định được STT/nhóm địa bàn; không bỏ qua.');
     }
   }
 }
@@ -1892,18 +1873,16 @@ export function importGpmbWorkbook(
     unitCount: isFlatTable ? uniqueLocCount : Object.keys(localityGroupSummaries).length,
     projectRowCount: records.length,
     asOfDate,
-    reportPeriodLabel: `Đến ngày ${asOfDate.split('-').reverse().join('/')}`,
-    periodLabel: `Đến ngày ${asOfDate.split('-').reverse().join('/')}`,
-    periodStart: '2026-01-01',
-    periodEnd: asOfDate,
-    asOfStatus: 'DETECTED_CONFIRMED',
-    asOfDateEvidence: isFlatTable
-      ? `Bảng phẳng CSDL (${records.length} dự án, ${uniqueLocCount} địa bàn, tệp ${filename})`
-      : `Sheet ${targetSheet.name}!A1 ("${a1Text.trim()}"). Lưu ý tên tệp có chuỗi 26.12.26 nhưng tiêu đề sheet ghi rõ 26/10/2026.`,
+    reportPeriodLabel: asOfDate ? `Đến ngày ${asOfDate.split('-').reverse().join('/')}` : 'Chưa xác nhận ngày chốt',
+    periodLabel: asOfDate ? `Đến ngày ${asOfDate.split('-').reverse().join('/')}` : 'Chưa xác nhận ngày chốt',
+    periodStart: asOfDate ? asOfDate.slice(0,4)+'-01-01' : undefined,
+    periodEnd: asOfDate || undefined,
+    asOfStatus,
+    asOfDateEvidence: detectedDate ? `VERIFIED_TITLE_DATE:${detectedDate} Sheet ${targetSheet.name}!A1 ("${a1Text.trim()}")` : 'Chưa xác định ngày chốt từ tiêu đề; cần xác nhận thủ công',
     asOfDateConfirmation: {
-      confirmedByUser: true,
-      confirmedAt: new Date().toISOString(),
-      reason: options.asOfConfirmationReason || `Xác nhận ngày chốt ${asOfDate}`,
+      confirmedByUser: !!manualDate,
+      confirmedAt: manualDate ? new Date().toISOString() : null,
+      reason: options.asOfConfirmationReason,
     },
     importedAt: new Date().toISOString(),
     records,
@@ -1912,5 +1891,6 @@ export function importGpmbWorkbook(
     allSheetsMeta,
   };
 
+  attachSourceValidation(dataset,targetSheet,headerRows,groupTotals);
   return { dataset };
 }

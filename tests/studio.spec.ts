@@ -11,6 +11,7 @@ import {
 } from '../src/core/sourceReaders';
 import {
   createEmptyWorkspace,
+  applyLatestSources,
   registerDatasetInWorkspace,
   createReportSession,
   setSessionLocalities,
@@ -28,12 +29,16 @@ import {
   formatIsoDate,
 } from '../src/core/sessions';
 import { evaluateSessionReport } from '../src/core/calculationTrace';
+import { chooseLatestSources, hasTrustedSourceDate, dateFromReportTitle, isValidSourceDate } from '../src/core/latestSources';
+import { sourceMappingProblem, assessSourceHistory, confirmSourceValidation, spearman } from '../src/core/sourceValidation';
 import { saveWorkspacePersistent, loadWorkspacePersistent } from '../src/core/storage';
 import { searchLocalities } from '../src/core/localities';
 import { generatePrintableReportHtml } from '../src/export/print';
 import { exportSessionReportToXlsxBytes } from '../src/export/xlsx';
 import {
   computeAutoLayoutMode,
+  horizontalFit,
+  horizontalPageCapacity,
   renderA4DocumentStudioHtml,
   formatReportCellValue,
   renderReportCellValueHtml,
@@ -133,7 +138,482 @@ describe('KTXH Offline – A4 Report Studio & WYSIWYG Architecture Suite', () =>
     gpmbDataset = gpmbImported.dataset;
   });
 
-  it('1. Auto Layout Algorithm on A4 Landscape: picks Horizontal for <= 7 localities and Vertical for > 7 localities', () => {
+
+  it('NOV_FIX_01: maps November compact DISB to all 114 locality rows, not the legacy row 13 window',()=>{
+    const data:Array<[number,Array<[string,string|number]>]>=[
+      [1,[['A','TÌNH HÌNH GIẢI NGÂN KẾ HOẠCH VỐN ĐẦU TƯ CÔNG NĂM 2026 ĐẾN HẾT NGÀY 22/11/2026']]],
+      [3,[['A','Đơn vị: Triệu đồng']]],
+      [4,[['A','Stt'],['B','Chủ đầu tư'],['C','Kế hoạch vốn năm 2026'],['F','Kế hoạch vốn năm 2026 giao sau khi điều chỉnh'],['I','Giải ngân đến hết ngày 22/11/2026 theo báo cáo của Kho bạc Nhà nước'],['L','Tỷ lệ giao đầu năm'],['M','Tỷ lệ sau điều chỉnh'],['N','Ghi chú']]],
+      [5,[['C','Tổng số'],['D','Dự án khối TP'],['E','Phân cấp cho cấp xã'],['F','Tổng số'],['G','Dự án khối TP'],['H','Phân cấp cho cấp xã'],['I','Tổng số'],['J','Dự án khối TP'],['K','Phân cấp cho cấp xã']]],
+      [7,[['A',1],['B',2],['C','3=4+5'],['F','6=7+8'],['I','9=10+11']]],
+    ];
+    for(let i=0;i<114;i++) data.push([8+i,[['A',i+1],['B','Xã Kiểm thử '+(i+1)],['C',100],['D',60],['E',40],['F',120],['G',70],['H',50],['I',90],['J',50],['K',40],['L',.9],['M',.75],['N','Ghi chú thử']]]);
+    const bytes=buildSingleSheetXlsx('Tên sheet bất kỳ',data);
+    const {dataset,localities}=importDisbursementWorkbook(bytes,'fake.xlsx');
+    expect(dataset.schemaFingerprint).toBe('DISB_TOTAL_LOCALITY_V2');
+    expect(dataset.unitCount).toBe(114);
+    expect(localities).toHaveLength(114);
+    expect(dataset.records[0].sourceRow).toBe(8);
+    expect(dataset.records[113].sourceRow).toBe(121);
+    expect(dataset.records[0].metrics.adjusted_total_plan.normalizedDecimal).toBe('120');
+    expect(dataset.records[0].metrics.disbursed_total.normalizedDecimal).toBe('90');
+    expect(dataset.records[0].metrics.source_disbursed_rate.provenance.cell).toBe('M8');
+    expect(dataset.records[0].officialNote).toBe('Ghi chú thử');
+    expect(dataset.summaryRecord).toBeUndefined();
+    expect(dataset.asOfDate).toBe('2026-11-22');
+    expect(dataset.identityChecks?.every(x=>x.status==='PASS_COMPLETE')).toBe(true);
+    expect(dataset.sourceValidation?.checks.find(c=>c.code==='DISB_RATE_INITIAL')?.failed).toBe(0);
+    const shifted=data.map(([r,cols])=>[r,cols.map(([c,v])=>[String.fromCharCode(c.charCodeAt(0)+1),v])] as [number,Array<[string,string|number]>]);
+    const adapted=importDisbursementWorkbook(buildSingleSheetXlsx('Chèn trước cột A',shifted),'shift-compact.xlsx').dataset;
+    expect(adapted.unitCount).toBe(114);
+    expect(adapted.records[0].metrics.adjusted_total_plan.provenance.cell).toBe('G8');
+    expect(adapted.records[0].metrics.disbursed_total.provenance.cell).toBe('J8');
+    expect(adapted.records[0].officialNote).toBe('Ghi chú thử');
+    expect(adapted.asOfDate).toBe('2026-11-22');
+    expect(adapted.records.map(r=>r.metrics.disbursed_total.normalizedDecimal)).toEqual(dataset.records.map(r=>r.metrics.disbursed_total.normalizedDecimal));
+  });
+
+  it('NOV_FIX_02: semantic REV header mapping follows an inserted column; refuses duplicate actual headers',()=>{
+    const name=baselineLocalities.find(l=>revDataset.records.some(r=>r.localityId===l.id))!.canonicalNameNFC;
+    const headers:Array<[string,string|number]>=[
+      ['A','STT'],['B','Đơn vị'],['C','Tổng thu NSNN giao tại QĐ 5055/QĐ-UBND'],
+      ['D','Thu tiền sử dụng đất'],['E','Tổng thu trừ tiền sử dụng đất'],['F','Kế hoạch thu 11 tháng'],
+      ['G','KH thu tiền sử dụng đất 11 tháng (KH ĐC)'],['H','Kế hoạch thu 11 tháng trừ tiền sử dụng đất'],
+      ['I','Cột mới được chèn'],['J','Lũy kế thực hiện đến ngày 23/11/2026'],
+      ['S','Thu tiền cho thuê đất, thuê mặt nước'],['T','Thu tiền sử dụng đất xã'],
+      ['X','Thu từ quỹ đất công ích và thu hoa lợi công sản khác'],['Y','Lũy kế thực hiện 11 tháng trừ tiền sử dụng đất'],
+      ['Z','Tổng thu NSNN'],['AA','Thu tiền sử dụng đất'],['AB','Tổng thu trừ tiền sử dụng đất'],
+      ['AC','Tổng thu NSNN'],['AD','Thu tiền sử dụng đất'],['AE','Tổng thu trừ tiền sử dụng đất'],
+    ];
+    const amounts:Array<[string,string|number]>=[
+      ['A',1],['B',name],['C',100000],['D',30000],['E',70000],['F',80000],['G',20000],['H',60000],
+      ['I',999999],['J',120000],['S',5000],['T',40000],['X',100],['Y',80000],['Z',1.2],['AA',4/3],['AB',8/7],['AC',1.5],['AD',2],['AE',4/3],
+    ];
+    const title='TỔNG HỢP TÌNH HÌNH THỰC HIỆN THU NSNN XÃ, PHƯỜNG, ĐẶC KHU LŨY KẾ THỰC HIỆN ĐẾN NGÀY 23/11/2026';
+    const rows:Array<[number,Array<[string,string|number]>]>=[[3,[['A',title]]],[8,headers],[10,[['B','TỔNG SỐ']]],[11,amounts]];
+    const bytes=buildSingleSheetXlsx('Sheet đổi tên',rows);
+    const {dataset}=importRevenueWorkbook(bytes,'revenue-test.xlsx');
+    expect(dataset.asOfDate).toBe('2026-11-23');
+    expect(dataset.asOfStatus).toBe('DETECTED_CONFIRMED');
+    expect(dataset.mappingVersion).toBe('REV_HEADER_SEMANTIC_V3');
+    expect(dataset.records[0].metrics.actual_total_revenue.provenance.cell).toBe('J11');
+    expect(dataset.records[0].metrics.actual_land_revenue.provenance.cell).toBe('T11');
+    expect(dataset.records[0].metrics.actual_nonland_revenue.provenance.cell).toBe('Y11');
+    expect(dataset.records[0].metrics.actual_nonland_revenue.normalizedDecimal).toBe('80000');
+    // Same workbook with both the locality and all numeric columns moved,
+    // including AA..AE, plus shifted header rows and explicit rate groups.
+    const nextCol=(col:string)=>{let n=[...col].reduce((v,c)=>v*26+c.charCodeAt(0)-64,0)+1,s='';while(n){n--;s=String.fromCharCode(65+n%26)+s;n=Math.floor(n/26);}return s;};
+    const expanded=rows.map(([r,cols])=>[r+1,cols.map(([c,v])=>[nextCol(c),v])] as [number,Array<[string,string|number]>]);
+    expanded.push([8,[['AA','Tỷ lệ thực hiện so dự toán'],['AD','Tỷ lệ thực hiện so kế hoạch kỳ']]]);
+    expanded.push([6,[['AF','ĐVT: Triệu đồng']]]);
+    const revShift=importRevenueWorkbook(buildSingleSheetXlsx('REV dịch định danh',expanded),'rev-shifted.xlsx').dataset;
+    expect(revShift.unitCount).toBe(1);
+    expect(revShift.asOfDate).toBe('2026-11-23');
+    expect(revShift.records[0].localityName).toBe(name);
+    expect(revShift.records[0].metrics.actual_total_revenue.provenance.cell).toBe('K12');
+    expect(revShift.records[0].metrics.actual_land_revenue.normalizedDecimal).toBe('40000');
+    expect(revShift.records[0].metrics.source_rate_total_y.sourceColumn).toBe('AA');
+    expect(revShift.sourceValidation?.checks.find(c=>c.code==='REV_RATE_total_y')?.failed).toBe(0);
+    expect(revShift.sourceValidation?.checks.find(c=>c.code==='UNITS')?.failed).toBe(0);
+    const mixedUnits=expanded.map(([r,cols])=>[r,cols.map(([c,v])=>[c,r===6&&c==='AF'?'ĐVT: Triệu đồng / tỷ đồng':v])] as [number,Array<[string,string|number]>]);
+    expect(()=>importRevenueWorkbook(buildSingleSheetXlsx('Đơn vị xung đột',mixedUnits),'bad-unit.xlsx')).toThrow(/Đơn vị/);
+    const ws=createEmptyWorkspace();
+    registerDatasetInWorkspace(ws,disbDataset,baselineLocalities);registerDatasetInWorkspace(ws,dataset);registerDatasetInWorkspace(ws,gpmbDataset);
+    const session=createReportSession(ws,{name:'Optional realized revenue'});
+    const loc=baselineLocalities.find(l=>l.canonicalNameNFC===name)!;
+    session.selectedLocalityIds=[loc.id,...baselineLocalities.filter(x=>x.id!==loc.id).slice(0,10).map(x=>x.id)];
+    session.settings.tableLayoutMode='HORIZONTAL';
+    const datasets={REV:dataset,DISB:disbDataset,GPMB:gpmbDataset};
+    const evaluate=()=>evaluateSessionReport({session,baselineLocalities,datasets});
+    const off=evaluate();
+    expect(off.rows.some(r=>r.indicator.id==='REV_REALIZED')).toBe(false);
+    session.settings.showRevRealizedRow=true;
+    const on=evaluate();
+    const row=on.rows.find(r=>r.indicator.id==='REV_REALIZED')!;
+    expect(on.rows[1].indicator.id).toBe('REV_REALIZED');
+    expect(row.rowConfig.sttLabel).toBe('2');
+    expect(row.rowConfig.customLabel).toBe('Kết quả thu NSNN (đến ngày 23/11/2026)');
+    expect(row.cellsByLocalityId[loc.id].numericValueForExcel).toBe(120);
+    expect(row.cellsByLocalityId[loc.id].trace.sourceRefs.some(r=>r.address==='J11')).toBe(true);
+    expect(on.rows.find(r=>r.indicator.id==='REV_RATE_Y')?.rowConfig.sttLabel).toBe('3');
+    expect(on.rows.find(r=>r.indicator.id==='REV_LAND_RATE_Y')?.cellsByLocalityId[loc.id].numericValueForExcel).toBeCloseTo(4/3,8);
+    expect(on.rows.find(r=>r.indicator.id==='REV_NONLAND_RATE_Y')?.cellsByLocalityId[loc.id].numericValueForExcel).toBeCloseTo(8/7,8);
+    const html=renderA4DocumentStudioHtml({evaluated:on,baselineLocalities,datasets});
+    expect((html.match(/data-page-number="/g)||[])).toHaveLength(1);
+    expect((html.match(/class="doc-th doc-th-locality"/g)||[])).toHaveLength(11);
+    expect(html).toContain('data-fit-columns="dense"');
+    expect(html).toMatch(/data-row-type="uncompleted-count"[^]*?style="vertical-align: top;">9<\/td>/);
+    expect(html).toMatch(/data-row-type="nq11"[^]*?style="vertical-align: top;">10<\/td>/);
+    const print=generatePrintableReportHtml({evaluated:on,baselineLocalities,datasets,includeAppendix:false});
+    expect((print.match(/class="print-page-chunk"/g)||[])).toHaveLength(1);
+    expect(print.replace(/<[^>]+>/g,'')).toContain('Kết quả thu NSNN (đến ngày 23/11/2026)');
+    const exported=exportSessionReportToXlsxBytes({evaluated:on,baselineLocalities,datasets});
+    const sheet=strFromU8(unzipSync(exported)['xl/worksheets/sheet1.xml']);
+    expect(sheet.replace(/<[^>]+>/g,'')).toContain('Kết quả thu NSNN (đến ngày 23/11/2026)');
+    expect(sheet).toContain('<v>120</v>');
+    session.settings.showRevBenchmarkRow=true;
+    const both=evaluate();
+    expect(both.rows.find(r=>r.indicator.id==='REV_REALIZED')?.rowConfig.sttLabel).toBe('2');
+    expect(both.rows.find(r=>r.indicator.id==='REV_BENCHMARK_RATE')?.rowConfig.sttLabel).toBe('3');
+    expect(both.rows.find(r=>r.indicator.id==='REV_RATE_Y')?.rowConfig.sttLabel).toBe('');
+    session.settings.showRevRealizedRow=false;
+    expect(evaluate().rows.find(r=>r.indicator.id==='REV_BENCHMARK_RATE')?.rowConfig.sttLabel).toBe('2');
+    headers.push(['AF','Lũy kế thực hiện đến ngày 23/11/2026']);
+    expect(()=>importRevenueWorkbook(buildSingleSheetXlsx('Sheet đổi tên',rows),'ambiguous.xlsx')).toThrow();
+  });
+
+  it('NOV_FIX_03: merges all three shared REV/DISB/GPMB benchmark rows and keeps source audit off the report body', () => {
+    const ws = createEmptyWorkspace();
+    registerDatasetInWorkspace(ws, disbDataset, baselineLocalities);
+    registerDatasetInWorkspace(ws, revDataset);
+    registerDatasetInWorkspace(ws, gpmbDataset);
+    const session = createReportSession(ws, { name: 'Shared benchmark rows' });
+    const datasets = { REV: revDataset, DISB: disbDataset, GPMB: gpmbDataset };
+    session.settings.showRevBenchmarkRow = true;
+    session.settings.showBenchmarkRows = true;
+    session.settings.tableLayoutMode = 'HORIZONTAL';
+    const evaluate = () => evaluateSessionReport({ session, baselineLocalities, datasets });
+    const targets = ['REV_BENCHMARK_RATE', 'DISB_BENCHMARK_RATE', 'GPMB_BENCHMARK_AREA_RATE'];
+    for (const n of [1, 9, 11, 12]) {
+      session.selectedLocalityIds = baselineLocalities.slice(0, n).map(l => l.id);
+      const evaluated = evaluate();
+      const args = { evaluated, baselineLocalities, datasets };
+      const html = renderA4DocumentStudioHtml(args);
+      const printed = generatePrintableReportHtml({ ...args, includeAppendix: false });
+      const count = (s: string, token: string) => s.split(token).length - 1;
+      const firstGroup = Math.min(11, n);
+      if (n > 1) {
+        expect(count(html, 'colspan="' + firstGroup + '"')).toBe(3);
+        expect(count(printed, 'colspan="' + firstGroup + '"')).toBe(3);
+      } else {
+        expect(html).not.toContain('colspan="1"');
+        expect(printed).not.toContain('colspan="1"');
+      }
+      const archive = unzipSync(exportSessionReportToXlsxBytes(args));
+      const reportXml = strFromU8(archive['xl/worksheets/sheet1.xml']);
+      const auditXml = strFromU8(archive['xl/worksheets/sheet2.xml']);
+      const traceXml = strFromU8(archive['xl/worksheets/sheet4.xml']);
+      const displayRows = evaluated.rows.filter(r => r.indicator.id !== 'DISB_PLAN_VS_AVG_COMMENT');
+      for (const id of targets) {
+        const idx = displayRows.findIndex(r => r.indicator.id === id);
+        expect(idx).toBeGreaterThanOrEqual(0);
+        const rowNum = idx + 3;
+        const lastColumn = String.fromCharCode(66 + n);
+        if (n > 1) expect(reportXml).toContain('<mergeCell ref="C' + rowNum + ':' + lastColumn + rowNum + '"/>');
+        const rowXml = reportXml.split('<row r="' + rowNum + '"')[1].split('</row>')[0];
+        expect(count(rowXml, '<v>')).toBe(1);
+        const cells = Object.values(displayRows[idx].cellsByLocalityId);
+        expect(cells).toHaveLength(n);
+        expect(new Set(cells.map(c => c.exactDecimal)).size).toBe(1);
+        expect(new Set(cells.map(c => c.traceId)).size).toBe(1);
+        expect(traceXml).toContain(id === 'REV_BENCHMARK_RATE' ? 'REV_RATE_Y' : id);
+      }
+      expect(reportXml).not.toContain('Ghi chú nguồn:');
+      expect(auditXml).toContain('Tổng hợp phạm vi nguồn');
+    }
+    session.selectedLocalityIds = baselineLocalities.slice(0, 9).map(l => l.id);
+    session.settings.tableLayoutMode = 'VERTICAL';
+    const vertical = renderA4DocumentStudioHtml({ evaluated: evaluate(), baselineLocalities, datasets });
+    expect((vertical.match(/rowspan="9"/g) || [])).toHaveLength(3);
+    session.settings.showBenchmarkRows = false;
+    const hidden = renderA4DocumentStudioHtml({ evaluated: evaluate(), baselineLocalities, datasets });
+    expect(hidden).not.toContain('rowspan="9"');
+  });
+
+  it('NOV_FIX_04: migrates seven titles, keeps source dates, fixed report scope and custom labels', () => {
+    const ws = createEmptyWorkspace();
+    // Coverage metadata is simulated solely to test labels, not numeric correctness.
+    const fullRev: Dataset = { ...revDataset, id: revDataset.id + '_TITLE_TEST', unitCount: 114, asOfDate: '2026-11-23' };
+    const fullDisb: Dataset = { ...disbDataset, id: disbDataset.id + '_TITLE_TEST', asOfDate: '2026-11-22' };
+    const fullGpmb: Dataset = { ...gpmbDataset, id: gpmbDataset.id + '_TITLE_TEST', unitCount: 114, asOfDate: '2026-11-24' };
+    registerDatasetInWorkspace(ws, fullDisb, baselineLocalities);
+    registerDatasetInWorkspace(ws, fullRev);
+    registerDatasetInWorkspace(ws, fullGpmb);
+    const session = createReportSession(ws, { name: 'New title migration' });
+    session.settings.showRevBenchmarkRow = true;
+    session.settings.showBenchmarkRows = true;
+    session.settings.tableLayoutMode = 'HORIZONTAL';
+    session.settings.revBenchmarkRowCustomLabel = 'Tỷ lệ thu NSNN chung của các địa phương (đến ngày 19/10/2026)';
+    setSessionLocalities(ws, session.id, baselineLocalities.slice(0, 9).map(l => l.id));
+    const oldLabels: Record<string, string> = {
+      REV_RATE_Y: 'Tỷ lệ thu NSNN của từng xã so với dự toán (đến ngày 19/10/2026)',
+      DISB_PLAN: 'Kế hoạch vốn đầu tư công sau điều chỉnh, bổ sung',
+      DISB_BENCHMARK_RATE: 'Tỷ lệ giải ngân chung của các địa phương (đến ngày 15/10/2026)',
+      GPMB_BUDGET: 'Kinh phí phân bổ GPMB cho từng xã',
+      GPMB_AREA_PLAN: 'Diện tích phải GPMB của từng xã',
+      GPMB_BENCHMARK_AREA_RATE: 'Tỷ lệ GPMB trung bình của các địa phương (đến ngày 26/10/2026)',
+    };
+    for (const row of session.templateRows) if (oldLabels[row.indicatorId]) row.customLabel = oldLabels[row.indicatorId];
+    const datasets = { REV: fullRev, DISB: fullDisb, GPMB: fullGpmb };
+    const evaluate = () => evaluateSessionReport({ session, baselineLocalities, datasets });
+    const labels: Record<string, string> = {
+      REV_BENCHMARK_RATE: 'Tỷ lệ thu NSNN trung bình của 114 địa phương (đến ngày 23/11/2026)',
+      REV_RATE_Y: 'Tỷ lệ thu NSNN của từng địa phương so với dự toán',
+      DISB_PLAN: 'Kế hoạch vốn đầu tư công của từng địa phương sau điều chỉnh, bổ sung',
+      DISB_BENCHMARK_RATE: 'Tỷ lệ giải ngân trung bình của 114 địa phương (đến ngày 22/11/2026)',
+      GPMB_BUDGET: 'Kinh phí phân bổ GPMB cho từng địa phương',
+      GPMB_AREA_PLAN: 'Diện tích phải GPMB của từng địa phương',
+      GPMB_BENCHMARK_AREA_RATE: 'Tỷ lệ GPMB trung bình của 114 địa phương (đến ngày 24/11/2026)',
+    };
+    migrateLegacySessionLabels(ws);
+    const evaluated = evaluate();
+    for (const [id, label] of Object.entries(labels)) {
+      expect(evaluated.rows.find(r => r.indicator.id === id)?.rowConfig.customLabel).toBe(label);
+    }
+    const args = { evaluated, baselineLocalities, datasets };
+    const studio = renderA4DocumentStudioHtml(args).replace(/<[^>]+>/g, '');
+    const printed = generatePrintableReportHtml({ ...args, includeAppendix: false }).replace(/<[^>]+>/g, '');
+    const sheet = strFromU8(unzipSync(exportSessionReportToXlsxBytes(args))['xl/worksheets/sheet1.xml']).replace(/<[^>]+>/g, '');
+    for (const label of Object.values(labels)) {
+      expect(studio).toContain(label);
+      expect(printed).toContain(label);
+      expect(sheet).toContain(label);
+    }
+    // A ward-specific saved title from an older session must also migrate.
+    const budgetRow = session.templateRows.find(r => r.indicatorId === 'GPMB_BUDGET')!;
+    const wardLabel = 'Kinh phí phân bổ GPMB cho từng phường';
+    budgetRow.customLabel = wardLabel;
+    expect(evaluate().rows.find(r => r.indicator.id === 'GPMB_BUDGET')?.rowConfig.customLabel).toBe(labels.GPMB_BUDGET);
+    migrateLegacySessionLabels(ws);
+    expect(budgetRow.customLabel).toBe(labels.GPMB_BUDGET);
+    const wardArgs = { evaluated: evaluate(), baselineLocalities, datasets };
+    const wardOutputs = [
+      renderA4DocumentStudioHtml(wardArgs).replace(/<[^>]+>/g, ''),
+      generatePrintableReportHtml({ ...wardArgs, includeAppendix: false }).replace(/<[^>]+>/g, ''),
+      strFromU8(unzipSync(exportSessionReportToXlsxBytes(wardArgs))['xl/worksheets/sheet1.xml']).replace(/<[^>]+>/g, ''),
+    ];
+    for (const output of wardOutputs) {
+      expect(output).toContain(labels.GPMB_BUDGET);
+      expect(output).not.toContain(wardLabel);
+    }
+    budgetRow.customLabel = wardLabel + ' (nguồn riêng)';
+    migrateLegacySessionLabels(ws);
+    expect(budgetRow.customLabel).toBe(wardLabel + ' (nguồn riêng)');
+    budgetRow.customLabel = labels.GPMB_BUDGET;
+    // Saved partial-coverage labels from the previous release must migrate too.
+    session.settings.revBenchmarkRowCustomLabel = 'Tỷ lệ thu NSNN trung bình của 113/114 địa phương có dữ liệu (đến ngày 23/11/2026)';
+    session.templateRows.find(r => r.indicatorId === 'GPMB_BENCHMARK_AREA_RATE')!.customLabel = 'Tỷ lệ GPMB trung bình của 108/114 địa phương có dữ liệu (đến ngày 24/11/2026)';
+    fullRev.unitCount = 113;
+    fullGpmb.unitCount = 108;
+    fullGpmb.asOfDate = '2026-11-25';
+    syncReportLabelsWithDatasetDates(ws);
+    const partial = evaluate();
+    expect(partial.rows.find(r => r.indicator.id === 'REV_BENCHMARK_RATE')?.rowConfig.customLabel)
+      .toBe('Tỷ lệ thu NSNN trung bình của 114 địa phương (đến ngày 23/11/2026)');
+    expect(partial.rows.find(r => r.indicator.id === 'GPMB_BENCHMARK_AREA_RATE')?.rowConfig.customLabel)
+      .toBe('Tỷ lệ GPMB trung bình của 114 địa phương (đến ngày 25/11/2026)');
+    const partialArgs = { evaluated: partial, baselineLocalities, datasets };
+    const partialStudio = renderA4DocumentStudioHtml(partialArgs);
+    const partialPrint = generatePrintableReportHtml({ ...partialArgs, includeAppendix: false });
+    const partialArchive = unzipSync(exportSessionReportToXlsxBytes(partialArgs));
+    const partialSheet = strFromU8(partialArchive['xl/worksheets/sheet1.xml']);
+    const auditSheet = strFromU8(partialArchive['xl/worksheets/sheet2.xml']);
+    const styles = strFromU8(partialArchive['xl/styles.xml']);
+    for (const html of [partialStudio, partialPrint]) {
+      // All three shared benchmark rows show exactly one numeric cell.
+      expect((html.match(/report-benchmark-value/g) || []).length).toBe(3);
+      expect(html).not.toContain('địa phương có dữ liệu (đến ngày');
+    }
+    expect(partialSheet).not.toContain('địa phương có dữ liệu (đến ngày');
+    expect(auditSheet).toContain('Phạm vi 113/114 địa phương');
+    expect(auditSheet).toContain('Phạm vi 108/114 địa phương');
+    expect((partialSheet.match(/s="34"><v>/g) || []).length).toBe(3);
+    expect(styles).toContain('<font><sz val="11"/>');
+    expect(styles).toContain('numFmtId="166" fontId="7"');
+    const plan = session.templateRows.find(r => r.indicatorId === 'DISB_PLAN')!;
+    plan.customLabel = 'Kế hoạch riêng do người dùng đặt';
+    migrateLegacySessionLabels(ws);
+    expect(evaluate().rows.find(r => r.indicator.id === 'DISB_PLAN')?.rowConfig.customLabel).toBe('Kế hoạch riêng do người dùng đặt');
+  });
+
+  it('NOV_FIX_05: selects latest confirmed cutoff per source, preserves scope, deduplicates and updates only target session', () => {
+    const ws = createEmptyWorkspace();
+    const copy = (d: Dataset, id: string, date: string, imported: string, extra: Partial<Dataset> = {}): Dataset => ({
+      ...d, id, workbookSha256: id, sourceHash:id, sourceFilename:id+'.xlsx', asOfDate:date,
+      importedAt:imported, asOfStatus:'MANUAL_CONFIRMED', issues:[], sourceValidation:{...d.sourceValidation!,workbookSha256:id,status:'VERIFIED'},
+      // Selection fixtures represent independently verified synthetic profiles.
+      // Do not retain an actual DISB layout from a different scope.
+      disbLayout:extra.schemaFingerprint&&extra.schemaFingerprint!==d.schemaFingerprint?undefined:d.disbLayout, ...extra,
+    });
+    const d = copy(disbDataset,'total-new','2026-11-22','2026-11-23T00:00:00Z',{schemaFingerprint:'DISB_TOTAL_LOCALITY_V2'});
+    const r = copy(revDataset,'rev-new','2026-11-23','2026-11-23T00:00:00Z',{mappingVersion:'REV_HEADER_SEMANTIC_V3'});
+    const g = copy(gpmbDataset,'gpmb-new','2026-11-24','2026-11-24T00:00:00Z');
+    registerDatasetInWorkspace(ws, disbDataset, baselineLocalities);
+    registerDatasetInWorkspace(ws, revDataset);
+    registerDatasetInWorkspace(ws, gpmbDataset);
+    const session = createReportSession(ws,{name:'Target'});
+    const other = createReportSession(ws,{name:'Keep old'});
+    const original = JSON.stringify(other.dataBindings);
+    const old = copy(r,'rev-older','2026-11-20','2026-11-25T01:00:00Z');
+    const corrected = copy(r,'rev-corrected','2026-11-23','2026-11-24T00:00:00Z');
+    const allocated = copy(d,'allocated','2026-11-25','2026-11-25T00:00:00Z',{schemaFingerprint:'DISB_PHAN_CAP_XA_V2'});
+    const inconsistent=copy(disbDataset,'bad-profile','2026-11-26','2026-11-26T00:00:00Z',{schemaFingerprint:'DISB_TOTAL_LOCALITY_V2',disbLayout:disbDataset.disbLayout});
+    expect(sourceMappingProblem(inconsistent)).toContain('Phạm vi giải ngân');
+    const unknown = copy(g,'gpmb-unknown','2026-11-25','2026-11-25T00:00:00Z',{asOfStatus:'DETECTED_CONFIRMED',asOfDateEvidence:'Bảng phẳng, tệp abc-25.11.26.csv'});
+    const wrong = copy(r,'rev-wrong','2026-11-25','2026-11-25T00:00:00Z',{mappingVersion:'REV_ADAPTER_V2.2'});
+    for (const ds of [d,r,g,old,corrected,allocated,unknown,wrong]) registerDatasetInWorkspace(ws,ds);
+    registerDatasetInWorkspace(ws,{...r,importedAt:'2026-11-25T02:00:00Z'});
+    expect(ws.datasets.find(x=>x.id===r.id)?.importedAt).toBe(r.importedAt);
+    const reloaded = registerDatasetInWorkspace(ws,{...g,asOfDate:'',asOfStatus:'REQUIRES_USER_CONFIRMATION',importedAt:'2026-11-25T03:00:00Z'});
+    expect(reloaded).toBe(g);
+    expect(reloaded.asOfDate).toBe('2026-11-24');
+    expect(reloaded.importedAt).toBe(g.importedAt);
+    const preview = chooseLatestSources(ws,session);
+    expect(preview.complete).toBe(true);
+    expect(preview.bindings).toEqual({DISB:d.id,REV:corrected.id,GPMB:g.id});
+    expect(preview.choices.find(x=>x.type==='REV')?.sameDateVersions).toBe(2);
+    expect(preview.choices.find(x=>x.type==='GPMB')?.skipped.some(x=>x.dataset.id===unknown.id)).toBe(true);
+    applyLatestSources(ws,session.id,preview);
+    expect(session.dataBindings).toEqual(preview.bindings);
+    expect(JSON.stringify(other.dataBindings)).toBe(original);
+    expect(session.benchmarkBindings.DISB_BENCHMARK_RATE.datasetId).toBe(d.id);
+    rebindSessionDataset(ws,session.id,'DISB',allocated.id);
+    expect(chooseLatestSources(ws,session).bindings.DISB).toBe(allocated.id);
+    expect(()=>applyLatestSources(ws,session.id,preview)).toThrow();
+    const blank = createEmptyWorkspace();
+    for (const ds of [disbDataset,revDataset,gpmbDataset]) registerDatasetInWorkspace(blank,ds);
+    expect(chooseLatestSources(blank).choices.every(c=>c.referenceFallback)).toBe(true);
+    registerDatasetInWorkspace(blank,unknown);
+    expect(chooseLatestSources(blank).complete).toBe(false);
+    expect(chooseLatestSources(blank).bindings.GPMB).toBeUndefined();
+    const conflicting = {...g,id:'gpmb-clone',asOfDate:'2026-11-25'};
+    registerDatasetInWorkspace(ws,conflicting);
+    expect(chooseLatestSources(ws,session).bindings.GPMB).toBeUndefined();
+    expect(hasTrustedSourceDate(unknown)).toBe(false);
+    expect(isValidSourceDate('2026-02-30')).toBe(false);
+    expect(dateFromReportTitle('Đến ngày 24/11/2026')).toBe('2026-11-24');
+    expect(dateFromReportTitle('Ngày 24/11/2026 và 25/11/2026')).toBeUndefined();
+    const confirmationWs = createEmptyWorkspace();
+    const undated = copy(g,'undated','','2026-11-25T00:00:00Z',{asOfStatus:'REQUIRES_USER_CONFIRMATION',periodLabel:'Chưa xác nhận ngày chốt',reportPeriodLabel:'Chưa xác nhận ngày chốt'});
+    registerDatasetInWorkspace(confirmationWs,undated);
+    const confirmationSession = createReportSession(confirmationWs,{name:'Date confirmation'});
+    expect(()=>updateDatasetAsOfDateForSession(confirmationWs,confirmationSession.id,undated.id,'2026-02-30')).toThrow();
+    const confirmed = updateDatasetAsOfDateForSession(confirmationWs,confirmationSession.id,undated.id,'2026-11-24');
+    expect(confirmed.asOfStatus).toBe('MANUAL_CONFIRMED');
+    expect(confirmed.periodLabel).toBe('Đến ngày 24/11/2026');
+    expect(confirmed.periodEnd).toBe('2026-11-24');
+  });
+
+  it('NOV_FIX_06: verifies headers and units; remaps DISB/GPMB, rejects ambiguity, includes GPMB 423+',()=>{
+    const makeRows=(id:string,rename:(col:string)=>string=(c)=>c,modify?:(r:number,c:string,v:string|number)=>string|number|undefined)=>{
+      const wb=parseWorkbookBytes(new Uint8Array(fs.readFileSync(filePaths[id])),id+'.xlsx');
+      const sh=wb.sheets.find(s=>s.state==='visible')!;
+      const rows=new Map<number,Array<[string,string|number]>>();
+      for(const cell of sh.cells.values()){
+        if(typeof cell.value!=='string'&&typeof cell.value!=='number')continue;
+        const v=modify?modify(cell.row,cell.col,cell.value):cell.value;
+        if(v===undefined)continue;
+        const row=rows.get(cell.row)||[];row.push([rename(cell.col),v]);rows.set(cell.row,row);
+      }
+      return [...rows.entries()] as Array<[number,Array<[string,string|number]>]>;
+    };
+    const shift=(from:number)=> (col:string)=>{
+      let n=[...col].reduce((v,c)=>v*26+c.charCodeAt(0)-64,0);
+      if(n<from)return col;n++;let s='';while(n){n--;s=String.fromCharCode(65+n%26)+s;n=Math.floor(n/26);}return s;
+    };
+    for(const [id,parser] of [['DISB_20261015',importDisbursementWorkbook],['GPMB_20261026',importGpmbWorkbook]] as const){
+      const unchanged=makeRows(id);
+      const ok=parser(buildSingleSheetXlsx('Sheet chuẩn mới',unchanged),id+'-copy.xlsx').dataset;
+      expect(ok.sourceValidation?.schemaSignature).toMatch(/^[a-f0-9]{64}$/);
+      const added=makeRows(id,shift(7));for(const [row,cells] of added)if(row>3)cells.push(['G',88888]);
+      const swapped=makeRows(id,c=>c==='D'?'I':c==='I'?'D':c);
+      if(id==='DISB_20261015'){
+        const moved=parser(buildSingleSheetXlsx('Sheet đã chèn cột',added),'shifted.xlsx').dataset;
+        expect(moved.unitCount).toBe(ok.unitCount);
+        for(const field of ['initial_total_plan','adjusted_total_plan','disbursed_total','source_disbursed_rate']){
+          expect(moved.records.map(r=>r.metrics[field].normalizedDecimal)).toEqual(ok.records.map(r=>r.metrics[field].normalizedDecimal));
+        }
+        expect(moved.records[0].metrics.disbursed_total.provenance.cell).toBe('J13');
+        // Swapping the parent anchor across groups destroys the header meaning.
+        expect(()=>parser(buildSingleSheetXlsx('Sheet đã đảo cột',swapped),'swapped.xlsx')).toThrow();
+        // Swapping two explicitly labeled child columns within a group is safe.
+        const children=makeRows(id,c=>c==='G'?'H':c==='H'?'G':c);
+        const remapped=parser(buildSingleSheetXlsx('Đổi cột thành phần',children),'children.xlsx').dataset;
+        expect(remapped.records.map(r=>r.metrics.adjusted_city_component.normalizedDecimal)).toEqual(ok.records.map(r=>r.metrics.adjusted_city_component.normalizedDecimal));
+        expect(remapped.records[0].metrics.adjusted_city_component.sourceColumn).toBe('H');
+      }else{
+        const shifted=parser(buildSingleSheetXlsx('Sheet đã chèn cột',added),'shifted.xlsx').dataset;
+        const moved=parser(buildSingleSheetXlsx('Sheet đã đảo cột',swapped),'swapped.xlsx').dataset;
+        expect(shifted.projectRowCount).toBe(ok.projectRowCount);
+        expect(moved.projectRowCount).toBe(ok.projectRowCount);
+        for(const field of ['gpmb_declared_area','gpmb_recorded_area','gpmb_allocated_budget','gpmb_paid_amount']){
+          expect(shifted.records.map(r=>r.metrics[field].normalizedDecimal)).toEqual(ok.records.map(r=>r.metrics[field].normalizedDecimal));
+          expect(moved.records.map(r=>r.metrics[field].normalizedDecimal)).toEqual(ok.records.map(r=>r.metrics[field].normalizedDecimal));
+        }
+        expect(shifted.records[0].metrics.gpmb_recorded_area.sourceColumn).toBe('J');
+        expect(moved.records[0].metrics.gpmb_declared_area.sourceColumn).toBe('I');
+        const missing=makeRows(id,c=>c,(r,c,v)=>r===2&&c==='I'?undefined:v);
+        expect(()=>parser(buildSingleSheetXlsx('Thiếu tiêu đề',missing),'missing.xlsx')).toThrow();
+        const duplicated=makeRows(id);duplicated.find(([r])=>r===2)![1].push(['Z','Tổng diện tích phải GPMB (m2)']);
+        expect(()=>parser(buildSingleSheetXlsx('Trùng tiêu đề',duplicated),'duplicated.xlsx')).toThrow();
+        const rowShift=makeRows(id).map(([r,cols])=>[r===1?r:r+1,cols] as [number,Array<[string,string|number]>]);
+        expect(parser(buildSingleSheetXlsx('Chèn dòng tiêu đề',rowShift),'rowshift.xlsx').dataset.projectRowCount).toBe(ok.projectRowCount);
+      }
+      const extra=makeRows(id);extra.find(([r])=>r=== (id==='DISB_20261015'?3:2))![1].push(['AZ','Ghi chú ngoài vùng']);
+      const ex=parser(buildSingleSheetXlsx('Thêm ghi chú cuối bảng',extra),'extra.xlsx').dataset;
+      expect(ex.records.length).toBe(ok.records.length);
+      expect(ex.sourceValidation?.columnCount).toBeGreaterThan(ok.sourceValidation!.columnCount);
+    }
+    const more=makeRows('GPMB_20261026');
+    const last=more.find(([r,cols])=>r>2&&cols.some(([c,v])=>c==='A'&&v===422))!;
+    more.push([Math.max(...more.map(([r])=>r))+1,last[1].map(([c,v])=>[c,c==='A'?423:c==='B'?'Dự án bổ sung thử nghiệm':v])]);
+    const grown=importGpmbWorkbook(buildSingleSheetXlsx('GPMB tăng dự án',more),'more.xlsx').dataset;
+    expect(grown.projectRowCount).toBe(423);
+    expect(grown.records.some(r=>r.projectStt===423)).toBe(true);
+    const flat='STT,Dự án,Phường xã,Tổng DT GPMB (m2),DT đã thu hồi (m2),Tiền phân bổ (đồng),Đã chi GPMB (đồng),Tỷ lệ GPMB\n1,Dự án thử,Xã Nam Sách,1000,400,900000,100000,40';
+    const readFlat=(s:string)=>importGpmbWorkbook(new TextEncoder().encode(s),'flat.csv',{confirmedAsOfDate:'2026-11-24'}).dataset;
+    const good=readFlat(flat);expect(good.records[0].metrics.gpmb_declared_area.normalizedDecimal).toBe('1000');
+    const inserted=readFlat(flat.replace('Tổng DT GPMB','Ghi chú thêm,Tổng DT GPMB').replace('Nam Sách,1000','Nam Sách,9999,1000'));
+    expect(inserted.records[0].metrics.gpmb_declared_area.provenance.cell).toBe('E2');
+    expect(inserted.records[0].metrics.gpmb_declared_area.normalizedDecimal).toBe('1000');
+    expect(()=>readFlat(flat.replace('DT đã thu hồi (m2)','Tổng DT GPMB (m2)'))).toThrow();
+    expect(()=>readFlat(flat.replace('Tiền phân bổ (đồng)','Cột khác'))).toThrow();
+    expect(()=>readFlat(flat.replace('Tổng DT GPMB (m2)','Tổng DT GPMB (ha)'))).toThrow();
+    const disbUnit=makeRows('DISB_20261015',c=>c,(r,c,v)=>r===2&&c==='A'?'Đơn vị: Tỷ đồng':v);
+    expect(()=>importDisbursementWorkbook(buildSingleSheetXlsx('Đổi đơn vị',disbUnit),'unit.xlsx')).toThrow(/Đơn vị/);
+  });
+
+  it('NOV_FIX_07: historical checks compare verified same-year scope without percent change, and gate latest on validation',()=>{
+    const ws=createEmptyWorkspace();
+    registerDatasetInWorkspace(ws,disbDataset,baselineLocalities);
+    const synthetic=(id:string,date:string,multiplier:number):Dataset=>{
+      const d=JSON.parse(JSON.stringify(disbDataset)) as Dataset;d.id=id;d.workbookSha256=id;d.sourceHash=id;d.asOfDate=date;d.asOfStatus='MANUAL_CONFIRMED';d.issues=[];
+      d.sourceValidation={...d.sourceValidation!,workbookSha256:id,status:'VERIFIED',checks:[],columns:d.sourceValidation!.columns.map(c=>({...c}))};
+      for(const r of d.records){const m=r.metrics.disbursed_total;if(m?.normalizedDecimal!==null&&m?.normalizedDecimal!==undefined)m.normalizedDecimal=String(Number(m.normalizedDecimal)*multiplier);}
+      return d;
+    };
+    const later=synthetic('later','2026-12-20',10);assessSourceHistory(later,ws);
+    expect(later.sourceValidation?.historicalDatasetId).toBe(disbDataset.id);
+    expect(later.sourceValidation?.checks.some(c=>c.code==='HISTORY_disbursed_total')).toBe(false);
+    const unitChanged=synthetic('unit-scale','2026-12-20',1);
+    for(const rec of unitChanged.records){const metric=rec.metrics.adjusted_total_plan;if(metric?.normalizedDecimal!==null&&metric?.normalizedDecimal!==undefined)metric.normalizedDecimal=String(Number(metric.normalizedDecimal)*1000);}
+    assessSourceHistory(unitChanged,ws);
+    expect(unitChanged.sourceValidation?.checks.some(c=>c.code==='HISTORY_SCALE_adjusted_total_plan'&&c.severity==='REVIEW')).toBe(true);
+    expect(unitChanged.sourceValidation?.status).toBe('NEEDS_REVIEW');
+    const reverse=synthetic('reverse','2026-12-20',1);
+    const vals=reverse.records.map(r=>r.metrics.disbursed_total.normalizedDecimal).reverse();
+    reverse.records.forEach((r,i)=>{r.metrics.disbursed_total.normalizedDecimal=vals[i];});
+    assessSourceHistory(reverse,ws);
+    expect(reverse.sourceValidation?.checks.some(c=>c.code==='HISTORY_disbursed_total')).toBe(true);
+    const dateUnknown=synthetic('date-unknown','',1);dateUnknown.asOfStatus='REQUIRES_USER_CONFIRMATION';
+    dateUnknown.records.forEach((r,i)=>{r.metrics.disbursed_total.normalizedDecimal=vals[i];});
+    registerDatasetInWorkspace(ws,dateUnknown);
+    const dateSession=createReportSession(ws,{name:'Xác nhận kỳ sau nhập',dataBindings:{DISB:dateUnknown.id},exactBindings:true});
+    const dateConfirmed=updateDatasetAsOfDateForSession(ws,dateSession.id,dateUnknown.id,'2026-12-19');
+    expect(dateConfirmed.sourceValidation?.historicalDatasetId).toBe(disbDataset.id);
+    expect(dateConfirmed.sourceValidation?.checks.some(c=>c.code==='HISTORY_disbursed_total')).toBe(true);
+    expect(spearman([1,2,3,4],[10,20,30,40])).toBe(1);
+    expect(spearman([1,2,3,4],[40,30,20,10])).toBe(-1);
+    const invalid=synthetic('invalid','2026-12-25',1);delete invalid.sourceValidation;
+    registerDatasetInWorkspace(ws,later);registerDatasetInWorkspace(ws,invalid);
+    expect(sourceMappingProblem(invalid)).toContain('nhập lại');
+    expect(chooseLatestSources(ws).bindings.DISB).toBe(later.id);
+    const pending=synthetic('pending','2026-12-26',1);pending.sourceValidation!.status='NEEDS_REVIEW';
+    registerDatasetInWorkspace(ws,pending);expect(chooseLatestSources(ws).bindings.DISB).toBe(later.id);
+    confirmSourceValidation(pending,'Đối chiếu fixture đã kiểm tra');expect(chooseLatestSources(ws).bindings.DISB).toBe(pending.id);
+  });
+
+  it('1. Auto Layout Algorithm on A4 Landscape: picks Horizontal for <= 11 localities on A4 landscape', () => {
     const ws = createEmptyWorkspace();
     const session = createReportSession(ws, { name: 'Phiên kiểm tra bố cục' });
 
@@ -156,6 +636,14 @@ describe('KTXH Offline – A4 Report Studio & WYSIWYG Architecture Suite', () =>
     });
     expect(decision7.mode).toBe('HORIZONTAL');
     expect(decision7.pageCount).toBe(1);
+
+    const decision11=computeAutoLayoutMode({session,selectedCount:11,indicatorCount:14});
+    expect(decision11.mode).toBe('HORIZONTAL');
+    expect(decision11.pageCount).toBe(1);
+    expect(horizontalPageCapacity(session)).toBe(11);
+    const fitted=horizontalFit(session,11);
+    expect(fitted.indicatorWidth+30+fitted.localityWidth*11).toBeLessThanOrEqual((297-16)*96/25.4);
+    expect(fitted.localityWidth).toBeGreaterThanOrEqual(64);
 
     // Mode AUTO with 15 localities -> Vertical (avoids horizontal splitting on A4 landscape)
     const decision15 = computeAutoLayoutMode({
@@ -422,13 +910,13 @@ describe('KTXH Offline – A4 Report Studio & WYSIWYG Architecture Suite', () =>
 
     // 4. Check renamed indicators & as-of date bolding
     const row4 = evalReport.rows.find((r) => r.rowConfig.rowNumber === 4)!;
-    expect(row4.rowConfig.customLabel).toContain('Tỷ lệ thu NSNN của từng xã so với dự toán (đến ngày');
+    expect(row4.rowConfig.customLabel).toContain('Tỷ lệ thu NSNN của từng địa phương so với dự toán (đến ngày');
     const row9 = evalReport.rows.find((r) => r.rowConfig.rowNumber === 9)!;
-    expect(row9.rowConfig.customLabel).toContain('Tỷ lệ giải ngân chung của các địa phương (đến ngày');
+    expect(row9.rowConfig.customLabel).toContain('Tỷ lệ giải ngân trung bình của 114 địa phương (đến ngày');
     const row11 = evalReport.rows.find((r) => r.rowConfig.rowNumber === 11)!;
     expect(row11.rowConfig.customLabel).toBe('Kết quả giải ngân so với tỷ lệ trung bình');
     const row14Renamed = evalReport.rows.find((r) => r.rowConfig.rowNumber === 14)!;
-    expect(row14Renamed.rowConfig.customLabel).toContain('Tỷ lệ GPMB trung bình của các địa phương (đến ngày');
+    expect(row14Renamed.rowConfig.customLabel).toContain('Tỷ lệ GPMB trung bình của 114 địa phương (đến ngày');
     const row15 = evalReport.rows.find((r) => r.rowConfig.rowNumber === 15)!;
     expect(row15.rowConfig.customLabel).toBe('Tỷ lệ GPMB của từng địa phương');
     const row16 = evalReport.rows.find((r) => r.rowConfig.rowNumber === 16)!;
@@ -467,7 +955,7 @@ describe('KTXH Offline – A4 Report Studio & WYSIWYG Architecture Suite', () =>
 
     // 7. Check updated row 7 name
     const row7 = evalReport.rows.find((r) => r.rowConfig.rowNumber === 7)!;
-    expect(row7.rowConfig.customLabel).toBe('Kế hoạch vốn đầu tư công sau điều chỉnh, bổ sung');
+    expect(row7.rowConfig.customLabel).toBe('Kế hoạch vốn đầu tư công của từng địa phương sau điều chỉnh, bổ sung');
 
     // 8. Check GPMB comparison format (>X,XX%) or (<X,XX%)
     const row16Comp = evalReport.rows.find((r) => r.rowConfig.rowNumber === 16)!;
@@ -508,9 +996,9 @@ describe('KTXH Offline – A4 Report Studio & WYSIWYG Architecture Suite', () =>
     prevRevBudgetRow.customLabel = 'Dự toán thu NSNN năm';
 
     migrateLegacySessionLabels(ws);
-    expect(legacyRow.customLabel).toBe('Kế hoạch vốn đầu tư công sau điều chỉnh, bổ sung');
+    expect(legacyRow.customLabel).toBe('Kế hoạch vốn đầu tư công của từng địa phương sau điều chỉnh, bổ sung');
     expect(prevRevRateRow.customLabel).toBe(
-      'Tỷ lệ thu NSNN của từng xã so với dự toán (đến ngày 09/11/2026)'
+      'Tỷ lệ thu NSNN của từng địa phương so với dự toán (đến ngày 09/11/2026)'
     );
     expect(prevRevBudgetRow.customLabel).toBe('Dự toán thu NSNN giao từng địa phương tại QĐ 5055');
 
@@ -543,7 +1031,7 @@ describe('KTXH Offline – A4 Report Studio & WYSIWYG Architecture Suite', () =>
     expect(cleanPrintHtml).not.toContain('Phiên:');
     expect(cleanPrintHtml).not.toContain('Ngày chốt độc lập');
     expect(cleanPrintHtml).not.toContain('Trang 1 / 1');
-    expect(cleanPrintHtml).toContain('Kế hoạch vốn đầu tư công sau điều chỉnh, bổ sung');
+    expect(cleanPrintHtml).toContain('Kế hoạch vốn đầu tư công của từng địa phương sau điều chỉnh, bổ sung');
   });
 
   it('9. Automatic recognition of flat-table GPMB data (.csv) and correct locality grouping', () => {
@@ -564,6 +1052,9 @@ describe('KTXH Offline – A4 Report Studio & WYSIWYG Architecture Suite', () =>
     const { dataset: flatGpmb } = importGpmbWorkbook(bytes, 'gpmb_du_lieu_phang.csv');
     expect(flatGpmb.sourceType).toBe('GPMB');
     expect(flatGpmb.schemaFingerprint).toBe('GPMB_FLAT');
+    expect(flatGpmb.asOfDate).toBe('');
+    expect(flatGpmb.asOfStatus).toBe('REQUIRES_USER_CONFIRMATION');
+    expect(hasTrustedSourceDate(flatGpmb)).toBe(false);
     expect(flatGpmb.projectRowCount).toBe(6);
     expect(flatGpmb.unitCount).toBe(2); // Đặc khu Cát Hải & Phường An Biên
 
@@ -630,9 +1121,9 @@ describe('KTXH Offline – A4 Report Studio & WYSIWYG Architecture Suite', () =>
     // Synchronize labels
     syncReportLabelsWithDatasetDates(ws);
 
-    expect(rowDisb.customLabel).toBe('Tỷ lệ giải ngân chung của các địa phương (đến ngày 25/10/2026)');
-    expect(rowRev.customLabel).toBe('Tỷ lệ thu NSNN của từng xã so với dự toán (đến ngày 31/10/2026)');
-    expect(rowGpmb.customLabel).toBe('Tỷ lệ GPMB trung bình của các địa phương (đến ngày 05/11/2026)');
+    expect(rowDisb.customLabel).toBe('Tỷ lệ giải ngân trung bình của 114 địa phương (đến ngày 25/10/2026)');
+    expect(rowRev.customLabel).toBe('Tỷ lệ thu NSNN của từng địa phương so với dự toán (đến ngày 31/10/2026)');
+    expect(rowGpmb.customLabel).toBe('Tỷ lệ GPMB trung bình của 114 địa phương (đến ngày 05/11/2026)');
 
     // Verify rendered HTML on Document Studio bolds the new date
     setSessionLocalities(ws, session.id, [baselineLocalities[0].id]);
@@ -1219,6 +1710,19 @@ describe('KTXH Offline – A4 Report Studio & WYSIWYG Architecture Suite', () =>
 
     const imported = importDisbursementWorkbook(bytes, 'Von_phan_cap_xa_08.11.xlsx');
     expect(imported.dataset.schemaFingerprint).toBe('DISB_PHAN_CAP_XA_V1');
+    const source=parsedWb.sheets[0];
+    const shiftedRows=new Map<number,Array<[string,string|number]>>();
+    for(const cell of source.cells.values()){
+      if(typeof cell.value!=='number'&&typeof cell.value!=='string')continue;
+      const cols=shiftedRows.get(cell.row)||[];
+      cols.push([String.fromCharCode(cell.col.charCodeAt(0)+1),cell.value]);
+      shiftedRows.set(cell.row,cols);
+    }
+    const shiftedDs=importDisbursementWorkbook(buildSingleSheetXlsx('Phân cấp dịch cột',[...shiftedRows]),'shifted-allocated.xlsx').dataset;
+    expect(shiftedDs.schemaFingerprint).toBe('DISB_PHAN_CAP_XA_V1');
+    expect(shiftedDs.unitCount).toBe(imported.dataset.unitCount);
+    expect(shiftedDs.records[0].metrics.disbursed_total.sourceColumn).toBe('H');
+    expect(shiftedDs.records.map(r=>r.metrics.disbursed_total.normalizedDecimal)).toEqual(imported.dataset.records.map(r=>r.metrics.disbursed_total.normalizedDecimal));
     expect(imported.dataset.asOfDate).toBe('2026-11-08');
     expect(imported.dataset.unitCount).toBe(3);
     expect(imported.dataset.citySummaryRecord).toBeUndefined();
@@ -1490,6 +1994,19 @@ describe('KTXH Offline – A4 Report Studio & WYSIWYG Architecture Suite', () =>
 
     const imported = importDisbursementWorkbook(bytes, 'Vốn_phân_cấp_xã_08.11..xlsx');
     expect(imported.dataset.schemaFingerprint).toBe('DISB_PHAN_CAP_XA_V2');
+    const source=parsedWb.sheets[0];
+    const shiftedRows=new Map<number,Array<[string,string|number]>>();
+    for(const cell of source.cells.values()){
+      if(typeof cell.value!=='number'&&typeof cell.value!=='string')continue;
+      const cols=shiftedRows.get(cell.row)||[];
+      cols.push([String.fromCharCode(cell.col.charCodeAt(0)+1),cell.value]);
+      shiftedRows.set(cell.row,cols);
+    }
+    const shiftedDs=importDisbursementWorkbook(buildSingleSheetXlsx('Phân cấp dịch cột',[...shiftedRows]),'shifted-allocated.xlsx').dataset;
+    expect(shiftedDs.schemaFingerprint).toBe('DISB_PHAN_CAP_XA_V2');
+    expect(shiftedDs.unitCount).toBe(imported.dataset.unitCount);
+    expect(shiftedDs.records[0].metrics.disbursed_total.sourceColumn).toBe('K');
+    expect(shiftedDs.records.map(r=>r.metrics.disbursed_total.normalizedDecimal)).toEqual(imported.dataset.records.map(r=>r.metrics.disbursed_total.normalizedDecimal));
     expect(imported.dataset.mappingVersion).toBe('DISB_PHAN_CAP_XA_V2');
     expect(imported.dataset.asOfDate).toBe('2026-11-08');
     expect(imported.dataset.unitCount).toBe(2);
@@ -1524,7 +2041,7 @@ describe('KTXH Offline – A4 Report Studio & WYSIWYG Architecture Suite', () =>
     // Indicator row title dynamically synchronized to 08/11/2026
     const row4Benchmark = evaluated.rows.find((r) => r.indicator.id === 'DISB_BENCHMARK_RATE')!;
     expect(row4Benchmark.rowConfig.customLabel).toBe(
-      'Tỷ lệ giải ngân chung của các địa phương (đến ngày 08/11/2026)'
+      'Tỷ lệ giải ngân trung bình của 114 địa phương (đến ngày 08/11/2026)'
     );
     expect(evaluated.benchmarks?.disbRateBenchmark?.displayedText).toBe('90,13%');
 
@@ -1589,7 +2106,7 @@ describe('KTXH Offline – A4 Report Studio & WYSIWYG Architecture Suite', () =>
     const defaultRevRateRow = evalDefault.rows.find((r) => r.indicator.id === 'REV_RATE_Y')!;
     expect(defaultRevRateRow.rowConfig.sttLabel).toBe('2');
     expect(defaultRevRateRow.rowConfig.customLabel).toBe(
-      'Tỷ lệ thu NSNN của từng xã so với dự toán (đến ngày 19/10/2026)'
+      'Tỷ lệ thu NSNN của từng địa phương so với dự toán (đến ngày 19/10/2026)'
     );
 
     // Enable optional REV benchmark row -> placed right before REV_RATE_Y with STT "2", while REV_RATE_Y loses STT
@@ -1610,17 +2127,17 @@ describe('KTXH Offline – A4 Report Studio & WYSIWYG Architecture Suite', () =>
     const revRateRowWithBm = evalWithRevBm.rows[rateYIdx];
     expect(revBmRow.rowConfig.sttLabel).toBe('2');
     expect(revBmRow.rowConfig.customLabel).toBe(
-      'Tỷ lệ thu NSNN chung của các địa phương (đến ngày 19/10/2026)'
+      'Tỷ lệ thu NSNN trung bình của 114 địa phương (đến ngày 19/10/2026)'
     );
     expect(revRateRowWithBm.rowConfig.sttLabel).toBe('');
     expect(revRateRowWithBm.rowConfig.customLabel).toBe(
-      'Tỷ lệ thu NSNN của từng xã so với dự toán'
+      'Tỷ lệ thu NSNN của từng địa phương so với dự toán'
     );
     // Verify templateRows on session were not mutated in-place
     const rawSessionRevRateRow = session.templateRows.find((r) => r.indicatorId === 'REV_RATE_Y')!;
     expect(rawSessionRevRateRow.sttLabel).toBe('2');
     expect(rawSessionRevRateRow.customLabel).toBe(
-      'Tỷ lệ thu NSNN của từng xã so với dự toán (đến ngày 19/10/2026)'
+      'Tỷ lệ thu NSNN của từng địa phương so với dự toán (đến ngày 19/10/2026)'
     );
 
     const cell = revBmRow.cellsByLocalityId[baselineLocalities[0].id];
@@ -1634,9 +2151,9 @@ describe('KTXH Offline – A4 Report Studio & WYSIWYG Architecture Suite', () =>
       baselineLocalities,
       datasets: { DISB: disbDataset, REV: revDsLocal, GPMB: gpmbDataset },
     });
-    expect(studioHtml).toContain('Tỷ lệ thu NSNN chung của các địa phương');
-    expect(studioHtml).toContain('Tỷ lệ thu NSNN của từng xã so với dự toán');
-    expect(studioHtml).not.toContain('Tỷ lệ thu NSNN của từng xã so với dự toán (đến ngày');
+    expect(studioHtml).toContain('Tỷ lệ thu NSNN trung bình của 114 địa phương');
+    expect(studioHtml).toContain('Tỷ lệ thu NSNN của từng địa phương so với dự toán');
+    expect(studioHtml).not.toContain('Tỷ lệ thu NSNN của từng địa phương so với dự toán (đến ngày');
     expect(studioHtml).toContain(
       '<tr class="doc-row doc-row-primary" data-row-number="30">\n            <td class="doc-td doc-td-stt">2</td>'
     );
@@ -1651,8 +2168,8 @@ describe('KTXH Offline – A4 Report Studio & WYSIWYG Architecture Suite', () =>
       datasets: { DISB: disbDataset, REV: revDsLocal, GPMB: gpmbDataset },
       includeAppendix: false,
     });
-    expect(printHtml).toContain('Tỷ lệ thu NSNN chung của các địa phương');
-    expect(printHtml).not.toContain('Tỷ lệ thu NSNN của từng xã so với dự toán (đến ngày');
+    expect(printHtml).toContain('Tỷ lệ thu NSNN trung bình của 114 địa phương');
+    expect(printHtml).not.toContain('Tỷ lệ thu NSNN của từng địa phương so với dự toán (đến ngày');
     expect(printHtml).toContain('111,30%');
 
     const xlsxBytes = exportSessionReportToXlsxBytes({
@@ -1662,9 +2179,9 @@ describe('KTXH Offline – A4 Report Studio & WYSIWYG Architecture Suite', () =>
     });
     const sheet1Xml = strFromU8(unzipSync(xlsxBytes)['xl/worksheets/sheet1.xml']);
     const sheet3Xml = strFromU8(unzipSync(xlsxBytes)['xl/worksheets/sheet3.xml']);
-    expect(sheet1Xml).toContain('Tỷ lệ thu NSNN chung của các địa phương');
-    expect(sheet1Xml).not.toContain('Tỷ lệ thu NSNN của từng xã so với dự toán (đến ngày');
-    expect(sheet1Xml).toContain('s="5"><v>1.113022333245347</v>');
+    expect(sheet1Xml).toContain('Tỷ lệ thu NSNN trung bình của 114 địa phương');
+    expect(sheet1Xml).not.toContain('Tỷ lệ thu NSNN của từng địa phương so với dự toán (đến ngày');
+    expect(sheet1Xml).toContain('s="34"><v>1.113022333245347</v>');
     expect(sheet3Xml).toContain('REV_BENCHMARK_RATE');
 
     // Toggling off restores REV_RATE_Y STT "2" and as-of date cleanly
@@ -1678,7 +2195,7 @@ describe('KTXH Offline – A4 Report Studio & WYSIWYG Architecture Suite', () =>
     const restoredRevRateRow = evalRestored.rows.find((r) => r.indicator.id === 'REV_RATE_Y')!;
     expect(restoredRevRateRow.rowConfig.sttLabel).toBe('2');
     expect(restoredRevRateRow.rowConfig.customLabel).toBe(
-      'Tỷ lệ thu NSNN của từng xã so với dự toán (đến ngày 19/10/2026)'
+      'Tỷ lệ thu NSNN của từng địa phương so với dự toán (đến ngày 19/10/2026)'
     );
   });
 
@@ -1735,7 +2252,7 @@ describe('KTXH Offline – A4 Report Studio & WYSIWYG Architecture Suite', () =>
 
     // Primary STT rows vs italic sub-rows & clean placeholder '-' (no leading apostrophe)
     expect(sheet1Xml).toContain('s="13"><is><t xml:space="preserve">1</t>');
-    expect(sheet1Xml).toContain('s="16"><is><t xml:space="preserve">Tỷ lệ thu NSNN của từng xã so với dự toán</t>');
+    expect(sheet1Xml).toContain('s="16"><is><t xml:space="preserve">Tỷ lệ thu NSNN của từng địa phương so với dự toán</t>');
     expect(sheet1Xml).toContain('<t xml:space="preserve">-</t>');
     expect(sheet1Xml).not.toContain("<t xml:space=\"preserve\">'-</t>");
 
@@ -1921,7 +2438,10 @@ describe('KTXH Offline – A4 Report Studio & WYSIWYG Architecture Suite', () =>
     // Build an alternate DISB_PHAN_CAP_XA_V1 workbook with 2 communes and a different cutoff date
     const altDisbBytes = buildSingleSheetXlsx('Tong_hop', [
       [1, [['A', 'BÁO CÁO TÌNH HÌNH GIẢI NGÂN ĐẾN NGÀY 20/11/2026']]],
-      [3, [['C', 'Kế hoạch vốn'], ['G', 'Giải ngân'], ['K', 'Tỷ lệ']]],
+      [2, [['A', 'Đơn vị: Triệu đồng']]],
+      [3, [['A','STT'],['B','Chủ đầu tư'],['C', 'Kế hoạch vốn'], ['G', 'Giải ngân'], ['K', 'Tỷ lệ'],['L','Ghi chú']]],
+      [4,[['C','Tổng số'],['D','Chi tiết theo nguồn vốn'],['G','Tổng số'],['H','Chi tiết theo nguồn vốn']]],
+      [5,[['D','Nguồn thu tiền sử dụng đất'],['E','Bổ sung có mục tiêu'],['F','Nguồn tăng thu'],['H','Nguồn thu tiền sử dụng đất'],['I','Bổ sung có mục tiêu'],['J','Nguồn tăng thu']]],
       [
         7,
         [

@@ -120,7 +120,7 @@ Tệp gồm **4 sheet**:
   - Tỷ lệ thu tiền đất so với dự toán năm: $Y10 = R10 / D10 = 136,12\%$.
   - Tỷ lệ thu tiền đất so với kế hoạch kỳ: $AB10 = R10 / G10 = 202,71\%$.
 - **Dòng 11 đến 123:** Dữ liệu chi tiết của **113 địa phương**.
-- **Yêu cầu xác nhận ngày chốt (Cutoff Date):** Tiêu đề ghi "10 tháng" nhưng tên tệp và tên sheet ghi "19.10". Hệ thống yêu cầu người dùng xác nhận ngày chốt tại giao diện Nhập nguồn (mặc định gợi ý `2026-10-19`), không tự động suy diễn là ngày `2026-10-31`.
+- **Yêu cầu xác nhận ngày chốt (Cutoff Date):** Tiêu đề ghi "10 tháng" nhưng tên tệp và tên sheet ghi "19.10". Hệ thống yêu cầu người dùng xác nhận ngày chốt tại giao diện Nhập nguồn (ô ngày để trống nếu chưa xác nhận, không tự gợi ý ngày mặc định), không tự động suy diễn là ngày `2026-10-31`.
 
 ### 3.3 Nguồn thiếu: Đặc khu Bạch Long Vĩ
 
@@ -249,3 +249,35 @@ Công thức: $\Delta = M - \left(100 \times \frac{I}{D}\right)$. Phát cảnh b
 | **N** | `statusText` | Trạng thái dự án | String | - | Hoàn thành, đang thực hiện, vướng mắc... |
 | **O** | `resolution11` | Phân loại Nghị quyết 11 | String / Null | - | Tiêu chí phân nhóm nghị quyết HĐND. |
 | **P** | `projectGroup` | Nhóm dự án | String / Null | - | Dự án trọng điểm, nhóm A, B, C... |
+
+## Bổ sung nguồn tháng 11/2026
+
+Các bảng ánh xạ phía trên là **file tham chiếu gốc tháng 10**, không áp dụng vị trí tuyệt đối cho mọi workbook.
+
+| Vai trò | REV tháng 10 (gốc SHA đã xác minh) | REV đến 23/11/2026 |
+|---|---|---|
+| Dự toán năm tổng/đất/không đất | C/D/E | C/D/E |
+| Kế hoạch kỳ tổng/đất/không đất | F/G/H | F/G/H |
+| Lũy kế tổng/đất/không đất | I/R/W | I/S/X |
+| Tỷ lệ nguồn (chỉ đối chiếu) | X:AC | Nhận diện nhóm tiêu đề sau lũy kế trừ đất |
+
+`REV_HEADER_SEMANTIC_V3` nhận vai trò qua tiêu đề, nhóm kế hoạch/thực hiện và thứ tự tương đối; nếu chèn cột, tiếp tục tìm cột đúng. Chỉ file gốc byte-identical dùng `REV_ADAPTER_V2.2`. Trùng/thiếu vai trò bắt buộc → BLOCKER_MAPPING_REQUIRED. Ngày chốt cụ thể trong tiêu đề hoặc người dùng xác nhận; không dựa tên sheet.
+
+| Profile DISB | Kế hoạch sau điều chỉnh | Giải ngân | Tỷ lệ đối chiếu | Ghi chú | Dòng địa phương |
+|---|---|---|---|---|---|
+| DISB_V1 (gốc) | F | I | O | Q | 13–126 |
+| DISB_TOTAL_LOCALITY_V2 | F | I | M | N | thường 8–121 |
+| DISB_PHAN_CAP_XA_V1 | C | G | K | L | thường 8–121 |
+| DISB_PHAN_CAP_XA_V2 | F | J | N | O | thường 8–121 |
+
+DISB_TOTAL_LOCALITY_V2 chỉ có tổng C/F/I và hai thành phần tương ứng D+E/G+H/J+K; không áp dụng quy tắc I=L+M+N của mẫu gốc. Không đọc 109 địa phương do bỏ 5 dòng đầu; không lấy dòng tổng giả, không dùng L/M/N làm tiền xây dựng/GPMB/khác. Truy vết địa chỉ thực, tính phạm vi thực, không ghi cứng 114 nếu nguồn thiếu.
+
+### Ngày chốt và chọn nguồn mới nhất
+
+DISB nhận ngày hợp lệ duy nhất tại ô tiêu đề báo cáo nhận diện theo nội dung, GPMB tại tiêu đề A1, hoặc ngày người dùng xác nhận; CSV/bảng phẳng GPMB không dùng deadline hay tên file. Không tự gán ngày mẫu cho nguồn thiếu ngày. REV nhận ngày chốt cụ thể trong ô tiêu đề báo cáo xác định theo ngữ nghĩa (A3 chỉ ở mẫu gốc). Legacy DISB/GPMB thiếu chứng cứ A1 đáng tin cần xác nhận lại. Scope DISB TOTAL và ALLOCATED không thay thế nhau tự động. Xem MASTER mục 5.
+
+### Schema guard hiện hành (thay cho nhận diện chỉ dựa vào ô số)
+
+REV nhận diện tiêu đề vai trò duy nhất; chỉ file REV gốc SHA/sheet chính xác dùng map cố định. GPMB phẳng và phân nhóm đọc theo tiêu đề duy nhất; nhóm có thể dịch cột và dòng tiêu đề, tất cả metric/provenance dùng cột thật. STT dự án là số nguyên dương (không giới hạn 422); 422 chỉ là số dự án fixture gốc. DISB bốn profile xác minh nhóm tiêu đề và vai trò con, remap theo cột thực; không đọc cố định cột profile nếu vị trí thay đổi. Nhóm bị phá vỡ/không duy nhất bị chặn. Đơn vị xung đột chặn; thiếu bằng chứng cần xác nhận. Xem MASTER mục 6; corpus giữ nguyên workbook gốc.
+
+REV nhận diện STT/địa phương theo tiêu đề, tỷ lệ nguồn theo nhóm dự toán/kế hoạch kỳ; không đoán nhóm tỷ lệ khi thiếu tiêu đề. DISB giữ đúng vai trò thành phần theo phạm vi, hỗ trợ dịch cột và đảo thành phần trong nhóm; trace cột/dòng thực. ĐVT/Đơn vị tính xung đột bị chặn. Xem MASTER mục 8.

@@ -38,7 +38,7 @@ docs/
 │   └── PHASE_2_EXTENSIBILITY.md       # Kế hoạch con 2 (PH2): Mở rộng template động & AST công thức
 │
 ├── status/                            # THEO DÕI TIẾN ĐỘ & BẰNG CHỨNG
-│   ├── PROJECT_STATUS.md              # Báo cáo tình trạng dự án, HEAD SHA, kết quả 43 test suite
+│   ├── PROJECT_STATUS.md              # Báo cáo tình trạng dự án, HEAD SHA, kết quả kiểm thử theo SHA mới nhất
 │   └── SPEC_V2_2_MANIFEST.json        # Checksum các tài liệu quy phạm
 │
 ├── reviews/                           # HỒ SƠ SOÁT XÉT CHẤT LƯỢNG
@@ -79,3 +79,17 @@ docs/
 4. **Benchmark mọi tỷ lệ = SUM/SUM**: Tất cả các chỉ tiêu tỷ lệ toàn huyện/toàn thành phố đều bằng tổng các tử số chia tổng các mẫu số. Không tính `AVERAGE` tỷ lệ của các xã.
 5. **Nguồn thiếu phải có tên**: Phân định rõ ràng các trạng thái `NO_LOCALITY_RECORD`, `FIELD_MISSING`, `PARTIAL_AGGREGATE`, `ZERO_VALID`, `ERROR`.
 6. **Mọi ô số liệu phải có `CalculationTrace`**: Phải giải trình được nguồn gốc dữ liệu, công thức, tử số, mẫu số và lý do đưa vào hoặc loại trừ.
+
+## Cập nhật 24/11/2026
+
+Đọc phần **Cập nhật quy phạm PH1 ngày 24/11/2026** trong [MASTER V2.2](specs/KTXH_OFFLINE_MASTER_SPEC_V2_2_CURRENT.md) trước khi sửa mã. Các bảng tham chiếu tháng 10 chỉ là baseline. SOURCE_MAPPINGS, CALCULATION_RULES, DATA_DICTIONARY, TEST_CASES, hướng dẫn và UI Design System đã đồng bộ thay đổi. Xem PROJECT_STATUS để biết SHA và kết quả QA thực chạy.
+
+Bảy nhãn chỉ tiêu chốt cuối ngày 24/11/2026: xem mục 3 trong phần cập nhật PH1 của MASTER, hướng dẫn người dùng và NOV_FIX_04. Các mục checkpoint/bằng chứng trước đó là lịch sử, không phải tên hiện hành.
+
+Quy ước mới nhất: nhãn benchmark cố định 114 địa phương trên bảng chính, số liệu trung bình tăng cỡ chữ 10% (Excel 11 pt); ngày chốt, công thức và độ phủ kiểm toán không đổi. Xem MASTER mục 3 và UI Design System.
+
+Bản phân phối: `dist/index.html` được Git theo dõi và CI cập nhật tự động khi kiểm thử đạt; người dùng chỉ Pull origin rồi mở file. Cả ba tỷ lệ trung bình REV/DISB/GPMB gộp ô.
+
+Chức năng Nạp 3 file mới nhất: MASTER mục 5, PH1, USER_GUIDE, DEVELOPER_GUIDE, SOURCE_MAPPINGS và NOV_FIX_05; xem PROJECT_STATUS để biết SHA bản chạy.
+
+Source Schema Guard V1: MASTER mục 6–7, PH1, SOURCE_MAPPINGS, DATA_DICTIONARY, USER_GUIDE, DEVELOPER_GUIDE, NOV_FIX_06/07 và SOURCE_CORPUS.json. Kho mẫu hiện 4 file gốc (3 nguồn, 1 mẫu kết quả); 5 pending originals đã tìm được metadata nhưng chưa lấy được raw bytes. Repo Public được chủ dự án xác nhận. MASTER mục 8 bổ sung remap DISB/REV và kiểm tra đơn vị.
