@@ -4241,6 +4241,304 @@ code {
     });
   }
 
+  // src/core/types.ts
+  var DISB_SCHEMA_PROFILES = {
+    DISB_V1: {
+      fingerprint: "DISB_V1",
+      isPhanCapXa: false,
+      hasInitialPlan: true,
+      mappingVersion: "DISB_ADAPTER_V2.2",
+      rowStart: 13,
+      defaultRowEnd: 126,
+      summaryRow: 12,
+      hasCitySummary: true,
+      hasUnplannedRow: true,
+      planCol: "F",
+      disbCol: "I",
+      rateCol: "O",
+      noteCol: "Q",
+      markerCol: "P",
+      colMap: {
+        C: "initial_total_plan",
+        D: "initial_city_component",
+        E: "initial_local_component",
+        F: "adjusted_total_plan",
+        G: "adjusted_city_component",
+        H: "adjusted_local_component",
+        I: "disbursed_total",
+        J: "disbursed_city_component",
+        K: "disbursed_local_component",
+        L: "disbursed_construction",
+        M: "disbursed_gpmb",
+        N: "disbursed_other",
+        O: "source_disbursed_rate"
+      },
+      componentCols: [
+        { field: "adjusted_city_component", col: "G" },
+        { field: "disbursed_city_component", col: "J" },
+        { field: "disbursed_gpmb", col: "M" },
+        { field: "disbursed_other", col: "N" }
+      ],
+      eqDefs: [
+        {
+          eq: "F=G+H",
+          totalField: "adjusted_total_plan",
+          totalCol: "F",
+          compCols: [
+            { col: "G", field: "adjusted_city_component" },
+            { col: "H", field: "adjusted_local_component" }
+          ]
+        },
+        {
+          eq: "I=J+K",
+          totalField: "disbursed_total",
+          totalCol: "I",
+          compCols: [
+            { col: "J", field: "disbursed_city_component" },
+            { col: "K", field: "disbursed_local_component" }
+          ]
+        },
+        {
+          eq: "I=L+M+N",
+          totalField: "disbursed_total",
+          totalCol: "I",
+          compCols: [
+            { col: "L", field: "disbursed_construction" },
+            { col: "M", field: "disbursed_gpmb" },
+            { col: "N", field: "disbursed_other" }
+          ]
+        }
+      ]
+    },
+    // Compact locality-only sheet: initial/adjusted/paid totals, two component
+    // columns each, rate before/after adjustment, and official note. No city
+    // summary row or L/M/N construction/GPMB breakdown exists in this schema.
+    DISB_TOTAL_LOCALITY_V2: {
+      fingerprint: "DISB_TOTAL_LOCALITY_V2",
+      isPhanCapXa: false,
+      hasInitialPlan: true,
+      mappingVersion: "DISB_TOTAL_LOCALITY_HEADERS_V2",
+      rowStart: 8,
+      defaultRowEnd: 121,
+      summaryRow: 0,
+      hasCitySummary: false,
+      hasUnplannedRow: false,
+      planCol: "F",
+      disbCol: "I",
+      rateCol: "M",
+      noteCol: "N",
+      markerCol: null,
+      colMap: {
+        C: "initial_total_plan",
+        D: "initial_city_component",
+        E: "initial_local_component",
+        F: "adjusted_total_plan",
+        G: "adjusted_city_component",
+        H: "adjusted_local_component",
+        I: "disbursed_total",
+        J: "disbursed_city_component",
+        K: "disbursed_local_component",
+        M: "source_disbursed_rate"
+      },
+      componentCols: [
+        { field: "adjusted_city_component", col: "G" },
+        { field: "disbursed_city_component", col: "J" }
+      ],
+      eqDefs: [
+        {
+          eq: "C=D+E",
+          totalField: "initial_total_plan",
+          totalCol: "C",
+          compCols: [{ col: "D", field: "initial_city_component" }, { col: "E", field: "initial_local_component" }]
+        },
+        {
+          eq: "F=G+H",
+          totalField: "adjusted_total_plan",
+          totalCol: "F",
+          compCols: [{ col: "G", field: "adjusted_city_component" }, { col: "H", field: "adjusted_local_component" }]
+        },
+        {
+          eq: "I=J+K",
+          totalField: "disbursed_total",
+          totalCol: "I",
+          compCols: [{ col: "J", field: "disbursed_city_component" }, { col: "K", field: "disbursed_local_component" }]
+        }
+      ]
+    },
+    DISB_PHAN_CAP_XA_V1: {
+      fingerprint: "DISB_PHAN_CAP_XA_V1",
+      isPhanCapXa: true,
+      hasInitialPlan: false,
+      mappingVersion: "DISB_PHAN_CAP_XA_V1",
+      rowStart: 8,
+      defaultRowEnd: 121,
+      summaryRow: 7,
+      hasCitySummary: false,
+      hasUnplannedRow: false,
+      planCol: "C",
+      disbCol: "G",
+      rateCol: "K",
+      noteCol: "L",
+      markerCol: null,
+      colMap: {
+        C: "adjusted_total_plan",
+        D: "plan_land_use_fee",
+        E: "plan_targeted_support",
+        F: "plan_revenue_increase",
+        G: "disbursed_total",
+        H: "disbursed_land_use_fee",
+        I: "disbursed_targeted_support",
+        J: "disbursed_revenue_increase",
+        K: "source_disbursed_rate"
+      },
+      componentCols: [
+        { field: "plan_land_use_fee", col: "D" },
+        { field: "plan_targeted_support", col: "E" },
+        { field: "plan_revenue_increase", col: "F" },
+        { field: "disbursed_land_use_fee", col: "H" },
+        { field: "disbursed_targeted_support", col: "I" },
+        { field: "disbursed_revenue_increase", col: "J" }
+      ],
+      eqDefs: [
+        {
+          eq: "C=D+E+F",
+          totalField: "adjusted_total_plan",
+          totalCol: "C",
+          compCols: [
+            { col: "D", field: "plan_land_use_fee" },
+            { col: "E", field: "plan_targeted_support" },
+            { col: "F", field: "plan_revenue_increase" }
+          ]
+        },
+        {
+          eq: "G=H+I+J",
+          totalField: "disbursed_total",
+          totalCol: "G",
+          compCols: [
+            { col: "H", field: "disbursed_land_use_fee" },
+            { col: "I", field: "disbursed_targeted_support" },
+            { col: "J", field: "disbursed_revenue_increase" }
+          ]
+        }
+      ]
+    },
+    DISB_PHAN_CAP_XA_V2: {
+      fingerprint: "DISB_PHAN_CAP_XA_V2",
+      isPhanCapXa: true,
+      hasInitialPlan: true,
+      mappingVersion: "DISB_PHAN_CAP_XA_V2",
+      rowStart: 8,
+      defaultRowEnd: 121,
+      summaryRow: 7,
+      hasCitySummary: false,
+      hasUnplannedRow: false,
+      planCol: "F",
+      disbCol: "J",
+      rateCol: "N",
+      noteCol: "O",
+      markerCol: null,
+      colMap: {
+        C: "initial_total_plan",
+        D: "initial_land_use_fee",
+        E: "initial_targeted_support",
+        F: "adjusted_total_plan",
+        G: "plan_land_use_fee",
+        H: "plan_targeted_support",
+        I: "plan_revenue_increase",
+        J: "disbursed_total",
+        K: "disbursed_land_use_fee",
+        L: "disbursed_targeted_support",
+        M: "disbursed_revenue_increase",
+        N: "source_disbursed_rate"
+      },
+      componentCols: [
+        { field: "initial_land_use_fee", col: "D" },
+        { field: "initial_targeted_support", col: "E" },
+        { field: "plan_land_use_fee", col: "G" },
+        { field: "plan_targeted_support", col: "H" },
+        { field: "plan_revenue_increase", col: "I" },
+        { field: "disbursed_land_use_fee", col: "K" },
+        { field: "disbursed_targeted_support", col: "L" },
+        { field: "disbursed_revenue_increase", col: "M" }
+      ],
+      eqDefs: [
+        {
+          eq: "C=D+E",
+          totalField: "initial_total_plan",
+          totalCol: "C",
+          compCols: [
+            { col: "D", field: "initial_land_use_fee" },
+            { col: "E", field: "initial_targeted_support" }
+          ]
+        },
+        {
+          eq: "F=G+H+I",
+          totalField: "adjusted_total_plan",
+          totalCol: "F",
+          compCols: [
+            { col: "G", field: "plan_land_use_fee" },
+            { col: "H", field: "plan_targeted_support" },
+            { col: "I", field: "plan_revenue_increase" }
+          ]
+        },
+        {
+          eq: "J=K+L+M",
+          totalField: "disbursed_total",
+          totalCol: "J",
+          compCols: [
+            { col: "K", field: "disbursed_land_use_fee" },
+            { col: "L", field: "disbursed_targeted_support" },
+            { col: "M", field: "disbursed_revenue_increase" }
+          ]
+        }
+      ]
+    }
+  };
+  function getDisbSchemaProfile(schemaFingerprint) {
+    if (schemaFingerprint === "DISB_TOTAL_LOCALITY_V2") return DISB_SCHEMA_PROFILES.DISB_TOTAL_LOCALITY_V2;
+    if (schemaFingerprint === "DISB_PHAN_CAP_XA_V1") return DISB_SCHEMA_PROFILES.DISB_PHAN_CAP_XA_V1;
+    if (schemaFingerprint === "DISB_PHAN_CAP_XA_V2") return DISB_SCHEMA_PROFILES.DISB_PHAN_CAP_XA_V2;
+    return DISB_SCHEMA_PROFILES.DISB_V1;
+  }
+  function remapDisbProfile(layout) {
+    const base = getDisbSchemaProfile(layout.fingerprint);
+    const col = (c) => layout.columns[c] || c;
+    return {
+      ...base,
+      rowStart: layout.dataRows[0] ?? base.rowStart,
+      defaultRowEnd: layout.dataRows[layout.dataRows.length - 1] ?? base.defaultRowEnd,
+      summaryRow: layout.summaryRow,
+      hasCitySummary: layout.citySummaryRow !== void 0,
+      hasUnplannedRow: layout.unplannedRow !== void 0,
+      planCol: col(base.planCol),
+      disbCol: col(base.disbCol),
+      rateCol: col(base.rateCol),
+      noteCol: col(base.noteCol),
+      markerCol: base.markerCol ? layout.columns[base.markerCol] || null : null,
+      colMap: Object.fromEntries(Object.entries(base.colMap).map(([c, field]) => [col(c), field])),
+      componentCols: base.componentCols.map((c) => ({ ...c, col: col(c.col) })),
+      eqDefs: base.eqDefs.map((e) => ({ ...e, totalCol: col(e.totalCol), compCols: e.compCols.map((c) => ({ ...c, col: col(c.col) })) }))
+    };
+  }
+  function getDisbDatasetProfile(ds) {
+    return ds.disbLayout ? remapDisbProfile(ds.disbLayout) : getDisbSchemaProfile(ds.schemaFingerprint);
+  }
+  function formatDisbDatasetRange(ds, field) {
+    const refs = ds.records.map((r) => r.metrics[field]).filter((m) => !!m);
+    if (!refs.length) return "(kh\xF4ng c\xF3 d\xF2ng ngu\u1ED3n)";
+    const col = refs[0].sourceColumn;
+    const rows = [...new Set(refs.map((m) => m.sourceRow))].sort((a, b) => a - b);
+    if (refs.some((m) => m.sourceColumn !== col)) return refs.map((m) => m.provenance.cell).join(", ");
+    const ranges = [];
+    for (let i = 0; i < rows.length; ) {
+      let j = i;
+      while (j + 1 < rows.length && rows[j + 1] === rows[j] + 1) j++;
+      ranges.push(col + rows[i] + (j === i ? "" : ":" + col + rows[j]));
+      i = j + 1;
+    }
+    return ranges.join(", ");
+  }
+
   // node_modules/decimal.js/decimal.mjs
   var EXP_LIMIT = 9e15;
   var MAX_DIGITS = 1e9;
@@ -6611,10 +6909,6 @@ code {
   function fail(message) {
     throw new Error("BLOCKER_MAPPING_REQUIRED: " + message);
   }
-  function requireHeaders(sheet, rules) {
-    const errors = rules.filter(([col, row, rx]) => !rx.test(h(sheet, col, row))).map(([col, row, , label]) => col + row + " c\u1EA7n l\xE0 " + label + " (\u0111\u1ECDc \u0111\u01B0\u1EE3c: " + String(sheet.cells.get(col + row)?.value ?? "tr\u1ED1ng") + ")");
-    if (errors.length) fail(errors.slice(0, 12).join("; ") + (errors.length > 12 ? "\u2026" : "") + ". Gi\u1EEF nguy\xEAn ngu\u1ED3n c\u0169; kh\xF4ng suy \u0111o\xE1n v\u1ECB tr\xED c\u1ED9t.");
-  }
   var stt = /^(stt|so thu tu)$/;
   var locality = /^(chu dau tu|don vi|dia phuong|xa phuong|xa\/phuong)(\b|$)/;
   var plan = /^ke hoach von/;
@@ -6624,51 +6918,133 @@ code {
   var city = /^du an khoi (tp|thanh pho)$/;
   var allocated = /^phan cap (cho )?cap xa$/;
   var rate = /^ty le/;
-  var note = /^ghi chu/;
+  var note = /^ghi chu(?:\s*\([^)]*\))?$/;
   var land = /^(nguon )?thu tien su dung dat/;
   var support = /^bo sung co muc tieu/;
   var increase = /^nguon tang thu/;
-  function validateDisbHeaders(sheet, fp) {
-    const R = (c, r, rx, label) => [c, r, rx, label];
-    if (fp === "DISB_TOTAL_LOCALITY_V2") {
-      const candidates = Array.from({ length: 11 }, (_, i) => i + 2).filter((r2) => plan.test(h(sheet, "C", r2)) && adjusted.test(h(sheet, "F", r2)) && actual.test(h(sheet, "I", r2)));
-      if (candidates.length !== 1) fail("Kh\xF4ng nh\u1EADn di\u1EC7n duy nh\u1EA5t nh\xF3m k\u1EBF ho\u1EA1ch/\u0111i\u1EC1u ch\u1EC9nh/gi\u1EA3i ng\xE2n c\u1EE7a m\u1EABu t\u1ED5ng h\u1EE3p.");
-      const r = candidates[0];
-      requireHeaders(sheet, [R("A", r, stt, "STT"), R("B", r, locality, "\u0111\u1ECBa ph\u01B0\u01A1ng"), R("C", r, plan, "k\u1EBF ho\u1EA1ch v\u1ED1n"), R("F", r, adjusted, "k\u1EBF ho\u1EA1ch sau \u0111i\u1EC1u ch\u1EC9nh"), R("I", r, actual, "gi\u1EA3i ng\xE2n"), R("L", r, /^ty le.*(?:dau nam|giao dau)/, "t\u1EF7 l\u1EC7 v\u1ED1n \u0111\u1EA7u n\u0103m"), R("M", r, /^ty le.*sau.*dieu chinh/, "t\u1EF7 l\u1EC7 sau \u0111i\u1EC1u ch\u1EC9nh"), R("N", r, note, "ghi ch\xFA"), ...["C", "F", "I"].map((c) => R(c, r + 1, total, "t\u1ED5ng s\u1ED1")), ...["D", "G", "J"].map((c) => R(c, r + 1, city, "d\u1EF1 \xE1n kh\u1ED1i TP")), ...["E", "H", "K"].map((c) => R(c, r + 1, allocated, "ph\xE2n c\u1EA5p c\u1EA5p x\xE3"))]);
-      checkUniqueAnchors(sheet, r, [["C", (x) => plan.test(x) && !adjusted.test(x)], ["F", (x) => adjusted.test(x)], ["I", (x) => actual.test(x)]]);
-      return [r, r + 1];
-    }
-    if (fp === "DISB_V1") {
-      requireHeaders(sheet, [R("A", 3, stt, "STT"), R("B", 3, locality, "ch\u1EE7 \u0111\u1EA7u t\u01B0"), R("C", 3, plan, "k\u1EBF ho\u1EA1ch \u0111\u1EA7u n\u0103m"), R("F", 3, adjusted, "k\u1EBF ho\u1EA1ch sau \u0111i\u1EC1u ch\u1EC9nh"), R("I", 3, actual, "gi\u1EA3i ng\xE2n"), R("O", 3, rate, "t\u1EF7 l\u1EC7"), R("Q", 3, note, "ghi ch\xFA"), ...["C", "F", "I"].map((c) => R(c, 4, total, "t\u1ED5ng s\u1ED1")), ...["D", "G"].map((c) => R(c, 4, city, "d\u1EF1 \xE1n kh\u1ED1i TP")), ...["E", "H"].map((c) => R(c, 4, allocated, "ph\xE2n c\u1EA5p c\u1EA5p x\xE3")), R("J", 5, city, "gi\u1EA3i ng\xE2n kh\u1ED1i TP"), R("K", 5, allocated, "gi\u1EA3i ng\xE2n c\u1EA5p x\xE3"), R("L", 5, /^giai ngan xay lap/, "gi\u1EA3i ng\xE2n x\xE2y l\u1EAFp"), R("M", 5, /^giai ngan.*(?:boi thuong|gpmb)/, "gi\u1EA3i ng\xE2n GPMB"), R("N", 5, /^giai ngan.*nhiem vu khac/, "gi\u1EA3i ng\xE2n kh\xE1c")]);
-      checkUniqueAnchors(sheet, 3, [["C", (x) => plan.test(x) && !adjusted.test(x)], ["F", (x) => adjusted.test(x)], ["I", (x) => actual.test(x)]]);
-      const localRows = [...sheet.cells.values()].filter((c) => c.col === "B" && /^(xa|phuong|dac khu)\s+/.test(normalizedHeader(c.value))).map((c) => c.row);
-      if (localRows.some((r) => r < 13 || r > 126)) fail("D\xF2ng \u0111\u1ECBa ph\u01B0\u01A1ng c\u1EE7a m\u1EABu t\u1ED5ng h\u1EE3p c\u0169 n\u1EB1m ngo\xE0i 13\u2013126; kh\xF4ng \u0111\u01B0\u1EE3c b\u1ECF s\xF3t d\xF2ng ho\u1EB7c \u0111\u1ECDc nh\u1EA7m ph\u1EA1m vi.");
-      if (!/^tong/.test(h(sheet, "B", 7)) || !/dia phuong/.test(h(sheet, "B", 12))) fail("D\xF2ng t\u1ED5ng th\xE0nh ph\u1ED1/kh\u1ED1i \u0111\u1ECBa ph\u01B0\u01A1ng \u0111\xE3 thay \u0111\u1ED5i v\u1ECB tr\xED.");
-      return [3, 4, 5];
-    }
-    if (fp === "DISB_PHAN_CAP_XA_V1" || fp === "DISB_PHAN_CAP_XA_V2") {
-      const v2 = fp === "DISB_PHAN_CAP_XA_V2";
-      const pc = v2 ? "F" : "C", dc = v2 ? "J" : "G", rc = v2 ? "N" : "K", nc = v2 ? "O" : "L";
-      const rules = [R("A", 3, stt, "STT"), R("B", 3, locality, "ch\u1EE7 \u0111\u1EA7u t\u01B0"), R(pc, 3, v2 ? adjusted : plan, "k\u1EBF ho\u1EA1ch v\u1ED1n"), R(dc, 3, actual, "gi\u1EA3i ng\xE2n"), R(rc, 3, rate, "t\u1EF7 l\u1EC7"), R(nc, 3, note, "ghi ch\xFA"), R(pc, 4, total, "t\u1ED5ng s\u1ED1"), R(dc, 4, total, "t\u1ED5ng s\u1ED1")];
-      const groups = v2 ? [["D", "E"], ["G", "H", "I"], ["K", "L", "M"]] : [["D", "E", "F"], ["H", "I", "J"]];
-      if (v2) rules.push(R("C", 3, /^ke hoach von.*dau nam/, "k\u1EBF ho\u1EA1ch \u0111\u1EA7u n\u0103m"), R("C", 4, total, "t\u1ED5ng s\u1ED1 \u0111\u1EA7u n\u0103m"));
-      for (const group of groups) {
-        rules.push(R(group[0], 5, land, "ti\u1EC1n s\u1EED d\u1EE5ng \u0111\u1EA5t"), R(group[1], 5, support, "b\u1ED5 sung c\xF3 m\u1EE5c ti\xEAu"));
-        if (group[2]) rules.push(R(group[2], 5, increase, "ngu\u1ED3n t\u0103ng thu"));
-      }
-      requireHeaders(sheet, rules);
-      checkUniqueAnchors(sheet, 3, v2 ? [["C", (x) => plan.test(x) && !adjusted.test(x)], ["F", (x) => adjusted.test(x)], ["J", (x) => actual.test(x)]] : [["C", (x) => plan.test(x)], ["G", (x) => actual.test(x)]]);
-      if (!/^tong/.test(h(sheet, "B", 7))) fail("Kh\xF4ng x\xE1c minh \u0111\u01B0\u1EE3c d\xF2ng t\u1ED5ng v\u1ED1n ph\xE2n c\u1EA5p t\u1EA1i B7.");
-      if ([...sheet.cells.values()].some((c) => c.col === "B" && c.row < 8 && /^(xa|phuong|dac khu)\s+/.test(normalizedHeader(c.value)))) fail("D\xF2ng \u0111\u1ECBa ph\u01B0\u01A1ng n\u1EB1m ngo\xE0i v\xF9ng d\u1EEF li\u1EC7u c\u1EE7a m\u1EABu ph\xE2n c\u1EA5p.");
-      return [3, 4, 5];
-    }
-    return fail("M\u1EABu gi\u1EA3i ng\xE2n kh\xF4ng \u0111\u01B0\u1EE3c h\u1ED7 tr\u1EE3.");
+  var isLocality = (s) => /^(xa|phuong|dac khu)\s+\S/.test(s);
+  function exactlyOne(rows, rx, label) {
+    const matches = rows.filter((c) => rx.test(normalizedHeader(c.value)));
+    if (matches.length !== 1) fail(label + " ph\u1EA3i c\xF3 \u0111\xFAng m\u1ED9t c\u1ED9t (t\xECm th\u1EA5y " + matches.map((c) => c.address).join(", ") + ").");
+    return matches[0];
   }
-  function checkUniqueAnchors(sheet, row, roles) {
-    for (const [expected, match] of roles) {
-      const cols = rowCells(sheet, row).filter((c) => match(normalizedHeader(c.value))).map((c) => c.col);
-      if (cols.length !== 1 || cols[0] !== expected) fail("Nh\xF3m ti\xEAu \u0111\u1EC1 t\u1EA1i " + expected + row + " kh\xF4ng duy nh\u1EA5t: " + cols.join(", "));
+  function resolveDisbLayout(sheet) {
+    const candidates = [];
+    let error;
+    for (let r = 2; r <= Math.min(20, sheet.maxRow - 1); r++) {
+      const top = rowCells(sheet, r);
+      const heads = top.filter((c) => plan.test(normalizedHeader(c.value)));
+      const paid = top.filter((c) => actual.test(normalizedHeader(c.value)));
+      if (!heads.length || !paid.length) continue;
+      if (!top.some((c) => stt.test(normalizedHeader(c.value))) || !top.some((c) => locality.test(normalizedHeader(c.value)))) continue;
+      try {
+        const sttCell = exactlyOne(top, stt, "STT"), locCell = exactlyOne(top, locality, "\u0110\u1ECBa ph\u01B0\u01A1ng/ch\u1EE7 \u0111\u1EA7u t\u01B0");
+        const initial = heads.filter((c) => !adjusted.test(normalizedHeader(c.value)));
+        const revised = heads.filter((c) => adjusted.test(normalizedHeader(c.value)));
+        if (initial.length !== 1 || revised.length > 1 || paid.length !== 1) fail("Nh\xF3m k\u1EBF ho\u1EA1ch/gi\u1EA3i ng\xE2n kh\xF4ng duy nh\u1EA5t.");
+        const pay = paid[0], rateCells = top.filter((c) => rate.test(normalizedHeader(c.value)));
+        const notes = exactlyOne(top, note, "Ghi ch\xFA");
+        if (rateCells.length < 1 || rateCells.length > 2) fail("Kh\xF4ng x\xE1c \u0111\u1ECBnh duy nh\u1EA5t nh\xF3m t\u1EF7 l\u1EC7 gi\u1EA3i ng\xE2n.");
+        const ordered = [initial[0], ...revised, pay, ...rateCells, notes];
+        if (ordered.some((c, i) => i > 0 && colNumber(c.col) <= colNumber(ordered[i - 1].col))) fail("Th\u1EE9 t\u1EF1 nh\xF3m ti\xEAu \u0111\u1EC1 gi\u1EA3i ng\xE2n ch\u01B0a \u0111\u01B0\u1EE3c h\u1ED7 tr\u1EE3.");
+        if (Math.max(colNumber(sttCell.col), colNumber(locCell.col)) >= colNumber(initial[0].col)) fail("C\u1ED9t \u0111\u1ECBnh danh n\u1EB1m trong nh\xF3m s\u1ED1 li\u1EC7u.");
+        const m = { A: sttCell.col, B: locCell.col };
+        const within = (anchor, rows) => {
+          const ix = ordered.findIndex((c) => c.col === anchor.col);
+          const lo = colNumber(anchor.col), hi = ix + 1 < ordered.length ? colNumber(ordered[ix + 1].col) : 16385;
+          return rows.flatMap((rr) => rowCells(sheet, rr).filter((c) => colNumber(c.col) >= lo && colNumber(c.col) < hi));
+        };
+        const assign = (role, c) => {
+          if (Object.values(m).includes(c.col)) fail("C\u1ED9t " + c.col + " b\u1ECB g\xE1n hai vai tr\xF2.");
+          m[role] = c.col;
+        };
+        const child = (role, anchor, rr, rx, label) => assign(role, exactlyOne(within(anchor, [rr]), rx, label));
+        const firstChildren = within(initial[0], [r + 1, r + 2]);
+        const totalScope = firstChildren.some((c) => city.test(normalizedHeader(c.value))) && firstChildren.some((c) => allocated.test(normalizedHeader(c.value)));
+        const localScope = firstChildren.some((c) => land.test(normalizedHeader(c.value))) && firstChildren.some((c) => support.test(normalizedHeader(c.value)));
+        if (totalScope === localScope) fail("Kh\xF4ng ph\xE2n bi\u1EC7t \u0111\u01B0\u1EE3c t\u1ED5ng v\u1ED1n v\xE0 v\u1ED1n ph\xE2n c\u1EA5p c\u1EA5p x\xE3.");
+        const scopeChildren = within(pay, [r + 1, r + 2]);
+        if (totalScope && scopeChildren.some((c) => land.test(normalizedHeader(c.value)))) fail("Nh\xF3m ngu\u1ED3n v\u1ED1n kh\xF4ng c\xF9ng ph\u1EA1m vi.");
+        if (localScope && scopeChildren.some((c) => city.test(normalizedHeader(c.value)) || allocated.test(normalizedHeader(c.value)))) fail("Nh\xF3m gi\u1EA3i ng\xE2n kh\xF4ng c\xF9ng ph\u1EA1m vi v\u1ED1n ph\xE2n c\u1EA5p.");
+        let fp;
+        const planTotal = (roles, anchor, scope2, withIncrease = false) => {
+          child(roles[0], anchor, r + 1, total, "T\u1ED5ng s\u1ED1 c\u1EE7a " + anchor.address);
+          child(roles[1], anchor, scope2 === "total" ? r + 1 : r + 2, scope2 === "total" ? city : land, "Th\xE0nh ph\u1EA7n th\u1EE9 nh\u1EA5t c\u1EE7a " + anchor.address);
+          child(roles[2], anchor, scope2 === "total" ? r + 1 : r + 2, scope2 === "total" ? allocated : support, "Th\xE0nh ph\u1EA7n th\u1EE9 hai c\u1EE7a " + anchor.address);
+          if (withIncrease) child(roles[3], anchor, r + 2, increase, "Ngu\u1ED3n t\u0103ng thu c\u1EE7a " + anchor.address);
+        };
+        let headerRows, summaryRow = 0, citySummaryRow, unplannedRow;
+        if (totalScope) {
+          if (revised.length !== 1) fail("T\u1ED5ng v\u1ED1n c\u1EA7n ph\xE2n bi\u1EC7t k\u1EBF ho\u1EA1ch ban \u0111\u1EA7u v\xE0 sau \u0111i\u1EC1u ch\u1EC9nh.");
+          planTotal(["C", "D", "E"], initial[0], "total");
+          planTotal(["F", "G", "H"], revised[0], "total");
+          if (rateCells.length === 2) {
+            fp = "DISB_TOTAL_LOCALITY_V2";
+            planTotal(["I", "J", "K"], pay, "total");
+            assign("L", exactlyOne(rateCells, /^ty le.*(?:dau nam|giao dau)/, "T\u1EF7 l\u1EC7 v\u1ED1n \u0111\u1EA7u n\u0103m"));
+            assign("M", exactlyOne(rateCells, /^ty le.*sau.*dieu chinh/, "T\u1EF7 l\u1EC7 v\u1ED1n sau \u0111i\u1EC1u ch\u1EC9nh"));
+            assign("N", notes);
+            headerRows = [r, r + 1];
+          } else {
+            fp = "DISB_V1";
+            child("I", pay, r + 1, total, "T\u1ED5ng s\u1ED1 gi\u1EA3i ng\xE2n");
+            child("J", pay, r + 2, city, "Gi\u1EA3i ng\xE2n kh\u1ED1i TP");
+            child("K", pay, r + 2, allocated, "Gi\u1EA3i ng\xE2n c\u1EA5p x\xE3");
+            child("L", pay, r + 2, /^giai ngan xay lap/, "Gi\u1EA3i ng\xE2n x\xE2y l\u1EAFp");
+            child("M", pay, r + 2, /^giai ngan.*(?:boi thuong|gpmb)/, "Gi\u1EA3i ng\xE2n GPMB");
+            child("N", pay, r + 2, /^giai ngan.*nhiem vu khac/, "Gi\u1EA3i ng\xE2n kh\xE1c");
+            assign("O", rateCells[0]);
+            assign("Q", notes);
+            const markers = within(rateCells[0], [r + 1, r + 2]).filter((c) => /^chu tich di\b/.test(normalizedHeader(c.value)));
+            if (markers.length > 1) fail("Tr\xF9ng c\u1ED9t \u0111\xE1nh d\u1EA5u ki\u1EC3m tra.");
+            if (markers[0]) assign("P", markers[0]);
+            headerRows = [r, r + 1, r + 2];
+            citySummaryRow = r + 4;
+            summaryRow = r + 9;
+            unplannedRow = r + 142;
+            if (!/^tong/.test(h(sheet, m.B, citySummaryRow)) || !/dia phuong/.test(h(sheet, m.B, summaryRow))) fail("D\xF2ng t\u1ED5ng th\xE0nh ph\u1ED1/kh\u1ED1i \u0111\u1ECBa ph\u01B0\u01A1ng kh\xF4ng \u0111\xFAng ph\u1EA1m vi m\u1EABu.");
+          }
+        } else {
+          if (rateCells.length !== 1) fail("M\u1EABu v\u1ED1n ph\xE2n c\u1EA5p ch\u1EC9 c\xF3 m\u1ED9t t\u1EF7 l\u1EC7 sau \u0111i\u1EC1u ch\u1EC9nh.");
+          if (revised.length === 1) {
+            fp = "DISB_PHAN_CAP_XA_V2";
+            if (!/dau nam/.test(normalizedHeader(initial[0].value))) fail("Kh\xF4ng x\xE1c minh \u0111\u01B0\u1EE3c nh\xF3m v\u1ED1n \u0111\u1EA7u n\u0103m.");
+            planTotal(["C", "D", "E"], initial[0], "allocated");
+            planTotal(["F", "G", "H", "I"], revised[0], "allocated", true);
+            planTotal(["J", "K", "L", "M"], pay, "allocated", true);
+            assign("N", rateCells[0]);
+            assign("O", notes);
+          } else {
+            fp = "DISB_PHAN_CAP_XA_V1";
+            planTotal(["C", "D", "E", "F"], initial[0], "allocated", true);
+            planTotal(["G", "H", "I", "J"], pay, "allocated", true);
+            assign("K", rateCells[0]);
+            assign("L", notes);
+          }
+          headerRows = [r, r + 1, r + 2];
+          summaryRow = r + 4;
+          if (!/^tong/.test(h(sheet, m.B, summaryRow))) fail("Kh\xF4ng x\xE1c minh \u0111\u01B0\u1EE3c d\xF2ng t\u1ED5ng v\u1ED1n ph\xE2n c\u1EA5p.");
+        }
+        const profile = getDisbSchemaProfile(fp);
+        if (Object.keys(profile.colMap).some((k) => !m[k])) fail("Thi\u1EBFu c\u1ED9t b\u1EAFt bu\u1ED9c c\u1EE7a " + fp + ".");
+        const dataRows = [...sheet.cells.values()].filter((c) => c.col === m.B && isLocality(normalizedHeader(c.value))).map((c) => c.row).sort((a, b) => a - b);
+        if (!dataRows.length || dataRows.some((row) => row <= Math.max(...headerRows) || row <= summaryRow)) fail("Kh\xF4ng x\xE1c minh \u0111\u01B0\u1EE3c d\xF2ng \u0111\u1ECBa ph\u01B0\u01A1ng d\u01B0\u1EDBi ti\xEAu \u0111\u1EC1/t\u1ED5ng.");
+        if (fp === "DISB_V1" && dataRows.some((row) => row < r + 10 || row > r + 123)) fail("D\xF2ng \u0111\u1ECBa ph\u01B0\u01A1ng n\u1EB1m ngo\xE0i kh\u1ED1i t\u1ED5ng h\u1EE3p c\u0169; c\u1EA7n x\xE1c minh ph\u1EA1m vi.");
+        if (fp === "DISB_V1") {
+          if (!/ngoai.*ke hoach|khong.*ke hoach/.test(h(sheet, m.B, unplannedRow))) unplannedRow = void 0;
+        }
+        const titles = [...sheet.cells.values()].filter((c) => c.row < r && c.cellType !== "n" && /giai ngan/.test(normalizedHeader(c.value)) && /ke hoach von|bao cao tinh hinh giai ngan/.test(normalizedHeader(c.value)));
+        if (titles.length > 1) fail("C\xF3 nhi\u1EC1u ti\xEAu \u0111\u1EC1 b\xE1o c\xE1o gi\u1EA3i ng\xE2n.");
+        const titleCell = titles[0]?.address || "A1";
+        candidates.push({ fingerprint: fp, columns: m, headerRows, dataRows, summaryRow, citySummaryRow, unplannedRow, titleCell });
+      } catch (e) {
+        error = e;
+      }
     }
+    if (candidates.length > 1) fail("C\xF3 nhi\u1EC1u b\u1EA3ng gi\u1EA3i ng\xE2n c\xF9ng sheet; kh\xF4ng t\u1EF1 ch\u1ECDn.");
+    if (candidates.length === 1) return candidates[0];
+    if (error) throw error;
+    return null;
   }
   var areaDeclared = /^(?:tong )?(?:dt|dien tich) (?:phai )?gpmb(?:\s*\([^)]*\))?$/;
   var areaRecorded = /^(?:tong )?(?:dt|dien tich) da (?:thu hoi|gpmb)(?:\s*\([^)]*\))?$/;
@@ -6775,28 +7151,30 @@ code {
   };
   function unitCheck(ds, sheet, rows, columns) {
     const headerText = [...sheet.cells.values()].filter((c) => c.row <= Math.max(...rows) && c.value !== null && c.cellType !== "n").map((c) => normalizedHeader(c.value));
-    const declarations = headerText.filter((x) => /^don vi(?: tinh)?\s*:/.test(x));
-    const money = (s) => /\btrieu\s*(?:dong|vnd)\b/.test(s) ? "million_vnd" : /\bty\s*(?:dong|vnd)\b/.test(s) ? "billion" : /\bnghin\s*(?:dong|vnd)\b/.test(s) ? "thousand" : /\b(?:dong|vnd)\b/.test(s) ? "vnd" : void 0;
+    const declarations = headerText.filter((x) => /^(?:don vi(?: tinh)?|dvt)\s*:/.test(x));
+    const moneyUnits = (s) => [...new Set([...s.matchAll(/\b(?:(trieu|ty|nghin|ngan)\s+)?(?:dong|vnd)\b/g)].map((m) => m[1] === "trieu" ? "million_vnd" : m[1] === "ty" ? "billion" : m[1] ? "thousand" : "vnd"))];
     let missing = [];
     if (ds.sourceType === "REV" || ds.sourceType === "DISB") {
-      const globalUnits = declarations.map(money).filter(Boolean);
+      const globalUnits = declarations.flatMap(moneyUnits);
       if (globalUnits.some((u) => u !== "million_vnd")) fail("\u0110\u01A1n v\u1ECB ti\u1EC1n kh\xF4ng ph\u1EA3i tri\u1EC7u \u0111\u1ED3ng theo m\u1EABu: " + declarations.join("; ") + ". C\u1EA7n x\xE1c minh/quy \u0111\u1ED5i tr\u01B0\u1EDBc khi n\u1EA1p.");
-      const core = columns.filter((c) => CORE[ds.sourceType]?.includes(c.field));
+      const core = columns.filter((c) => CORE[ds.sourceType]?.includes(c.field) || c.unit === "million_vnd");
       for (const c of core) {
-        const unit = money(normalizedHeader(c.header).match(/\([^)]*\b(?:dong|vnd)\b[^)]*\)/)?.[0] || "");
-        if (unit && unit !== "million_vnd") fail("\u0110\u01A1n v\u1ECB c\u1EE7a " + c.column + " (" + c.header + ") kh\xF4ng kh\u1EDBp tri\u1EC7u \u0111\u1ED3ng.");
-        if (!unit && !globalUnits.includes("million_vnd")) missing.push(c.column);
+        const header = normalizedHeader(c.header);
+        const units = [...new Set([...header.matchAll(/\([^)]*\b(?:dong|vnd)\b[^)]*\)/g)].flatMap((m) => moneyUnits(m[0])).concat(moneyUnits([...header.matchAll(/\b(?:trieu|ty|nghin|ngan)\s+(?:dong|vnd)\b/g)].map((m) => m[0]).join(" "))))];
+        if (units.some((u) => u !== "million_vnd")) fail("\u0110\u01A1n v\u1ECB c\u1EE7a " + c.column + " (" + c.header + ") kh\xF4ng kh\u1EDBp tri\u1EC7u \u0111\u1ED3ng.");
+        if (!units.length && !globalUnits.includes("million_vnd")) missing.push(c.column);
       }
     } else if (ds.sourceType === "GPMB") {
+      if (declarations.some((d) => /\bha\b|hecta|km2/.test(d)) || declarations.flatMap(moneyUnits).some((u) => u !== "vnd")) fail("\u0110\u01A1n v\u1ECB chung GPMB xung \u0111\u1ED9t v\u1EDBi m\xB2/\u0111\u1ED3ng c\u1EE7a c\u1EA5u tr\xFAc chu\u1EA9n.");
       for (const c of columns.filter((x) => CORE.GPMB.includes(x.field))) {
         const key = normalizedHeader(c.header);
         if (c.unit === "m2") {
           if (/\bha\b|hecta|km2/.test(key)) fail("\u0110\u01A1n v\u1ECB di\u1EC7n t\xEDch " + c.column + " kh\xF4ng ph\u1EA3i m\xB2.");
           if (!/\bm2\b|met vuong/.test(key)) missing.push(c.column);
         } else {
-          const u = money(key);
-          if (u && u !== "vnd") fail("\u0110\u01A1n v\u1ECB kinh ph\xED " + c.column + " kh\xF4ng ph\u1EA3i \u0111\u1ED3ng.");
-          if (!u) missing.push(c.column);
+          const u = moneyUnits(key);
+          if (u.some((unit) => unit !== "vnd")) fail("\u0110\u01A1n v\u1ECB kinh ph\xED " + c.column + " kh\xF4ng ph\u1EA3i \u0111\u1ED3ng.");
+          if (!u.length) missing.push(c.column);
         }
       }
     }
@@ -6888,13 +7266,15 @@ code {
     if (new Set(cols.map((c) => c.column)).size !== cols.length) fail("M\u1ED9t c\u1ED9t \u0111\u01B0\u1EE3c g\xE1n \u0111\u1ED3ng th\u1EDDi cho nhi\u1EC1u ch\u1EC9 ti\xEAu.");
     const meaningful = [...sheet.cells.values()].filter((c) => c.value !== null && String(c.value).trim() !== "");
     const headerCells = headerRows.flatMap((r) => rowCells(sheet, r));
-    const checks = [{ code: "MAPPING", label: "\xC1nh x\u1EA1 c\u1ED9t", checked: cols.length, failed: 0, severity: "INFO", detail: "Vai tr\xF2 c\u1ED9t \u0111\u01B0\u1EE3c x\xE1c minh theo ti\xEAu \u0111\u1EC1/profile; s\u1ED1 c\u1ED9t ch\u1EC9 l\xE0 metadata." }, unitCheck(ds, sheet, headerRows, cols), coreValueCheck(ds)];
+    const checks = [{ code: "MAPPING", label: "\xC1nh x\u1EA1 c\u1ED9t", checked: cols.length, failed: 0, severity: "INFO", detail: "Vai tr\xF2 c\u1ED9t \u0111\u01B0\u1EE3c x\xE1c minh theo ti\xEAu \u0111\u1EC1 v\xE0 nh\xF3m; s\u1ED1 c\u1ED9t ch\u1EC9 l\xE0 metadata." }, unitCheck(ds, sheet, headerRows, cols), coreValueCheck(ds)];
     if (ds.sourceType === "REV") {
       for (const [prefix, total2, land2, nonland] of [["ANNUAL", "annual_total_budget", "annual_land_budget", "annual_nonland_budget"], ["PERIOD", "period_total_plan", "period_land_plan", "period_nonland_plan"], ["ACTUAL", "actual_total_revenue", "actual_land_revenue", "actual_nonland_revenue"]]) checks.push(checkRelation(ds, "REV_" + prefix, "C\xE2n \u0111\u1ED1i " + sourceFieldLabel(total2), total2, [land2, nonland]));
       for (const period of ["y", "p"]) for (const part of ["total", "land", "nonland"]) {
         const den = period === "y" ? "annual_" + part + "_budget" : "period_" + part + "_plan";
         checks.push(checkRelation(ds, "REV_RATE_" + part + "_" + period, "T\u1EF7 l\u1EC7 thu " + part + " " + (period === "y" ? "so d\u1EF1 to\xE1n" : "so k\u1EBF ho\u1EA1ch k\u1EF3"), "source_rate_" + part + "_" + period, ["actual_" + part + "_revenue", den], true));
       }
+      const rateCount = cols.filter((c) => c.field.startsWith("source_rate_")).length;
+      if (rateCount !== 6) checks.push({ code: "REV_RATE_MAPPING", label: "Nh\xF3m t\u1EF7 l\u1EC7 ngu\u1ED3n", checked: 6, failed: 6 - rateCount, severity: "WARNING", detail: "Kh\xF4ng x\xE1c minh \u0111\u1EE7 6 t\u1EF7 l\u1EC7 ngu\u1ED3n theo ti\xEAu \u0111\u1EC1 nh\xF3m d\u1EF1 to\xE1n/k\u1EBF ho\u1EA1ch k\u1EF3. Kh\xF4ng suy \u0111o\xE1n; t\u1EF7 l\u1EC7 b\xE1o c\xE1o v\u1EABn t\xEDnh t\u1EEB s\u1ED1 ti\u1EC1n g\u1ED1c." });
       checks.push(checkTotals(ds, core));
     } else if (ds.sourceType === "DISB") {
       for (const eq of new Set((ds.identityChecks || []).map((i) => i.equation))) {
@@ -6902,6 +7282,7 @@ code {
         checks.push(checkResult("DISB_IDENTITY_" + eq, "C\xE2n \u0111\u1ED1i " + eq, rows.length, bad.length, bad.map((i) => i.localityName + " d\xF2ng " + i.row)));
       }
       checks.push(checkRelation(ds, "DISB_RATE", "T\u1EF7 l\u1EC7 gi\u1EA3i ng\xE2n ghi ngu\u1ED3n", "source_disbursed_rate", ["disbursed_total", "adjusted_total_plan"], true));
+      if (ds.records.some((r) => r.metrics.source_disbursed_rate_initial)) checks.push(checkRelation(ds, "DISB_RATE_INITIAL", "T\u1EF7 l\u1EC7 gi\u1EA3i ng\xE2n so v\u1ED1n \u0111\u1EA7u n\u0103m", "source_disbursed_rate_initial", ["disbursed_total", "initial_total_plan"], true));
       checks.push(checkTotals(ds, core));
     } else if (ds.sourceType === "GPMB") {
       checks.push(checkRelation(ds, "GPMB_RATE", "T\u1EF7 l\u1EC7 GPMB ghi ngu\u1ED3n", "gpmb_source_reported_rate", ["gpmb_recorded_area", "gpmb_declared_area"], true, 100));
@@ -6935,7 +7316,7 @@ code {
       version: "SCHEMA_GUARD_V1",
       workbookSha256: ds.workbookSha256,
       sheet: ds.sourceSheet,
-      schemaSignature: sha256Hex(JSON.stringify({ profile: ds.schemaFingerprint, headers: headerCells.map((c) => [c.col, c.row - headerRows[0], normalizedStructure(String(c.value))]), map: cols.map((c) => [c.field, c.column, c.unit]) })),
+      schemaSignature: sha256Hex(JSON.stringify({ profile: ds.schemaFingerprint, headers: headerCells.map((c) => [c.col, c.row - headerRows[0], normalizedStructure(String(c.value))]), map: cols.map((c) => [c.field, c.column, c.unit]), disbRoles: ds.disbLayout?.columns })),
       headerRows,
       columnCount: new Set(meaningful.map((c) => c.col)).size,
       headerColumnCount: new Set(headerCells.map((c) => c.col)).size,
@@ -6951,6 +7332,7 @@ code {
     if (!v) return isOriginalReferenceLayout(ds) ? void 0 : "C\u1EA7n nh\u1EADp l\u1EA1i file Excel g\u1ED1c \u0111\u1EC3 x\xE1c minh c\u1EA5u tr\xFAc v\xE0 \u0111\u01A1n v\u1ECB.";
     if (v.version !== "SCHEMA_GUARD_V1" || v.workbookSha256 !== ds.workbookSha256 || v.sheet !== ds.sourceSheet || !v.schemaSignature) return "Th\xF4ng tin x\xE1c minh c\u1EA5u tr\xFAc kh\xF4ng kh\u1EDBp file; c\u1EA7n nh\u1EADp l\u1EA1i.";
     if (v.status !== "VERIFIED") return "Ngu\u1ED3n c\u1EA7n \u0111\u1ED1i chi\u1EBFu, ch\u01B0a \u0111\u01B0\u1EE3c x\xE1c minh \u0111\u1EC3 s\u1EED d\u1EE5ng.";
+    if (ds.disbLayout && ds.disbLayout.fingerprint !== ds.schemaFingerprint) return "Ph\u1EA1m vi gi\u1EA3i ng\xE2n kh\xF4ng kh\u1EDBp c\u1EA5u tr\xFAc \u0111\xE3 x\xE1c minh.";
     return void 0;
   }
   function scope(ds) {
@@ -7032,6 +7414,14 @@ code {
       const rankAnomaly = keys.length >= 12 && rho !== void 0 && rho < 0.35;
       const widespread = kind === "stable" ? changedCount > keys.length / 2 : decreased > keys.length / 2;
       const severe = rankAnomaly && widespread;
+      if (kind === "stable" && keys.length >= 12) {
+        const nonzero = a.map((x, i) => ({ x, y: b[i] })).filter((p) => p.x !== 0 && p.y !== 0 && Math.sign(p.x) === Math.sign(p.y));
+        if (nonzero.length >= 12) {
+          const factors = [1e-6, 1e-3, 0.01, 100, 1e3, 1e6];
+          const matches = factors.map((factor) => ({ factor, count: nonzero.filter((p) => Math.abs(p.y - p.x * factor) <= Math.max(1e-6, Math.abs(p.x * factor) * 1e-8)).length })).sort((x, y) => y.count - x.count);
+          if (matches[0].count >= 12 && matches[0].count * 2 > nonzero.length) v.checks.push({ code: "HISTORY_SCALE_" + field, label: "L\u1ECBch s\u1EED: d\u1EA5u hi\u1EC7u sai \u0111\u01A1n v\u1ECB " + sourceFieldLabel(field), checked: nonzero.length, failed: matches[0].count, severity: "REVIEW", detail: matches[0].count + " \u0111\u1ED1i t\u01B0\u1EE3ng c\xF9ng thay \u0111\u1ED5i g\u1EA7n \u0111\xFAng h\u1EC7 s\u1ED1 " + matches[0].factor + " so v\u1EDBi ngu\u1ED3n " + baseline.asOfDate + ". C\u1EA7n ki\u1EC3m tra \u0111\u01A1n v\u1ECB; kh\xF4ng t\u1EF1 quy \u0111\u1ED5i ho\u1EB7c k\u1EBFt lu\u1EADn sai." });
+        }
+      }
       if (rankAnomaly || widespread) v.checks.push({ code: "HISTORY_" + field, label: "L\u1ECBch s\u1EED: " + sourceFieldLabel(field), checked: keys.length, failed: kind === "stable" ? changedCount : decreased, severity: severe ? "REVIEW" : "WARNING", detail: "So v\u1EDBi " + baseline.asOfDate + ": " + changedCount + " thay \u0111\u1ED5i, " + decreased + " gi\u1EA3m tr\xEAn " + keys.length + " \u0111\u1ED1i t\u01B0\u1EE3ng kh\u1EDBp; Spearman " + (rho === void 0 ? "kh\xF4ng x\xE1c \u0111\u1ECBnh" : rho.toFixed(2)) + ". Ch\u1EC9 l\xE0 d\u1EA5u hi\u1EC7u b\u1ED5 tr\u1EE3, c\xF3 th\u1EC3 do nghi\u1EC7p v\u1EE5/\u0111i\u1EC1u ch\u1EC9nh; kh\xF4ng d\xF9ng % ch\xEAnh l\u1EC7ch gi\u1EEFa hai k\u1EF3." });
     }
     if (v.checks.some((c) => c.code.startsWith("HISTORY_") && c.severity === "REVIEW") && !isOriginalReferenceLayout(ds)) {
@@ -7091,7 +7481,7 @@ code {
     const mappingIssue = sourceMappingProblem(ds);
     if (mappingIssue) return mappingIssue;
     if (ds.sourceType === "REV" && ds.mappingVersion === "REV_ADAPTER_V2.2" && !isReferenceSource(ds)) return "C\u1EA7n nh\u1EADp l\u1EA1i Excel (\xE1nh x\u1EA1 REV c\u0169)";
-    if (ds.sourceType === "DISB" && ds.schemaFingerprint === "DISB_V1" && ds.unitCount === 109) return "C\u1EA7n nh\u1EADp l\u1EA1i Excel (c\u1EA5u tr\xFAc DISB c\u0169)";
+    if (ds.sourceType === "DISB" && ds.schemaFingerprint === "DISB_V1" && ds.unitCount === 109 && !ds.disbLayout) return "C\u1EA7n nh\u1EADp l\u1EA1i Excel (c\u1EA5u tr\xFAc DISB c\u0169)";
     if (!hasTrustedSourceDate(ds)) return "Ng\xE0y ch\u1ED1t ch\u01B0a \u0111\u01B0\u1EE3c x\xE1c nh\u1EADn";
     const coreFields = ["adjusted_total_plan", "disbursed_total", "actual_total_revenue", "annual_total_budget", "actual_land_revenue", "actual_nonland_revenue", "gpmb_recorded_area", "gpmb_declared_area"];
     if ((ds.issues || []).some((i) => i.severity === "BLOCKER" || i.severity === "ERROR" && (i.localityId === "ALL" || coreFields.includes(i.fieldId)))) {
@@ -9392,270 +9782,6 @@ code {
     return files;
   }
 
-  // src/core/types.ts
-  var DISB_SCHEMA_PROFILES = {
-    DISB_V1: {
-      fingerprint: "DISB_V1",
-      isPhanCapXa: false,
-      hasInitialPlan: true,
-      mappingVersion: "DISB_ADAPTER_V2.2",
-      rowStart: 13,
-      defaultRowEnd: 126,
-      summaryRow: 12,
-      hasCitySummary: true,
-      hasUnplannedRow: true,
-      planCol: "F",
-      disbCol: "I",
-      rateCol: "O",
-      noteCol: "Q",
-      markerCol: "P",
-      colMap: {
-        C: "initial_total_plan",
-        D: "initial_city_component",
-        E: "initial_local_component",
-        F: "adjusted_total_plan",
-        G: "adjusted_city_component",
-        H: "adjusted_local_component",
-        I: "disbursed_total",
-        J: "disbursed_city_component",
-        K: "disbursed_local_component",
-        L: "disbursed_construction",
-        M: "disbursed_gpmb",
-        N: "disbursed_other",
-        O: "source_disbursed_rate"
-      },
-      componentCols: [
-        { field: "adjusted_city_component", col: "G" },
-        { field: "disbursed_city_component", col: "J" },
-        { field: "disbursed_gpmb", col: "M" },
-        { field: "disbursed_other", col: "N" }
-      ],
-      eqDefs: [
-        {
-          eq: "F=G+H",
-          totalField: "adjusted_total_plan",
-          totalCol: "F",
-          compCols: [
-            { col: "G", field: "adjusted_city_component" },
-            { col: "H", field: "adjusted_local_component" }
-          ]
-        },
-        {
-          eq: "I=J+K",
-          totalField: "disbursed_total",
-          totalCol: "I",
-          compCols: [
-            { col: "J", field: "disbursed_city_component" },
-            { col: "K", field: "disbursed_local_component" }
-          ]
-        },
-        {
-          eq: "I=L+M+N",
-          totalField: "disbursed_total",
-          totalCol: "I",
-          compCols: [
-            { col: "L", field: "disbursed_construction" },
-            { col: "M", field: "disbursed_gpmb" },
-            { col: "N", field: "disbursed_other" }
-          ]
-        }
-      ]
-    },
-    // Compact locality-only sheet: initial/adjusted/paid totals, two component
-    // columns each, rate before/after adjustment, and official note. No city
-    // summary row or L/M/N construction/GPMB breakdown exists in this schema.
-    DISB_TOTAL_LOCALITY_V2: {
-      fingerprint: "DISB_TOTAL_LOCALITY_V2",
-      isPhanCapXa: false,
-      hasInitialPlan: true,
-      mappingVersion: "DISB_TOTAL_LOCALITY_HEADERS_V2",
-      rowStart: 8,
-      defaultRowEnd: 121,
-      summaryRow: 0,
-      hasCitySummary: false,
-      hasUnplannedRow: false,
-      planCol: "F",
-      disbCol: "I",
-      rateCol: "M",
-      noteCol: "N",
-      markerCol: null,
-      colMap: {
-        C: "initial_total_plan",
-        D: "initial_city_component",
-        E: "initial_local_component",
-        F: "adjusted_total_plan",
-        G: "adjusted_city_component",
-        H: "adjusted_local_component",
-        I: "disbursed_total",
-        J: "disbursed_city_component",
-        K: "disbursed_local_component",
-        M: "source_disbursed_rate"
-      },
-      componentCols: [
-        { field: "adjusted_city_component", col: "G" },
-        { field: "disbursed_city_component", col: "J" }
-      ],
-      eqDefs: [
-        {
-          eq: "C=D+E",
-          totalField: "initial_total_plan",
-          totalCol: "C",
-          compCols: [{ col: "D", field: "initial_city_component" }, { col: "E", field: "initial_local_component" }]
-        },
-        {
-          eq: "F=G+H",
-          totalField: "adjusted_total_plan",
-          totalCol: "F",
-          compCols: [{ col: "G", field: "adjusted_city_component" }, { col: "H", field: "adjusted_local_component" }]
-        },
-        {
-          eq: "I=J+K",
-          totalField: "disbursed_total",
-          totalCol: "I",
-          compCols: [{ col: "J", field: "disbursed_city_component" }, { col: "K", field: "disbursed_local_component" }]
-        }
-      ]
-    },
-    DISB_PHAN_CAP_XA_V1: {
-      fingerprint: "DISB_PHAN_CAP_XA_V1",
-      isPhanCapXa: true,
-      hasInitialPlan: false,
-      mappingVersion: "DISB_PHAN_CAP_XA_V1",
-      rowStart: 8,
-      defaultRowEnd: 121,
-      summaryRow: 7,
-      hasCitySummary: false,
-      hasUnplannedRow: false,
-      planCol: "C",
-      disbCol: "G",
-      rateCol: "K",
-      noteCol: "L",
-      markerCol: null,
-      colMap: {
-        C: "adjusted_total_plan",
-        D: "plan_land_use_fee",
-        E: "plan_targeted_support",
-        F: "plan_revenue_increase",
-        G: "disbursed_total",
-        H: "disbursed_land_use_fee",
-        I: "disbursed_targeted_support",
-        J: "disbursed_revenue_increase",
-        K: "source_disbursed_rate"
-      },
-      componentCols: [
-        { field: "plan_land_use_fee", col: "D" },
-        { field: "plan_targeted_support", col: "E" },
-        { field: "plan_revenue_increase", col: "F" },
-        { field: "disbursed_land_use_fee", col: "H" },
-        { field: "disbursed_targeted_support", col: "I" },
-        { field: "disbursed_revenue_increase", col: "J" }
-      ],
-      eqDefs: [
-        {
-          eq: "C=D+E+F",
-          totalField: "adjusted_total_plan",
-          totalCol: "C",
-          compCols: [
-            { col: "D", field: "plan_land_use_fee" },
-            { col: "E", field: "plan_targeted_support" },
-            { col: "F", field: "plan_revenue_increase" }
-          ]
-        },
-        {
-          eq: "G=H+I+J",
-          totalField: "disbursed_total",
-          totalCol: "G",
-          compCols: [
-            { col: "H", field: "disbursed_land_use_fee" },
-            { col: "I", field: "disbursed_targeted_support" },
-            { col: "J", field: "disbursed_revenue_increase" }
-          ]
-        }
-      ]
-    },
-    DISB_PHAN_CAP_XA_V2: {
-      fingerprint: "DISB_PHAN_CAP_XA_V2",
-      isPhanCapXa: true,
-      hasInitialPlan: true,
-      mappingVersion: "DISB_PHAN_CAP_XA_V2",
-      rowStart: 8,
-      defaultRowEnd: 121,
-      summaryRow: 7,
-      hasCitySummary: false,
-      hasUnplannedRow: false,
-      planCol: "F",
-      disbCol: "J",
-      rateCol: "N",
-      noteCol: "O",
-      markerCol: null,
-      colMap: {
-        C: "initial_total_plan",
-        D: "initial_land_use_fee",
-        E: "initial_targeted_support",
-        F: "adjusted_total_plan",
-        G: "plan_land_use_fee",
-        H: "plan_targeted_support",
-        I: "plan_revenue_increase",
-        J: "disbursed_total",
-        K: "disbursed_land_use_fee",
-        L: "disbursed_targeted_support",
-        M: "disbursed_revenue_increase",
-        N: "source_disbursed_rate"
-      },
-      componentCols: [
-        { field: "initial_land_use_fee", col: "D" },
-        { field: "initial_targeted_support", col: "E" },
-        { field: "plan_land_use_fee", col: "G" },
-        { field: "plan_targeted_support", col: "H" },
-        { field: "plan_revenue_increase", col: "I" },
-        { field: "disbursed_land_use_fee", col: "K" },
-        { field: "disbursed_targeted_support", col: "L" },
-        { field: "disbursed_revenue_increase", col: "M" }
-      ],
-      eqDefs: [
-        {
-          eq: "C=D+E",
-          totalField: "initial_total_plan",
-          totalCol: "C",
-          compCols: [
-            { col: "D", field: "initial_land_use_fee" },
-            { col: "E", field: "initial_targeted_support" }
-          ]
-        },
-        {
-          eq: "F=G+H+I",
-          totalField: "adjusted_total_plan",
-          totalCol: "F",
-          compCols: [
-            { col: "G", field: "plan_land_use_fee" },
-            { col: "H", field: "plan_targeted_support" },
-            { col: "I", field: "plan_revenue_increase" }
-          ]
-        },
-        {
-          eq: "J=K+L+M",
-          totalField: "disbursed_total",
-          totalCol: "J",
-          compCols: [
-            { col: "K", field: "disbursed_land_use_fee" },
-            { col: "L", field: "disbursed_targeted_support" },
-            { col: "M", field: "disbursed_revenue_increase" }
-          ]
-        }
-      ]
-    }
-  };
-  function getDisbSchemaProfile(schemaFingerprint) {
-    if (schemaFingerprint === "DISB_TOTAL_LOCALITY_V2") return DISB_SCHEMA_PROFILES.DISB_TOTAL_LOCALITY_V2;
-    if (schemaFingerprint === "DISB_PHAN_CAP_XA_V1") return DISB_SCHEMA_PROFILES.DISB_PHAN_CAP_XA_V1;
-    if (schemaFingerprint === "DISB_PHAN_CAP_XA_V2") return DISB_SCHEMA_PROFILES.DISB_PHAN_CAP_XA_V2;
-    return DISB_SCHEMA_PROFILES.DISB_V1;
-  }
-  function formatDisbRange(col, profile, count = 114) {
-    const endRow = profile.rowStart + Math.max(count, 1) - 1;
-    return `${col}${profile.rowStart}:${col}${endRow}`;
-  }
-
   // src/core/sourceReaders.ts
   function decodeXmlEntities(str) {
     return str.replace(
@@ -10020,8 +10146,8 @@ code {
   function isLocalityName(value) {
     return /^(xã|phường|đặc khu)\s+\S/iu.test(canonicalizeLocalityName(value));
   }
-  function localityRows(sheet) {
-    return [...sheet.cells.values()].filter((c) => c.col === "B" && isLocalityName(String(c.value ?? ""))).map((c) => c.row).sort((a, b) => a - b);
+  function localityRows(sheet, column = "B") {
+    return [...sheet.cells.values()].filter((c) => c.col === column && isLocalityName(String(c.value ?? ""))).map((c) => c.row).sort((a, b) => a - b);
   }
   function explicitTitleDate(title) {
     const match = title.match(/(?:đến(?:\s+hết)?\s+ngày|tính\s+đến\s+ngày)\s+(\d{1,2})[./-](\d{1,2})[./-](\d{4})/iu);
@@ -10031,24 +10157,19 @@ code {
     const d = /* @__PURE__ */ new Date(iso + "T00:00:00Z");
     return Number.isFinite(d.getTime()) && d.toISOString().slice(0, 10) === iso ? iso : void 0;
   }
-  function isCompactTotalDisb(sheet) {
-    if (!headerKey(getCellText(sheet, "A1")).includes("giai ngan")) return false;
-    for (let r = 2; r <= Math.min(12, sheet.maxRow - 1); r++) {
-      const h2 = (col, delta = 0) => headerKey(getCellText(sheet, col + (r + delta)));
-      if (h2("C").includes("ke hoach von") && h2("F").includes("ke hoach von") && /dieu chinh/.test(h2("F")) && h2("I").includes("giai ngan") && /ty le.*sau dieu chinh/.test(h2("M")) && /ghi chu/.test(h2("N")) && ["C", "F", "I"].every((c) => h2(c, 1) === "tong so") && /du an khoi tp/.test(h2("D", 1)) && /phan cap.*cap xa/.test(h2("E", 1))) return true;
-    }
-    return false;
-  }
   function resolveRevenueHeader(sheet) {
-    const dataRows = localityRows(sheet);
-    if (!dataRows.length) return null;
     const matches = [];
-    for (let r = 1; r < Math.min(dataRows[0], 40); r++) {
-      const headers = Array.from({ length: 100 }, (_, i) => ({ col: colIndexToLetter(i + 1), index: i + 1, key: headerKey(getCellText(sheet, colIndexToLetter(i + 1) + r)) }));
+    const index = (col) => [...col].reduce((n, c) => n * 26 + c.charCodeAt(0) - 64, 0);
+    const headersAt = (row) => [...sheet.cells.values()].filter((c) => c.row === row && c.value !== null && String(c.value).trim() !== "").map((c) => ({ col: c.col, index: index(c.col), key: headerKey(String(c.value)) })).sort((a, b) => a.index - b.index);
+    for (let r = 1; r <= Math.min(sheet.maxRow - 1, 40); r++) {
+      const headers = headersAt(r);
       const pick = (pred) => {
         const a = headers.filter(pred);
         return a.length === 1 ? a[0] : void 0;
       };
+      const locality2 = pick((x) => /^(don vi|dia phuong|xa phuong|xa\/phuong|xa, phuong, dac khu)$/.test(x.key));
+      const stt2 = pick((x) => /^(stt|so thu tu)$/.test(x.key));
+      if (!locality2 || !stt2 || !localityRows(sheet, locality2.col).some((row) => row > r)) continue;
       const actual2 = pick((x) => /^(luy ke (thuc hien|thu)|thuc hien luy ke)/.test(x.key) && !/tru|khong|ty le|%/.test(x.key));
       if (!actual2) continue;
       const period = pick((x) => x.index < actual2.index && /^(ke hoach thu|ke hoach tong thu)/.test(x.key) && !/tru|khong|tien.*dat/.test(x.key));
@@ -10062,6 +10183,7 @@ code {
       const periodNonland = pick((x) => x.index > period.index && x.index < actual2.index && isNonland(x.key));
       const actualNonland = pick((x) => x.index > actual2.index && /luy ke|thuc hien/.test(x.key) && isNonland(x.key));
       if (!annual || !annualLand || !annualNonland || !periodLand || !periodNonland || !actualNonland) continue;
+      if (Math.max(locality2.index, stt2.index) >= annual.index) continue;
       const actualLand = pick((x) => x.index > actual2.index && x.index < actualNonland.index && isLand(x.key));
       if (!actualLand) continue;
       const result = {
@@ -10087,17 +10209,28 @@ code {
         if (item) result[item.col] = field;
       }
       const tail = headers.filter((x) => x.index > actualNonland.index && x.key);
-      const rateTotal = tail.filter((x) => /^tong thu nsnn$/.test(x.key));
-      const rateLand = tail.filter((x) => isLand(x.key));
-      const rateNonland = tail.filter((x) => isNonland(x.key));
-      if (rateTotal.length === 2 && rateLand.length === 2 && rateNonland.length === 2 && rateTotal[0].index < rateLand[0].index && rateLand[0].index < rateNonland[0].index && rateNonland[0].index < rateTotal[1].index && rateTotal[1].index < rateLand[1].index && rateLand[1].index < rateNonland[1].index) {
-        for (const [i, suffix] of ["y", "p"].entries()) {
-          result[rateTotal[i].col] = "source_rate_total_" + suffix;
-          result[rateLand[i].col] = "source_rate_land_" + suffix;
-          result[rateNonland[i].col] = "source_rate_nonland_" + suffix;
+      let headerRows = [r];
+      for (let upper = r - 1; upper >= Math.max(1, r - 3); upper--) {
+        const groupHeads = headersAt(upper).filter((x) => x.index > actualNonland.index && /^ty le/.test(x.key));
+        const y = groupHeads.filter((x) => /du toan/.test(x.key) && !/ke hoach/.test(x.key));
+        const p = groupHeads.filter((x) => /ke hoach/.test(x.key) && !/du toan/.test(x.key));
+        if (y.length !== 1 || p.length !== 1 || groupHeads.length !== 2) continue;
+        const groups = [{ ...y[0], suffix: "y" }, { ...p[0], suffix: "p" }].sort((a, b) => a.index - b.index);
+        for (let i = 0; i < groups.length; i++) {
+          const g = groups[i], end = groups[i + 1]?.index ?? 16385;
+          const children = tail.filter((c) => c.index >= g.index && c.index < end);
+          const roles = [["total", (key) => /^tong thu nsnn$/.test(key)], ["land", isLand], ["nonland", isNonland]];
+          for (const [role, match] of roles) {
+            const hits = children.filter((c) => match(c.key));
+            if (hits.length === 1) result[hits[0].col] = "source_rate_" + role + "_" + g.suffix;
+          }
         }
+        headerRows = [upper, r];
+        break;
       }
-      matches.push({ colMap: result, row: r });
+      const titleCandidates = [...sheet.cells.values()].filter((c) => c.row < r && /thu nsnn|thu ngan sach/.test(headerKey(String(c.value ?? ""))) && /tong hop|tinh hinh|bao cao/.test(headerKey(String(c.value ?? ""))));
+      const titleCell = titleCandidates.length === 1 ? titleCandidates[0].address : void 0;
+      matches.push({ colMap: result, row: r, localityCol: locality2.col, sttCol: stt2.col, headerRows, titleCell });
     }
     return matches.length === 1 ? matches[0] : null;
   }
@@ -10107,73 +10240,22 @@ code {
     const b7 = getCellText(sheet, "B7");
     const b10 = getCellText(sheet, "B10");
     const b12 = getCellText(sheet, "B12");
-    const b13 = getCellText(sheet, "B13");
     const b11 = getCellText(sheet, "B11");
     if (a1.includes("T\xCCNH H\xCCNH TH\u1EF0C HI\u1EC6N M\u1ED8T S\u1ED0 CH\u1EC8 TI\xCAU KINH T\u1EBE - X\xC3 H\u1ED8I") && sheet.maxRow <= 25) {
       return "RESULT_TEMPLATE_V1";
     }
-    for (let r = 1; r <= Math.min(12, sheet.maxRow); r++) {
-      const rowTexts = [];
-      for (let c = 1; c <= 40; c++) {
-        const col = colIndexToLetter(c);
-        const txt = getCellText(sheet, `${col}${r}`).toLowerCase().trim();
-        if (txt) rowTexts.push(txt);
-      }
-      const hasLocality = rowTexts.some(
-        (t) => /phường\s*xã|xã\s*phường|địa\s*bàn|địa\s*phương|phường\/xã/.test(t)
-      );
-      const hasDeclaredArea = rowTexts.some(
-        (t) => /tổng\s*dt\s*gpmb|tổng\s*diện\s*tích\s*phải\s*gpmb|dt\s*gpmb|diện\s*tích\s*phải\s*gpmb/.test(t)
-      );
-      const hasRecordedArea = rowTexts.some(
-        (t) => /dt\s*đã\s*thu\s*hồi|diện\s*tích\s*đã\s*gpmb|dt\s*đã\s*gpmb|đã\s*thu\s*hồi/.test(t)
-      );
-      if (hasLocality && hasDeclaredArea && hasRecordedArea) {
-        return "GPMB_FLAT";
-      }
+    try {
+      if (resolveFlatGpmbHeaders(sheet)) return "GPMB_FLAT";
+    } catch {
+      return "SCHEMA_MODIFIED_NEEDS_MAPPING";
     }
-    if (isCompactTotalDisb(sheet)) return "DISB_TOTAL_LOCALITY_V2";
-    const c3 = getCellText(sheet, "C3").toLowerCase();
-    const f3 = getCellText(sheet, "F3").toLowerCase();
-    const g3 = getCellText(sheet, "G3").toLowerCase();
-    const j3 = getCellText(sheet, "J3").toLowerCase();
-    const k3 = getCellText(sheet, "K3").toLowerCase();
-    const n3 = getCellText(sheet, "N3").toLowerCase();
-    const d5 = getCellText(sheet, "D5").toLowerCase();
-    const e5 = getCellText(sheet, "E5").toLowerCase();
-    const g5 = getCellText(sheet, "G5").toLowerCase();
-    const h5 = getCellText(sheet, "H5").toLowerCase();
-    const isPhanCapXaSheet = !b12.toLowerCase().includes("\u0111\u1ECBa ph\u01B0\u01A1ng") && (b7.toUpperCase().includes("T\u1ED4NG S\u1ED0") || a1.toLowerCase().includes("gi\u1EA3i ng\xE2n"));
-    const isPhanCapXaV2Header = isPhanCapXaSheet && (f3.includes("sau \u0111i\u1EC1u ch\u1EC9nh") || c3.includes("\u0111\u1EA7u n\u0103m") && f3.includes("k\u1EBF ho\u1EA1ch v\u1ED1n") && j3.includes("gi\u1EA3i ng\xE2n") || d5.includes("s\u1EED d\u1EE5ng \u0111\u1EA5t") && e5.includes("m\u1EE5c ti\xEAu") && (g5.includes("s\u1EED d\u1EE5ng \u0111\u1EA5t") || h5.includes("m\u1EE5c ti\xEAu") || j3.includes("gi\u1EA3i ng\xE2n") || n3.includes("t\u1EF7 l\u1EC7")));
-    if (isPhanCapXaV2Header) {
-      const b82 = getCellText(sheet, "B8");
-      const c8 = sheet.cells.get("C8");
-      const f8 = sheet.cells.get("F8");
-      const j8 = sheet.cells.get("J8");
-      if (!b82 || typeof sheet.cells.get("B8")?.value !== "string" || !c8 || c8.cellType !== "n" || !f8 || f8.cellType !== "n" || !j8 || j8.cellType !== "n") {
-        return "SCHEMA_MODIFIED_NEEDS_MAPPING";
-      }
-      return "DISB_PHAN_CAP_XA_V2";
+    try {
+      const disb = resolveDisbLayout(sheet);
+      if (disb) return disb.fingerprint;
+    } catch {
+      return "SCHEMA_MODIFIED_NEEDS_MAPPING";
     }
-    const isPhanCapXaV1Header = isPhanCapXaSheet && !c3.includes("\u0111\u1EA7u n\u0103m") && !f3.includes("sau \u0111i\u1EC1u ch\u1EC9nh") && (c3.includes("k\u1EBF ho\u1EA1ch v\u1ED1n") && g3.includes("gi\u1EA3i ng\xE2n") && k3.includes("t\u1EF7 l\u1EC7") || d5.includes("s\u1EED d\u1EE5ng \u0111\u1EA5t") && e5.includes("m\u1EE5c ti\xEAu") && !g5.includes("s\u1EED d\u1EE5ng \u0111\u1EA5t") && !j3.includes("gi\u1EA3i ng\xE2n"));
-    if (isPhanCapXaV1Header) {
-      const b82 = getCellText(sheet, "B8");
-      const c8 = sheet.cells.get("C8");
-      const g8 = sheet.cells.get("G8");
-      if (!b82 || typeof sheet.cells.get("B8")?.value !== "string" || !c8 || c8.cellType !== "n" || !g8 || g8.cellType !== "n") {
-        return "SCHEMA_MODIFIED_NEEDS_MAPPING";
-      }
-      return "DISB_PHAN_CAP_XA_V1";
-    }
-    if (a1.toLowerCase().includes("gi\u1EA3i ng\xE2n") || b7.toUpperCase().includes("T\u1ED4NG S\u1ED0") && b12.toLowerCase().includes("\u0111\u1ECBa ph\u01B0\u01A1ng")) {
-      if (isLocalityName(b12)) return "SCHEMA_MODIFIED_NEEDS_MAPPING";
-      const f13 = sheet.cells.get("F13");
-      const i13 = sheet.cells.get("I13");
-      if (!b13 || typeof sheet.cells.get("B13")?.value !== "string" || !f13 || f13.cellType !== "n" || !i13 || i13.cellType !== "n") {
-        return "SCHEMA_MODIFIED_NEEDS_MAPPING";
-      }
-      return "DISB_V1";
-    }
+    if (a1.toLowerCase().includes("gi\u1EA3i ng\xE2n") || b7.toUpperCase().includes("T\u1ED4NG S\u1ED0") && b12.toLowerCase().includes("\u0111\u1ECBa ph\u01B0\u01A1ng")) return "SCHEMA_MODIFIED_NEEDS_MAPPING";
     if (resolveRevenueHeader(sheet)) return "REV_V1";
     if (a3.toUpperCase().includes("THU NSNN") || a3.toUpperCase().includes("THU NG\xC2N S\xC1CH") || b10.toUpperCase().includes("T\u1ED4NG") && b11.length > 0 && !b12.toLowerCase().includes("\u0111\u1ECBa ph\u01B0\u01A1ng")) {
       const c11 = sheet.cells.get("C11");
@@ -10355,7 +10437,7 @@ code {
         );
         if (modified) {
           throw new Error(
-            "BLOCKER_MAPPING_REQUIRED: C\u1EA5u tr\xFAc c\u1ED9t file Gi\u1EA3i ng\xE2n thay \u0111\u1ED5i, y\xEAu c\u1EA7u m\u1EDF Mapping Wizard (PH2-01)."
+            "BLOCKER_MAPPING_REQUIRED: Ch\u01B0a x\xE1c minh \u0111\u01B0\u1EE3c nh\xF3m ti\xEAu \u0111\u1EC1, ph\u1EA1m vi ho\u1EB7c v\u1ECB tr\xED c\u1ED9t gi\u1EA3i ng\xE2n. Kh\xF4ng n\u1EA1p file \u0111\u1EC3 tr\xE1nh sai s\u1ED1 li\u1EC7u."
           );
         }
         throw new Error(
@@ -10366,9 +10448,12 @@ code {
     if (!targetSheet) {
       throw new Error("Sheet not found in DISB workbook.");
     }
-    const profile = getDisbSchemaProfile(targetFp);
-    const headerRows = validateDisbHeaders(targetSheet, targetFp);
-    const a1Text = getCellText(targetSheet, "A1");
+    const layout = resolveDisbLayout(targetSheet);
+    if (!layout || layout.fingerprint !== targetFp) throw new Error("BLOCKER_MAPPING_REQUIRED: Kh\xF4ng x\xE1c minh \u0111\u01B0\u1EE3c nh\xF3m c\u1ED9t gi\u1EA3i ng\xE2n.");
+    const profile = remapDisbProfile(layout);
+    if (targetFp === "DISB_TOTAL_LOCALITY_V2" && layout.columns.L) profile.colMap[layout.columns.L] = "source_disbursed_rate_initial";
+    const headerRows = layout.headerRows;
+    const a1Text = getCellText(targetSheet, layout.titleCell);
     const detectedDate = dateFromReportTitle(a1Text);
     const manualDate = options.confirmedAsOfDate?.trim();
     if (manualDate && !isValidSourceDate(manualDate)) throw new Error("Ng\xE0y ch\u1ED1t kh\xF4ng h\u1EE3p l\u1EC7.");
@@ -10386,12 +10471,12 @@ code {
       status: "OPEN",
       datasetId,
       sourceType: "DISB",
-      rowId: "HEADER_A1",
-      sourceRow: 1,
+      rowId: "HEADER_" + layout.titleCell,
+      sourceRow: Number(layout.titleCell.match(/\d+$/)?.[0] || 1),
       localityId: "ALL",
       localityName: "To\xE0n b\u1ED9 ngu\u1ED3n",
       fieldId: "asOfDate",
-      sourceCell: "A1",
+      sourceCell: layout.titleCell,
       observed: null,
       explanation: "Kh\xF4ng x\xE1c \u0111\u1ECBnh \u0111\u01B0\u1EE3c ng\xE0y ch\u1ED1t t\u1EEB ti\xEAu \u0111\u1EC1 b\xE1o c\xE1o. C\u1EA7n x\xE1c nh\u1EADn ng\xE0y ch\u1ED1t th\u1EF1c t\u1EBF; kh\xF4ng d\xF9ng t\xEAn file ho\u1EB7c ng\xE0y m\u1EB7c \u0111\u1ECBnh."
     });
@@ -10399,7 +10484,7 @@ code {
     const parseDisbRow = (row, locId, locName) => {
       const metrics = {};
       for (const [col, fieldId] of Object.entries(profile.colMap)) {
-        const unit = col === profile.rateCol ? "ratio" : "million_vnd";
+        const unit = fieldId.startsWith("source_disbursed_rate") ? "ratio" : "million_vnd";
         const mCell = buildMetricCell(
           targetSheet,
           col,
@@ -10446,33 +10531,19 @@ code {
         metrics
       };
     };
-    const citySummaryRecord = profile.hasCitySummary ? parseDisbRow(7, "CITY_TOTAL", "T\u1ED4NG S\u1ED0 TO\xC0N TH\xC0NH PH\u1ED0") : void 0;
+    const citySummaryRecord = layout.citySummaryRow !== void 0 ? parseDisbRow(layout.citySummaryRow, "CITY_TOTAL", "T\u1ED4NG S\u1ED0 TO\xC0N TH\xC0NH PH\u1ED0") : void 0;
     const summaryRecord = profile.summaryRow > 0 ? parseDisbRow(
       profile.summaryRow,
       "LOCALITIES_BLOCK_114",
-      profile.isPhanCapXa ? "Kh\u1ED1i 114 \u0111\u1ECBa ph\u01B0\u01A1ng (v\u1ED1n ph\xE2n c\u1EA5p c\u1EA5p x\xE3, d\xF2ng 7)" : "Kh\u1ED1i \u0111\u1ECBa ph\u01B0\u01A1ng (d\xF2ng 12)"
+      profile.isPhanCapXa ? "Kh\u1ED1i \u0111\u1ECBa ph\u01B0\u01A1ng (v\u1ED1n ph\xE2n c\u1EA5p c\u1EA5p x\xE3, d\xF2ng " + profile.summaryRow + ")" : "Kh\u1ED1i \u0111\u1ECBa ph\u01B0\u01A1ng (d\xF2ng " + profile.summaryRow + ")"
     ) : void 0;
-    const unplannedDisbursementRecord = profile.hasUnplannedRow ? parseDisbRow(145, "UNPLANNED_ROW_145", "Gi\u1EA3i ng\xE2n ngo\xE0i k\u1EBF ho\u1EA1ch (d\xF2ng 145)") : void 0;
+    const unplannedDisbursementRecord = layout.unplannedRow !== void 0 ? parseDisbRow(layout.unplannedRow, "UNPLANNED_ROW_" + layout.unplannedRow, "Gi\u1EA3i ng\xE2n ngo\xE0i k\u1EBF ho\u1EA1ch (d\xF2ng " + layout.unplannedRow + ")") : void 0;
     const eqDefs = profile.eqDefs;
-    const rowStart = profile.rowStart;
-    const rowEnd = profile.isPhanCapXa ? Math.max(profile.defaultRowEnd, targetSheet.maxRow) : profile.defaultRowEnd;
-    const candidateRows = targetFp === "DISB_TOTAL_LOCALITY_V2" ? localityRows(targetSheet) : Array.from({ length: rowEnd - rowStart + 1 }, (_, i) => rowStart + i);
+    const candidateRows = layout.dataRows;
     const seenLocalities = /* @__PURE__ */ new Set();
     for (const row of candidateRows) {
-      const rawName = getCellText(targetSheet, `B${row}`).trim();
-      if (!rawName) continue;
-      if (profile.isPhanCapXa) {
-        const lowerName = rawName.toLowerCase();
-        if (lowerName.startsWith("t\u1ED5ng") || lowerName.startsWith("ghi ch\xFA")) {
-          continue;
-        }
-        const aCell = targetSheet.cells.get(`A${row}`);
-        const planCell = targetSheet.cells.get(`${profile.planCol}${row}`);
-        const disbCell = targetSheet.cells.get(`${profile.disbCol}${row}`);
-        const looksLikeLocalityRow = aCell?.cellType === "n" || planCell?.cellType === "n" && disbCell?.cellType === "n";
-        if (!looksLikeLocalityRow) continue;
-      }
-      const loc = createLocalityFromName(rawName, `${wb.filename}!${targetSheet.name}!B${row}`);
+      const rawName = getCellText(targetSheet, layout.columns.B + row).trim();
+      const loc = createLocalityFromName(rawName, wb.filename + "!" + targetSheet.name + "!" + layout.columns.B + row);
       if (seenLocalities.has(loc.id)) throw new Error("BLOCKER_DUPLICATE_LOCALITY: " + loc.canonicalNameNFC + " t\u1EA1i d\xF2ng " + row);
       seenLocalities.add(loc.id);
       localities.push(loc);
@@ -10635,6 +10706,7 @@ code {
       sheetIndex: targetSheet.index,
       sheetVisibility: targetSheet.state,
       schemaFingerprint: targetFp,
+      disbLayout: layout,
       importSelectionMode,
       manualSelectionReason: options.manualSelectionReason,
       mappingVersion,
@@ -10646,7 +10718,7 @@ code {
       periodStart: asOfDate ? asOfDate.slice(0, 4) + "-01-01" : void 0,
       periodEnd: asOfDate || void 0,
       asOfStatus,
-      asOfDateEvidence: detectedDate ? `VERIFIED_TITLE_DATE:${detectedDate} Sheet ${targetSheet.name}!A1 ("${a1Text.trim()}")` : `Sheet ${targetSheet.name}!A1: ch\u01B0a x\xE1c \u0111\u1ECBnh ng\xE0y ch\u1ED1t`,
+      asOfDateEvidence: detectedDate ? `VERIFIED_TITLE_DATE:${detectedDate} Sheet ${targetSheet.name}!${layout.titleCell} ("${a1Text.trim()}")` : `Sheet ${targetSheet.name}!${layout.titleCell}: ch\u01B0a x\xE1c \u0111\u1ECBnh ng\xE0y ch\u1ED1t`,
       asOfDateConfirmation: {
         confirmedByUser: !!manualDate,
         confirmedAt: manualDate ? (/* @__PURE__ */ new Date()).toISOString() : null,
@@ -10688,7 +10760,7 @@ code {
         );
         if (modified) {
           throw new Error(
-            "BLOCKER_MAPPING_REQUIRED: C\u1EA5u tr\xFAc c\u1ED9t file Thu NSNN thay \u0111\u1ED5i, y\xEAu c\u1EA7u m\u1EDF Mapping Wizard (PH2-01)."
+            "BLOCKER_MAPPING_REQUIRED: Ch\u01B0a x\xE1c minh \u0111\u01B0\u1EE3c ti\xEAu \u0111\u1EC1 ngu\u1ED3n Thu NSNN. Kh\xF4ng n\u1EA1p file \u0111\u1EC3 tr\xE1nh sai s\u1ED1 li\u1EC7u."
           );
         }
         throw new Error(
@@ -10702,14 +10774,15 @@ code {
     const hasUserConfirmedDate = Boolean(
       options.confirmedAsOfDate && options.confirmedAsOfDate.trim().length > 0
     );
-    const title = getCellText(targetSheet, "A3");
+    const semanticMapping = resolveRevenueHeader(targetSheet);
+    const isOriginalReference = wb.sha256 === "b41227d1444c581e6f3b65d761fad8918b65aedfbd8114443e6dee9d4938356f" && targetSheet.name === "10T-19.10" && targetSheet.index === 0;
+    const titleCell = isOriginalReference ? "A3" : semanticMapping?.titleCell;
+    const title = titleCell ? getCellText(targetSheet, titleCell) : "";
     const titleDate = explicitTitleDate(title);
     if (hasUserConfirmedDate && !isValidSourceDate(options.confirmedAsOfDate.trim())) throw new Error("Ng\xE0y ch\u1ED1t kh\xF4ng h\u1EE3p l\u1EC7.");
     const asOfDate = hasUserConfirmedDate ? options.confirmedAsOfDate.trim() : titleDate || "";
     const asOfStatus = hasUserConfirmedDate ? "MANUAL_CONFIRMED" : titleDate ? "DETECTED_CONFIRMED" : "REQUIRES_USER_CONFIRMATION";
     const datasetId = `REV_${wb.sha256.slice(0, 12)}__GUARD1`;
-    const semanticMapping = resolveRevenueHeader(targetSheet);
-    const isOriginalReference = wb.sha256 === "b41227d1444c581e6f3b65d761fad8918b65aedfbd8114443e6dee9d4938356f" && targetSheet.name === "10T-19.10" && targetSheet.index === 0;
     if (!semanticMapping && !isOriginalReference) {
       throw new Error("BLOCKER_MAPPING_REQUIRED: Kh\xF4ng nh\u1EADn di\u1EC7n duy nh\u1EA5t ti\xEAu \u0111\u1EC1 c\xE1c c\u1ED9t d\u1EF1 to\xE1n/k\u1EBF ho\u1EA1ch/th\u1EF1c hi\u1EC7n/thu ti\u1EC1n \u0111\u1EA5t/thu tr\u1EEB ti\u1EC1n \u0111\u1EA5t; kh\xF4ng \u0111\u01B0\u1EE3c l\u1EA5y theo c\u1ED9t R/W c\u1ED1 \u0111\u1ECBnh.");
     }
@@ -10746,14 +10819,14 @@ code {
         status: "OPEN",
         datasetId,
         sourceType: "REV",
-        rowId: "HEADER_A3",
-        sourceRow: 3,
+        rowId: "HEADER_" + (titleCell || "UNKNOWN"),
+        sourceRow: Number(titleCell?.match(/\d+$/)?.[0] || 3),
         localityId: "ALL",
         localityName: "To\xE0n b\u1ED9 ngu\u1ED3n Thu NSNN",
         fieldId: "asOfDate",
-        sourceCell: "A3",
+        sourceCell: titleCell || "A3",
         observed: null,
-        explanation: 'Ti\xEAu \u0111\u1EC1 "10 th\xE1ng n\u0103m 2026" v\xE0 t\xEAn sheet "10T-19.10" ch\u01B0a ch\u1EE9ng minh \u0111\u01B0\u1EE3c ng\xE0y ch\u1ED1t c\u1EE5 th\u1EC3 (kh\xF4ng t\u1EF1 g\xE1n 19/10 hay 31/10). Y\xEAu c\u1EA7u ng\u01B0\u1EDDi d\xF9ng nh\u1EADp/x\xE1c nh\u1EADn ng\xE0y ch\u1ED1t th\u1EF1c t\u1EBF.'
+        explanation: "Kh\xF4ng x\xE1c \u0111\u1ECBnh duy nh\u1EA5t ng\xE0y ch\u1ED1t c\u1EE5 th\u1EC3 trong ti\xEAu \u0111\u1EC1 b\xE1o c\xE1o. Kh\xF4ng t\u1EF1 g\xE1n ng\xE0y theo t\xEAn file, t\xEAn sheet ho\u1EB7c k\u1EF3 th\xE1ng. Y\xEAu c\u1EA7u x\xE1c nh\u1EADn ng\xE0y ch\u1ED1t th\u1EF1c t\u1EBF."
       });
     }
     const parseRevRow = (row, locId, locName) => {
@@ -10780,11 +10853,12 @@ code {
         metrics
       };
     };
-    const dataRows = localityRows(targetSheet);
+    const localityCol = isOriginalReference ? "B" : semanticMapping.localityCol;
+    const dataRows = localityRows(targetSheet, localityCol).filter((row) => row > (semanticMapping?.row ?? 8));
     const seen = /* @__PURE__ */ new Set();
     const records = [];
     for (const row of dataRows) {
-      const rawName = getCellText(targetSheet, `B${row}`);
+      const rawName = getCellText(targetSheet, localityCol + row);
       const canonical = canonicalizeLocalityName(rawName);
       const locId = makeLocalityId(canonical);
       if (seen.has(locId)) throw new Error("BLOCKER_DUPLICATE_LOCALITY: " + canonical + " t\u1EA1i d\xF2ng " + row);
@@ -10792,7 +10866,7 @@ code {
       records.push(parseRevRow(row, locId, canonical));
     }
     if (!records.length) throw new Error("BLOCKER_MAPPING_REQUIRED: Kh\xF4ng c\xF3 d\xF2ng \u0111\u1ECBa ph\u01B0\u01A1ng \u0111\u01B0\u1EE3c nh\u1EADn di\u1EC7n.");
-    const totalRow = Array.from({ length: Math.max(0, dataRows[0] - 1) }, (_, i) => i + 1).find((row) => /^tong so|^tong cong$/.test(headerKey(getCellText(targetSheet, "B" + row))));
+    const totalRow = Array.from({ length: Math.max(0, dataRows[0] - 1) }, (_, i) => i + 1).find((row) => /^tong so|^tong cong$/.test(headerKey(getCellText(targetSheet, localityCol + row))));
     const summaryRecord = totalRow ? parseRevRow(totalRow, "REV_AVAILABLE_113", "T\u1ED5ng c\xE1c \u0111\u1ECBa ph\u01B0\u01A1ng (d\xF2ng " + totalRow + ")") : void 0;
     const monthMatch = title.match(/(\d{1,2})\s*tháng\s*(?:đầu\s*)?(?:năm\s*)?(\d{4})/iu);
     const periodLabel = titleDate ? "L\u0169y k\u1EBF \u0111\u1EBFn ng\xE0y " + titleDate.split("-").reverse().join("/") : monthMatch ? monthMatch[1] + " th\xE1ng \u0111\u1EA7u n\u0103m " + monthMatch[2] : "K\u1EF3 theo ti\xEAu \u0111\u1EC1 ngu\u1ED3n";
@@ -10817,7 +10891,7 @@ code {
       periodStart: asOfDate ? asOfDate.slice(0, 4) + "-01-01" : "2026-01-01",
       periodEnd: isOriginalReference ? "2026-10-31" : asOfDate || void 0,
       asOfStatus,
-      asOfDateEvidence: titleDate ? `Sheet ${targetSheet.name}!A3: ${title.trim()}` : `Sheet ${targetSheet.name}!A3: ${title.trim()}; ch\u01B0a c\xF3 ng\xE0y ch\u1ED1t c\u1EE5 th\u1EC3, y\xEAu c\u1EA7u ng\u01B0\u1EDDi d\xF9ng x\xE1c nh\u1EADn.`,
+      asOfDateEvidence: titleDate ? `Sheet ${targetSheet.name}!${titleCell}: ${title.trim()}` : `Sheet ${targetSheet.name}!${titleCell || "ch\u01B0a x\xE1c \u0111\u1ECBnh ti\xEAu \u0111\u1EC1"}: ${title.trim()}; ch\u01B0a c\xF3 ng\xE0y ch\u1ED1t c\u1EE5 th\u1EC3, y\xEAu c\u1EA7u ng\u01B0\u1EDDi d\xF9ng x\xE1c nh\u1EADn.`,
       asOfDateConfirmation: {
         confirmedByUser: hasUserConfirmedDate,
         confirmedAt: hasUserConfirmedDate ? (/* @__PURE__ */ new Date()).toISOString() : null,
@@ -10829,7 +10903,7 @@ code {
       issues,
       allSheetsMeta
     };
-    attachSourceValidation(dataset, targetSheet, [semanticMapping?.row ?? 8]);
+    attachSourceValidation(dataset, targetSheet, isOriginalReference ? [7, 8] : semanticMapping.headerRows);
     return { dataset };
   }
   function importGpmbWorkbook(bytes, filename, options = {}) {
@@ -12136,9 +12210,9 @@ code {
     const avgDisplay = moneyUnit === "billion" ? millionToBillion(avgMillion) : avgMillion;
     const unitText = moneyUnit === "billion" ? "t\u1EF7 \u0111\u1ED3ng" : "tri\u1EC7u \u0111\u1ED3ng";
     const displayedText = `${formatVnNumber(avgDisplay, decimals)} ${unitText}`;
-    const disbProfile = getDisbSchemaProfile(disbDataset.schemaFingerprint);
+    const disbProfile = getDisbDatasetProfile(disbDataset);
     const planCol = disbProfile.planCol;
-    const planRange = formatDisbRange(planCol, disbProfile, count);
+    const planRange = formatDisbDatasetRange(disbDataset, "adjusted_total_plan");
     const trace = {
       traceId: `TRACE_BM_DISB_PLAN_PER_UNIT_${disbDataset.id}`,
       indicatorId: "DISB_PLAN_PER_UNIT",
@@ -12946,11 +13020,7 @@ code {
             expressionTree: {
               op: "COMPARE",
               lhs: fRef.address,
-              rhs: `SUM(${formatDisbRange(
-                getDisbSchemaProfile(disb.schemaFingerprint).planCol,
-                getDisbSchemaProfile(disb.schemaFingerprint),
-                114
-              )})/114`
+              rhs: `SUM(${formatDisbDatasetRange(disb, "adjusted_total_plan")})/114`
             },
             method: "COMPARISON_RULE",
             roundingPolicy: "EXACT_DECIMAL_BEFORE_COMPARE",
@@ -13042,7 +13112,7 @@ code {
         const pct = ratio.mul(100);
         const displayedText = formatVnPercent(pct, decPct);
         const traceId = `TRACE_DISB_RATE_${locality2.id}_${disb.id}`;
-        const disbProfile = getDisbSchemaProfile(disb.schemaFingerprint);
+        const disbProfile = getDisbDatasetProfile(disb);
         const ratioSymbol = `${disbProfile.disbCol}/${disbProfile.planCol}`;
         const trace = {
           traceId,
@@ -13121,7 +13191,7 @@ code {
           ],
           quality: {
             status: "COMPLETE",
-            warningIds: rec.officialNote ? [`NOTE_${getDisbSchemaProfile(disb.schemaFingerprint).noteCol}${rec.sourceRow}`] : []
+            warningIds: rec.officialNote ? [`NOTE_${getDisbDatasetProfile(disb).noteCol}${rec.sourceRow}`] : []
           },
           sourceRefs: [iRef, fRef],
           createdAt: (/* @__PURE__ */ new Date()).toISOString(),
@@ -17730,9 +17800,17 @@ ${page2}`;
       }
       try {
         const wb = parseWorkbookBytes(bytes, filename);
-        const visibleSheets = wb.sheets.filter((s) => s.state === "visible");
-        for (const s of visibleSheets) {
-          const fp = detectSheetFingerprint(s);
+        const visibleSheets = wb.sheets.filter((s) => s.state === "visible").map((sheet) => ({ sheet, fp: detectSheetFingerprint(sheet) }));
+        const sourceType = (fp) => fp.startsWith("DISB_") ? "DISB" : fp === "REV_V1" ? "REV" : fp === "GPMB_V1" || fp === "GPMB_FLAT" ? "GPMB" : void 0;
+        const recognized = visibleSheets.filter((x) => sourceType(x.fp));
+        const kinds = new Set(recognized.map((x) => sourceType(x.fp)));
+        if (!expectedSourceType && kinds.size > 1) {
+          this.setStatus("T\u1EC7p ch\u1EE9a nhi\u1EC1u lo\u1EA1i ngu\u1ED3n h\u1EE3p l\u1EC7. H\xE3y nh\u1EADp t\u1EA1i \xF4 ngu\u1ED3n c\u1EE5 th\u1EC3 \u0111\u1EC3 tr\xE1nh ch\u1ECDn nh\u1EA7m sheet.", "warning");
+          return;
+        }
+        const matching = expectedSourceType ? recognized.filter((x) => sourceType(x.fp) === expectedSourceType) : recognized;
+        const candidates = matching.length ? matching : recognized.length ? recognized : visibleSheets;
+        for (const { fp } of candidates) {
           if (fp === "DISB_V1" || fp === "DISB_TOTAL_LOCALITY_V2" || fp === "DISB_PHAN_CAP_XA_V1" || fp === "DISB_PHAN_CAP_XA_V2") {
             if (expectedSourceType && expectedSourceType !== "DISB") {
               this.setStatus(
@@ -17750,7 +17828,7 @@ ${page2}`;
             rebindSessionDataset(this.workspace, activeSession.id, "DISB", dataset.id);
             this.triggerAutosave();
             this.setStatus(
-              fp === "DISB_PHAN_CAP_XA_V2" ? `\u0110\xE3 c\u1EADp nh\u1EADt ngu\u1ED3n Gi\u1EA3i ng\xE2n (Ph\xE2n c\u1EA5p x\xE3 \xB7 15 c\u1ED9t) "${filename}" cho ri\xEAng phi\xEAn "${activeSession.name}" (${dataset.unitCount} \u0110P, ch\u1ED1t ${formatVnDate(dataset.asOfDate)}).` : fp === "DISB_PHAN_CAP_XA_V1" ? `\u0110\xE3 c\u1EADp nh\u1EADt ngu\u1ED3n Gi\u1EA3i ng\xE2n (Ph\xE2n c\u1EA5p x\xE3 \xB7 12 c\u1ED9t) "${filename}" cho ri\xEAng phi\xEAn "${activeSession.name}" (${dataset.unitCount} \u0110P, ch\u1ED1t ${formatVnDate(dataset.asOfDate)}).` : `\u0110\xE3 c\u1EADp nh\u1EADt ngu\u1ED3n Gi\u1EA3i ng\xE2n "${filename}" cho ri\xEAng phi\xEAn "${activeSession.name}" (${dataset.unitCount} \u0110P, ch\u1ED1t ${formatVnDate(dataset.asOfDate)}).`,
+              fp === "DISB_PHAN_CAP_XA_V2" ? `\u0110\xE3 c\u1EADp nh\u1EADt ngu\u1ED3n Gi\u1EA3i ng\xE2n (Ph\xE2n c\u1EA5p x\xE3 \xB7 c\xF3 v\u1ED1n \u0111\u1EA7u n\u0103m) "${filename}" cho ri\xEAng phi\xEAn "${activeSession.name}" (${dataset.unitCount} \u0110P, ch\u1ED1t ${formatVnDate(dataset.asOfDate)}).` : fp === "DISB_PHAN_CAP_XA_V1" ? `\u0110\xE3 c\u1EADp nh\u1EADt ngu\u1ED3n Gi\u1EA3i ng\xE2n (Ph\xE2n c\u1EA5p x\xE3) "${filename}" cho ri\xEAng phi\xEAn "${activeSession.name}" (${dataset.unitCount} \u0110P, ch\u1ED1t ${formatVnDate(dataset.asOfDate)}).` : `\u0110\xE3 c\u1EADp nh\u1EADt ngu\u1ED3n Gi\u1EA3i ng\xE2n "${filename}" cho ri\xEAng phi\xEAn "${activeSession.name}" (${dataset.unitCount} \u0110P, ch\u1ED1t ${formatVnDate(dataset.asOfDate)}).`,
               hasTrustedSourceDate(dataset) ? "success" : "warning"
             );
             return;
