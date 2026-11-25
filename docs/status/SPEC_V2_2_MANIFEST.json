@@ -3,14 +3,14 @@
   "repository": "cavoixanh638/KTXD-report",
   "specVersion": "2.2 CURRENT",
   "masterSpec": "docs/specs/KTXH_OFFLINE_MASTER_SPEC_V2_2_CURRENT.md",
-  "masterSha256": "1129b755a53bbcc373377394f93080390561c6bf21e59a6ef9d555d698229882",
-  "masterLines": 879,
+  "masterSha256": "eb5ae5cb015efc220bdb2be9a0e39079c2efb1256544611ddc950bef4028105b",
+  "masterLines": 887,
   "subplans": [
     {
       "phase": "PH1",
       "path": "docs/plans/PHASE_1_RESULT_TEMPLATE.md",
-      "sha256": "e8a713b3266c06e1a3272b4271c787dd90890dba7a5a6864ed357946cb038e00",
-      "status": "DISB_SEMANTIC_LAYOUT_CI_PENDING"
+      "sha256": "a6990dac31cba88240540f1d202edd84b4b94e17a0887a028e44a1a7a81101a1",
+      "status": "CI_VERIFIED_OFFLINE_BUNDLE_PUBLISHED_USER_ACCEPTANCE_PENDING"
     },
     {
       "phase": "PH2",
@@ -88,7 +88,7 @@
     "T66"
   ],
   "testCount": 66,
-  "runtimeTestStatus": "DISB_SEMANTIC_LAYOUT_CI_PENDING",
+  "runtimeTestStatus": "BASELINE_PH1_PASS_64_DEFERRED_2; NOVEMBER_CI_53_OF_53_PASS; OFFLINE_BUNDLE_PUBLISHED",
   "runtimeEvidence": "docs/data_checks/PH1_ACCEPTANCE_EVIDENCE_20261109.json",
   "originalWorkbooks": "data/reference/MANIFEST.json",
   "originalWorkbooksCommitted": true,
@@ -104,7 +104,7 @@
   "novemberUpdate": {
     "date": "2026-11-25",
     "branch": "ai/november-source-report-fix-20261124",
-    "implementationSha": "c50d1f947dc6d8a617edd62aa1d65c0de7733fc4",
+    "implementationSha": "2fcd2403684c2d2dc55dc90ad813debaf2af51ae",
     "tests": [
       "NOV_FIX_01",
       "NOV_FIX_02",
@@ -115,8 +115,8 @@
       "NOV_FIX_07",
       "source-corpus.spec.ts"
     ],
-    "ciRun": "https://github.com/cavoixanh638/KTXD-report/actions/runs/45643547137",
-    "status": "DISB_SEMANTIC_LAYOUT_CI_PENDING",
+    "ciRun": "https://github.com/cavoixanh638/KTXD-report/actions/runs/45645990437",
+    "status": "CI_PASS_OFFLINE_BUNDLE_PUBLISHED_WINDOWS_PRINT_NOT_RUN",
     "results": {
       "workbooks": "4/4 PASS",
       "corpus": "3/3 PASS",
@@ -126,17 +126,17 @@
       "tests": "53/53 PASS",
       "windowsPrint": "NOT_RUN",
       "userAcceptance": "PENDING",
-      "jobId": 139308315813,
-      "artifactId": "15037135540"
+      "jobId": 139317011459,
+      "artifactId": "15037817410"
     },
     "distribution": {
       "path": "dist/index.html",
       "policy": "COMMIT_ONLY_AFTER_TESTS_PASS",
       "status": "PUBLISHED_VERIFIED",
-      "commit": "c52f0274016880fa09563a2afe7dee46e40c21b5",
-      "blobSha": "a8946ff07af4003163174c20ed40cc7c89af02f2",
-      "sha256": "be9a588d5d42f977aa80e1701d84af6833c35a5e8a0fdd732753c46e3370e7e1",
-      "bytes": 2348897
+      "commit": "1fc79a2a105f0b787d1e73fc06abf3f87a4ef8da",
+      "blobSha": "f7285b38a5f32436cf668f7c4c1a2d7b919a2bf8",
+      "sha256": "ed242a2a999f1e29b007d7689525340d7e3d3a67453c684e879292691dcccc21",
+      "bytes": 2355134
     },
     "sourceCorpus": {
       "manifest": "data/reference/SOURCE_CORPUS.json",

@@ -164,3 +164,5 @@ Chỉ tăng cỡ chữ giá trị của ba tỷ lệ trung bình REV/DISB/GPMB: 
 ### SourceValidation (SCHEMA_GUARD_V1)
 
 Metadata kiểm tra của Dataset: workbookSha256, sheet, schemaSignature, headerRows, columnCount/headerColumnCount, columns[field,column,header,unit], status VERIFIED/NEEDS_REVIEW, checks[code,label,checked,failed,severity,detail,examples], checkedAt/reviewedAt/reviewReason, historicalDatasetId/historicalDate/previousColumnCount/changedColumns. Được lưu cùng dataset và backup. Signature khác SHA file: kiểm tra cấu trúc đã chuẩn hóa, không coi thay đổi nội dung là sai. ID bản nhập mới có hậu tố GUARD1. GPMB localityGroupSummaries.columnM lưu cột tỷ lệ nguồn thực tế (legacy mặc định M). Không lưu raw Excel mới trong browser hay gửi repo.
+
+`Dataset.disbLayout?: DisbResolvedLayout`: fingerprint, columns (vai trò canonical A/B/C... -> cột Excel thực), headerRows, dataRows, summaryRow, citySummaryRow?, unplannedRow?, titleCell. `getDisbDatasetProfile` remap colMap, tỷ lệ, ghi chú, component/identity columns; `formatDisbDatasetRange` dùng các dòng thực. `source_disbursed_rate_initial` là tỷ lệ nguồn so vốn đầu năm của compact (ratio, chỉ QA).

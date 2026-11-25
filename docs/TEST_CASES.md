@@ -245,6 +245,10 @@ T01–T66 là baseline lịch sử, không dùng kết quả cũ để kết lu�
 
 - NOV_FIX_05 bổ sung: nhập lại cùng nội dung đã xác nhận với parser không biết ngày phải giữ dataset/ngày/first-import; ngày 30/02 bị từ chối và xác nhận ngày hợp lệ đồng bộ periodEnd/periodLabel.
 
-- NOV_FIX_06: biến thể từ workbook DISB/GPMB gốc: thêm cột giữa có số, đảo cột, thêm cột không liên quan, GPMB thiếu/trùng tiêu đề, dịch dòng tiêu đề, tăng STT 423; DISB chưa có profile đúng phải reject, GPMB remap giá trị và provenance đúng, GPMB phẳng chèn/trùng/thiếu cột, đơn vị ha hoặc tỷ đồng không khớp chặn.
+- NOV_FIX_06: biến thể từ workbook DISB/GPMB gốc: thêm cột giữa có số, đảo cột, thêm cột không liên quan, GPMB thiếu/trùng tiêu đề, dịch dòng tiêu đề, tăng STT 423; DISB remap nhóm rõ nghĩa/chèn cột/đảo thành phần, reject khi phá nhóm; GPMB remap giá trị và provenance đúng, GPMB phẳng chèn/trùng/thiếu cột, đơn vị ha hoặc tỷ đồng không khớp chặn.
 - NOV_FIX_07: lịch sử cùng năm/phạm vi, thay đổi lớn nhưng giữ thứ hạng không báo sai chỉ vì giá trị tăng, đảo phân bố được phát hiện, tái kiểm tra khi xác nhận ngày, nguồn chưa guard hoặc NEEDS_REVIEW không chọn latest cho đến khi xác minh.
 - tests/source-corpus.spec.ts: chạy 3 mẫu nguồn gốc, SHA, sheet, độ phủ, ngày chốt (REV là giả định test được ghi), expectedColumns và goldenSums đối chiếu độc lập; verify_reference_files.py kiểm chứng 4 workbook và mọi corpus bổ sung. Không coi workbook tháng 11 chưa cung cấp là đã chạy test.
+
+- NOV_FIX_01 mở rộng: compact DISB dịch toàn bộ cột kể cả STT, địa phương, ô tiêu đề; giữ 114 bản ghi, cutoff, note và số tiền; QA tỷ lệ đầu năm. Hai test DISB phân cấp V1/V2 dịch toàn bộ cột, giữ scope/giá trị. NOV_FIX_06 kiểm thử chèn giữa nhóm và đảo thành phần từ file DISB gốc; phá nhóm phải reject.
+- NOV_FIX_02 mở rộng: dịch cả cột định danh, số liệu, dòng tiêu đề và các cột AA+, phân biệt hai nhóm tỷ lệ, nhận ĐVT, chặn khai báo triệu đồng/tỷ đồng cùng lúc. NOV_FIX_05: reject metadata DISB layout/phạm vi mâu thuẫn. NOV_FIX_07: cảnh báo hệ số đổi đơn vị ở chỉ tiêu neo dù Spearman vẫn cao.
+- CI cuối 45645990437: 53/53 PASS, 4/4 workbook, 3/3 mẫu nguồn trong corpus; 5 file thực tế pending chưa được chạy.

@@ -126,3 +126,5 @@ Nút liên kết Khối 1 và empty state mở modal cùng style `proj-modal-dia
 ### Xác minh nguồn
 
 Khối 1 có details Kiểm tra cột hiển thị số cột có nội dung, ngày lịch sử, kết quả QA, mapping. Với NEEDS_REVIEW dùng hộp xác nhận native của trình duyệt chứa lý do và danh sách cột; không hiển thị mỗi lần nhập bình thường. Nguồn chưa xác minh/ngày chưa chốt không lập/xuất báo cáo; khi cần có nút Đối chiếu & xác nhận nguồn. Không tự gán cột theo số lượng hoặc tương quan. Wizard ánh xạ tùy ý vẫn PH2.
+
+Nhận diện nhiều loại nguồn trong cùng workbook: yêu cầu chọn ô nguồn cụ thể. DISB không dùng số cột cố định làm nhãn phạm vi; phân biệt tổng vốn và phân cấp/có vốn đầu năm. Giữ kiểm tra cột thu gọn khi bình thường.

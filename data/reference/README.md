@@ -1,6 +1,6 @@
 # 4 tệp Excel nguồn đã bàn giao cho AI triển khai
 
-**Quyền truy cập:** Repository GitHub `cavoixanh638/KTXD-report` hiện ở chế độ **Private**. Ngày 09/11/2026, chủ dự án yêu cầu đưa **đúng bốn tệp gốc** vào repo để mọi AI có thể kiểm thử trực tiếp. Đây là ngoại lệ được cấp phép cụ thể cho bốn tệp trong thư mục này. **Không** đưa thêm file nội bộ, file sửa, dữ liệu cá nhân mới hoặc bản sao lưu thực tế lên repo nếu chưa được cho phép.
+**Quyền truy cập:** Repository GitHub `cavoixanh638/KTXD-report` ở chế độ **Public** theo xác nhận của chủ dự án ngày 25/11/2026. Bốn file gốc đã lưu từ 09/11/2026 phải giữ nguyên byte. Mẫu nguồn gốc khác thuộc phạm vi dự án được phép bổ sung theo `SOURCE_CORPUS.json` và `corpus/README.md`; không đưa dữ liệu ngoài phạm vi, bí mật, thông tin cá nhân hoặc backup phiên lên GitHub.
 
 ## Tệp gốc
 
@@ -14,6 +14,6 @@
 1. Đọc [Master V2.2](../../docs/specs/KTXH_OFFLINE_MASTER_SPEC_V2_2_CURRENT.md), mục 2 và các adapter; giữ nguyên cả tệp Excel trong thư mục này.
 2. Chạy `python tools/verify_reference_files.py` từ thư mục gốc. **Phải PASS 4/4**, kiểm tra toàn bộ byte và ZIP/container của XLSX.
 3. Nạp qua `data/reference/<tên file gốc>`; không đổi tên, chuyển đổi `.csv` hoặc lưu lại bằng thư viện Excel. Xác nhận SHA-256 trong `MANIFEST.json` trước khi chạy kiểm thử.
-4. Trường hợp tệp nguồn mới xuất hiện: lưu ngoài repo, lập manifest/version mới và được duyệt trước khi đưa vào GitHub. Không tự cập nhật fixture đang có.
+4. Trường hợp mẫu nguồn gốc mới được cung cấp: lưu riêng trong corpus, ghi SHA/manifest, golden values được kiểm chứng trực tiếp, không ghi đè fixture. Không tự upload từ app.
 5. `RESULT_REFERENCE` là mẫu định dạng/tiêu chí, **không phải số liệu chuẩn cho công thức**. Các tài liệu thu/giải ngân/GPMB có kỳ và phạm vi khác nhau, xem đặc tả.
-6. Tài liệu là dữ liệu nghiệp vụ có thể nhạy cảm; không đổi repository thành Public, không đưa dữ liệu vào log CI công khai hoặc dịch vụ ngoài.
+6. Repo Public được chủ dự án xác nhận; chỉ công bố đúng mẫu đã được cho phép. Không đưa bí mật, dữ liệu ngoài phạm vi hoặc bản sao lưu phiên vào log CI/dịch vụ ngoài.

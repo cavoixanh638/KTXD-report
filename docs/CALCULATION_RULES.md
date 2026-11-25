@@ -268,3 +268,5 @@ Theo bảng bảy nhãn chuẩn tại MASTER mục cập nhật PH1. Từ `trung
 ### Kiểm tra đối chiếu, không sửa công thức nghiệp vụ
 
 Source schema guard kiểm tra REV cân đối tổng/tiền đất/trừ tiền đất, sáu tỷ lệ nguồn nếu có; DISB identity và tỷ lệ; GPMB tỷ lệ và tổng theo địa bàn; tổng chi tiết khi cùng phạm vi/đủ toán hạng. Chỉ là QA, không ghi đè số nguồn hoặc thay đổi SUM/SUM. Lịch sử không dùng % biến động cố định; chọn kỳ trước đã xác minh, cùng năm/phạm vi và đối tượng, kiểm tra neo, dấu giảm lũy kế, Spearman. Độ phủ thực vẫn được lưu như cũ.
+
+Kiểm tra bổ sung tỷ lệ DISB compact theo vốn đầu năm, REV tỷ lệ nguồn chỉ khi nhóm dự toán/kế hoạch kỳ rõ. Đối chiếu lịch sử dấu hiệu đổi đơn vị theo hệ số gần đúng 100/1.000/1.000.000 và nghịch đảo ở nhiều đối tượng có chỉ tiêu neo; chỉ cảnh báo xác minh, không ngưỡng % chênh lệch kỳ, không thay đổi SUM/SUM.

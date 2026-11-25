@@ -1,7 +1,7 @@
 # KTXH Offline Report — Báo cáo KTXH mở trực tiếp bằng trình duyệt
 
 > **Tình trạng:** `MASTER_V2.2 / PHASE_1_COMPLETED / DUAL_STUDIO_LIVE / 43_TESTS_PASS`  
-> **Repository:** `cavoixanh638/KTXD-report` (Private)  
+> **Repository:** `cavoixanh638/KTXD-report` (Public theo xác nhận của chủ dự án 25/11/2026)  
 > **Sản phẩm:** KTXH Offline (Bản dựng tệp đơn: `dist/index.html` ~2.2MB, chạy 100% offline qua `file://`)
 
 ---
@@ -98,4 +98,4 @@ Chọn ba nguồn đã nhập theo ngày chốt xác nhận, giữ phạm vi gi�
 
 ## Kiểm tra cấu trúc và chất lượng nguồn
 
-Trước khi lập báo cáo, app xác minh tiêu đề/đơn vị/ánh xạ, kiểm tra chéo và đối chiếu lịch sử đã xác minh; không dùng % chênh lệch giữa kỳ. Mở chi tiết Kiểm tra cột ở Khối 1. Nếu nguồn cũ thiếu xác minh, nhập lại đúng file gốc một lần. Cấu trúc DISB chưa hỗ trợ bị từ chối an toàn. Xem SOURCE_CORPUS.json và corpus/README.md để lưu mẫu thực tế trong repo private; không tự upload từ app.
+Trước khi lập báo cáo, app xác minh tiêu đề/đơn vị/ánh xạ, kiểm tra chéo và đối chiếu lịch sử đã xác minh; không dùng % chênh lệch giữa kỳ. Mở chi tiết Kiểm tra cột ở Khối 1. Nếu nguồn cũ thiếu xác minh, nhập lại đúng file gốc một lần. DISB tự ánh xạ cột theo nhóm tiêu đề của 4 profile; bố cục không rõ nghĩa bị từ chối an toàn. Xem SOURCE_CORPUS.json và corpus/README.md để lưu mẫu thực tế được chủ dự án cho phép trong repo Public; không tự upload từ app.

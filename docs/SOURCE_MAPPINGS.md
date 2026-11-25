@@ -274,8 +274,10 @@ DISB_TOTAL_LOCALITY_V2 chỉ có tổng C/F/I và hai thành phần tương ứn
 
 ### Ngày chốt và chọn nguồn mới nhất
 
-DISB/GPMB chỉ nhận ngày hợp lệ duy nhất trong tiêu đề A1 hoặc ngày người dùng xác nhận; CSV/bảng phẳng GPMB không dùng deadline hay tên file. Không tự gán ngày mẫu cho nguồn thiếu ngày. REV dùng tiêu đề A3 theo quy tắc cũ. Legacy DISB/GPMB thiếu chứng cứ A1 đáng tin cần xác nhận lại. Scope DISB TOTAL và ALLOCATED không thay thế nhau tự động. Xem MASTER mục 5.
+DISB nhận ngày hợp lệ duy nhất tại ô tiêu đề báo cáo nhận diện theo nội dung, GPMB tại tiêu đề A1, hoặc ngày người dùng xác nhận; CSV/bảng phẳng GPMB không dùng deadline hay tên file. Không tự gán ngày mẫu cho nguồn thiếu ngày. REV nhận ngày chốt cụ thể trong ô tiêu đề báo cáo xác định theo ngữ nghĩa (A3 chỉ ở mẫu gốc). Legacy DISB/GPMB thiếu chứng cứ A1 đáng tin cần xác nhận lại. Scope DISB TOTAL và ALLOCATED không thay thế nhau tự động. Xem MASTER mục 5.
 
 ### Schema guard hiện hành (thay cho nhận diện chỉ dựa vào ô số)
 
-REV nhận diện tiêu đề vai trò duy nhất; chỉ file REV gốc SHA/sheet chính xác dùng map cố định. GPMB phẳng và phân nhóm đọc theo tiêu đề duy nhất; nhóm có thể dịch cột và dòng tiêu đề, tất cả metric/provenance dùng cột thật. STT dự án là số nguyên dương (không giới hạn 422); 422 chỉ là số dự án fixture gốc. DISB bốn profile kiểm tra đầy đủ tiêu đề nhóm, thành phần và vai trò bắt buộc tại vị trí profile; không tự dùng profile cũ nếu thêm/đổi cột chính. Đơn vị xung đột chặn; thiếu bằng chứng cần xác nhận. Xem MASTER mục 6; corpus giữ nguyên workbook gốc.
+REV nhận diện tiêu đề vai trò duy nhất; chỉ file REV gốc SHA/sheet chính xác dùng map cố định. GPMB phẳng và phân nhóm đọc theo tiêu đề duy nhất; nhóm có thể dịch cột và dòng tiêu đề, tất cả metric/provenance dùng cột thật. STT dự án là số nguyên dương (không giới hạn 422); 422 chỉ là số dự án fixture gốc. DISB bốn profile xác minh nhóm tiêu đề và vai trò con, remap theo cột thực; không đọc cố định cột profile nếu vị trí thay đổi. Nhóm bị phá vỡ/không duy nhất bị chặn. Đơn vị xung đột chặn; thiếu bằng chứng cần xác nhận. Xem MASTER mục 6; corpus giữ nguyên workbook gốc.
+
+REV nhận diện STT/địa phương theo tiêu đề, tỷ lệ nguồn theo nhóm dự toán/kế hoạch kỳ; không đoán nhóm tỷ lệ khi thiếu tiêu đề. DISB giữ đúng vai trò thành phần theo phạm vi, hỗ trợ dịch cột và đảo thành phần trong nhóm; trace cột/dòng thực. ĐVT/Đơn vị tính xung đột bị chặn. Xem MASTER mục 8.

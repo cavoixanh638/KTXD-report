@@ -92,4 +92,4 @@ Bản phân phối: `dist/index.html` được Git theo dõi và CI cập nhật
 
 Chức năng Nạp 3 file mới nhất: MASTER mục 5, PH1, USER_GUIDE, DEVELOPER_GUIDE, SOURCE_MAPPINGS và NOV_FIX_05; xem PROJECT_STATUS để biết SHA bản chạy.
 
-Source Schema Guard V1: MASTER mục 6–7, PH1, SOURCE_MAPPINGS, DATA_DICTIONARY, USER_GUIDE, DEVELOPER_GUIDE, NOV_FIX_06/07 và SOURCE_CORPUS.json. Kho mẫu chưa được bổ sung file thật mới vì cần repo private và bản gốc có thể truy cập.
+Source Schema Guard V1: MASTER mục 6–7, PH1, SOURCE_MAPPINGS, DATA_DICTIONARY, USER_GUIDE, DEVELOPER_GUIDE, NOV_FIX_06/07 và SOURCE_CORPUS.json. Kho mẫu hiện 4 file gốc (3 nguồn, 1 mẫu kết quả); 5 pending originals đã tìm được metadata nhưng chưa lấy được raw bytes. Repo Public được chủ dự án xác nhận. MASTER mục 8 bổ sung remap DISB/REV và kiểm tra đơn vị.

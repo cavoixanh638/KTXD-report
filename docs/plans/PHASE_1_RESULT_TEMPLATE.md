@@ -118,4 +118,6 @@ Tuân thủ mục 5 MASTER: bộ chọn latest theo ngày chốt đáng tin, ph�
 
 ### Bổ sung PH1 — Source Schema Guard V1 và corpus nguồn
 
-Áp dụng MASTER mục 6–7. Đây là gate tính đúng dữ liệu của PH1, không chờ PH2; DISB profile nghiêm ngặt, REV/GPMB remap tiêu đề, nguồn chưa xác minh không được lập/xuất báo cáo. NOV_FIX_06/07 + source-corpus.spec.ts. Lưu nguồn được cung cấp theo manifest khi repo private; không tự upload từ webapp offline.
+Áp dụng MASTER mục 6–7. Đây là gate tính đúng dữ liệu của PH1, không chờ PH2; DISB/REV/GPMB remap theo tiêu đề và nhóm rõ nghĩa, bố cục không xác minh được bị từ chối, nguồn chưa xác minh không được lập/xuất báo cáo. NOV_FIX_06/07 + source-corpus.spec.ts. Lưu mẫu nguồn gốc được chủ dự án cung cấp theo manifest trên repo Public đã được xác nhận; không tự upload từ webapp offline.
+
+Bổ sung MASTER mục 8: DISB remap bốn profile; REV remap định danh, nhóm tỷ lệ; cảnh báo xung đột đơn vị và hệ số đổi đơn vị; test NOV_FIX_01/02/05/06/07 mở rộng. Chưa đưa 5 file pending vào corpus vì chưa có raw bytes.
