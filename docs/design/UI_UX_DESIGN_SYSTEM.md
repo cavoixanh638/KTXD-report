@@ -118,3 +118,7 @@ A4 ngang tối đa 11 cột địa phương/cụm, co bề rộng tự động; 
 ### Tên chỉ tiêu chuẩn (24/11/2026)
 
 Tuân thủ bảng bảy nhãn mới trong MASTER. Dùng `từng địa phương` thay vì `từng xã` cho bốn chỉ tiêu cá thể; ba benchmark dùng `trung bình của 114 địa phương` trên bảng chính, ghi đủ độ phủ thực trong kiểm toán. Ngày chốt tự động; giữ ô gộp REV/DISB/GPMB, không thêm footer nguồn. Chỉ tăng cỡ chữ giá trị của ba tỷ lệ trung bình REV/DISB/GPMB: Studio/grid và bản in/PDF dùng `1.1em` (tăng 10% so với số liệu thông thường), Excel dùng 11 pt thay vì 10 pt, định dạng phần trăm và căn giữa giữ nguyên. Không tăng cỡ chữ nhãn chỉ tiêu hoặc giá trị của từng địa phương; gộp cả ba benchmark REV/DISB/GPMB. Nhãn mặc định cũ theo độ phủ được tự chuyển sang mẫu 114; giữ tên riêng của người dùng.
+
+### Nạp 3 file mới nhất
+
+Nút liên kết Khối 1 và empty state mở modal cùng style `proj-modal-dialog`. Mỗi nhóm nguồn có card tên file/ngày chốt/độ phủ, DISB có phạm vi, mẫu và nhiều phiên bản cùng ngày có cảnh báo; nguồn loại nằm trong details. Nút Nạp 3 nguồn vô hiệu khi thiếu ứng viên; Cancel/Escape/đóng nền không thay phiên. Tạo phiên mới hiện lựa chọn LATEST kèm preview; ô xác nhận ngày dùng chung cho cả DISB/REV/GPMB, không điền ngày mẫu khi chưa xác minh.

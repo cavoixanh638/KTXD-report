@@ -422,6 +422,10 @@ describe('KTXH Offline – A4 Report Studio & WYSIWYG Architecture Suite', () =>
     for (const ds of [d,r,g,old,corrected,allocated,unknown,wrong]) registerDatasetInWorkspace(ws,ds);
     registerDatasetInWorkspace(ws,{...r,importedAt:'2026-11-25T02:00:00Z'});
     expect(ws.datasets.find(x=>x.id===r.id)?.importedAt).toBe(r.importedAt);
+    const reloaded = registerDatasetInWorkspace(ws,{...g,asOfDate:'',asOfStatus:'REQUIRES_USER_CONFIRMATION',importedAt:'2026-11-25T03:00:00Z'});
+    expect(reloaded).toBe(g);
+    expect(reloaded.asOfDate).toBe('2026-11-24');
+    expect(reloaded.importedAt).toBe(g.importedAt);
     const preview = chooseLatestSources(ws,session);
     expect(preview.complete).toBe(true);
     expect(preview.bindings).toEqual({DISB:d.id,REV:corrected.id,GPMB:g.id});
@@ -447,6 +451,15 @@ describe('KTXH Offline – A4 Report Studio & WYSIWYG Architecture Suite', () =>
     expect(isValidSourceDate('2026-02-30')).toBe(false);
     expect(dateFromReportTitle('Đến ngày 24/11/2026')).toBe('2026-11-24');
     expect(dateFromReportTitle('Ngày 24/11/2026 và 25/11/2026')).toBeUndefined();
+    const confirmationWs = createEmptyWorkspace();
+    const undated = copy(g,'undated','','2026-11-25T00:00:00Z',{asOfStatus:'REQUIRES_USER_CONFIRMATION',periodLabel:'Chưa xác nhận ngày chốt',reportPeriodLabel:'Chưa xác nhận ngày chốt'});
+    registerDatasetInWorkspace(confirmationWs,undated);
+    const confirmationSession = createReportSession(confirmationWs,{name:'Date confirmation'});
+    expect(()=>updateDatasetAsOfDateForSession(confirmationWs,confirmationSession.id,undated.id,'2026-02-30')).toThrow();
+    const confirmed = updateDatasetAsOfDateForSession(confirmationWs,confirmationSession.id,undated.id,'2026-11-24');
+    expect(confirmed.asOfStatus).toBe('MANUAL_CONFIRMED');
+    expect(confirmed.periodLabel).toBe('Đến ngày 24/11/2026');
+    expect(confirmed.periodEnd).toBe('2026-11-24');
   });
 
   it('1. Auto Layout Algorithm on A4 Landscape: picks Horizontal for <= 11 localities on A4 landscape', () => {

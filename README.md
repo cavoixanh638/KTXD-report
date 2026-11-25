@@ -91,3 +91,7 @@ Các thay đổi nguồn tháng 11, 11 cột A4 ngang, dòng thực thu NSNN tù
 ## Cập nhật không phải chạy lệnh
 
 Sau khi CI hoàn tất, chỉ cần **Fetch origin → Pull origin**, sau đó mở `dist/index.html`. Clone mới cũng có sẵn file. Không cần Node.js hay npm để sử dụng. Các lệnh ở mục 4 chỉ dành cho lập trình viên. Xem trạng thái CI/commit bản chạy trong PROJECT_STATUS.
+
+## Nạp 3 file mới nhất
+
+Chọn ba nguồn đã nhập theo ngày chốt xác nhận, giữ phạm vi giải ngân; xem trước và xác nhận chỉ cho phiên đang mở. Khi cùng ngày mà chưa xác định bản chính thức, ưu tiên nội dung được nhập lần đầu gần nhất và cảnh báo. Nguồn thiếu ngày phải xác nhận, không lấy ngày theo tên file. Không quét thư mục máy tính.

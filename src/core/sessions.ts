@@ -8,7 +8,7 @@ import {
   Workspace,
 } from './types';
 import { createLocalityFromName } from './localities';
-import { chooseLatestSources, isValidSourceDate, SOURCE_TYPES, LatestSourcePlan } from './latestSources';
+import { chooseLatestSources, hasTrustedSourceDate, isValidSourceDate, SOURCE_TYPES, LatestSourcePlan } from './latestSources';
 import {
   formatVnDateText,
   replaceDateInLabel,
@@ -54,6 +54,18 @@ export function registerDatasetInWorkspace(
     // A repeat import of identical workbook content must not win a same-date tie.
     if (previous.workbookSha256 === dataset.workbookSha256 && previous.importedAt) {
       dataset.importedAt = previous.importedAt;
+      const sameMapping = previous.sourceType === dataset.sourceType &&
+        previous.mappingVersion === dataset.mappingVersion &&
+        previous.schemaFingerprint === dataset.schemaFingerprint &&
+        previous.sourceSheet === dataset.sourceSheet;
+      // Reuse a confirmed dataset with identical content/mapping, especially a
+      // manually dated CSV. Never erase its date merely because it is reimported.
+      // A genuinely different mapping still follows the existing reparse path.
+      if (sameMapping && hasTrustedSourceDate(previous) &&
+          (previous.asOfStatus === 'MANUAL_CONFIRMED' ||
+           !hasTrustedSourceDate(dataset) || previous.asOfDate === dataset.asOfDate)) {
+        dataset = previous;
+      }
     }
     workspace.datasets[existingIdx] = dataset;
   }
@@ -88,6 +100,19 @@ export function registerDatasetInWorkspace(
   return dataset;
 }
 
+/** Synchronize metadata/provenance after an explicit cutoff confirmation. */
+function updateConfirmedPeriodMetadata(ds: Dataset): void {
+  if (ds.sourceType === 'DISB' || ds.sourceType === 'GPMB' || ds.sourceType === 'REV') {
+    const label = 'Đến ngày ' + formatVnDate(ds.asOfDate);
+    if (!ds.periodLabel || /^(?:Chưa xác nhận|Đến|Lũy kế đến)/i.test(ds.periodLabel)) ds.periodLabel = label;
+    if (!ds.reportPeriodLabel || /^(?:Chưa xác nhận|Đến|Lũy kế đến)/i.test(ds.reportPeriodLabel)) ds.reportPeriodLabel = label;
+  }
+  for (const rec of [...ds.records, ds.summaryRecord, ds.citySummaryRecord, ds.unplannedDisbursementRecord]) {
+    if (!rec) continue;
+    for (const metric of Object.values(rec.metrics)) metric.provenance.asOfDate = ds.asOfDate;
+  }
+}
+
 export function confirmDatasetAsOfDate(
   workspace: Workspace,
   datasetId: string,
@@ -114,12 +139,7 @@ export function confirmDatasetAsOfDate(
   // Clear blocker issue for missing asOfDate
   ds.issues = ds.issues.filter((i) => i.ruleId !== 'MISSING_CONFIRMED_AS_OF_DATE');
 
-  // Update provenance asOfDate in records
-  for (const rec of ds.records) {
-    for (const m of Object.values(rec.metrics)) {
-      m.provenance.asOfDate = ds.asOfDate;
-    }
-  }
+  updateConfirmedPeriodMetadata(ds);
 
   syncReportLabelsWithDatasetDates(workspace);
   workspace.updatedAt = new Date().toISOString();
@@ -760,11 +780,7 @@ export function updateDatasetAsOfDateForSession(
   };
   targetDs.issues = targetDs.issues.filter((i) => i.ruleId !== 'MISSING_CONFIRMED_AS_OF_DATE');
 
-  for (const rec of targetDs.records) {
-    for (const m of Object.values(rec.metrics)) {
-      m.provenance.asOfDate = targetDs.asOfDate;
-    }
-  }
+  updateConfirmedPeriodMetadata(targetDs);
 
   syncSessionBenchmarkBindingForDataset(workspace, session, targetDs);
   session.sessionRevision += 1;

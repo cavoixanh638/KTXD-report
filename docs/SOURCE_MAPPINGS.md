@@ -120,7 +120,7 @@ Tệp gồm **4 sheet**:
   - Tỷ lệ thu tiền đất so với dự toán năm: $Y10 = R10 / D10 = 136,12\%$.
   - Tỷ lệ thu tiền đất so với kế hoạch kỳ: $AB10 = R10 / G10 = 202,71\%$.
 - **Dòng 11 đến 123:** Dữ liệu chi tiết của **113 địa phương**.
-- **Yêu cầu xác nhận ngày chốt (Cutoff Date):** Tiêu đề ghi "10 tháng" nhưng tên tệp và tên sheet ghi "19.10". Hệ thống yêu cầu người dùng xác nhận ngày chốt tại giao diện Nhập nguồn (mặc định gợi ý `2026-10-19`), không tự động suy diễn là ngày `2026-10-31`.
+- **Yêu cầu xác nhận ngày chốt (Cutoff Date):** Tiêu đề ghi "10 tháng" nhưng tên tệp và tên sheet ghi "19.10". Hệ thống yêu cầu người dùng xác nhận ngày chốt tại giao diện Nhập nguồn (ô ngày để trống nếu chưa xác nhận, không tự gợi ý ngày mặc định), không tự động suy diễn là ngày `2026-10-31`.
 
 ### 3.3 Nguồn thiếu: Đặc khu Bạch Long Vĩ
 
@@ -271,3 +271,7 @@ Các bảng ánh xạ phía trên là **file tham chiếu gốc tháng 10**, kh�
 | DISB_PHAN_CAP_XA_V2 | F | J | N | O | thường 8–121 |
 
 DISB_TOTAL_LOCALITY_V2 chỉ có tổng C/F/I và hai thành phần tương ứng D+E/G+H/J+K; không áp dụng quy tắc I=L+M+N của mẫu gốc. Không đọc 109 địa phương do bỏ 5 dòng đầu; không lấy dòng tổng giả, không dùng L/M/N làm tiền xây dựng/GPMB/khác. Truy vết địa chỉ thực, tính phạm vi thực, không ghi cứng 114 nếu nguồn thiếu.
+
+### Ngày chốt và chọn nguồn mới nhất
+
+DISB/GPMB chỉ nhận ngày hợp lệ duy nhất trong tiêu đề A1 hoặc ngày người dùng xác nhận; CSV/bảng phẳng GPMB không dùng deadline hay tên file. Không tự gán ngày mẫu cho nguồn thiếu ngày. REV dùng tiêu đề A3 theo quy tắc cũ. Legacy DISB/GPMB thiếu chứng cứ A1 đáng tin cần xác nhận lại. Scope DISB TOTAL và ALLOCATED không thay thế nhau tự động. Xem MASTER mục 5.

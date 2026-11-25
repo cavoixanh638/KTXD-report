@@ -512,8 +512,8 @@ export class KtxhOfflineApp {
             );
             return;
           }
-          const { dataset, localities } = importDisbursementWorkbook(bytes, filename);
-          registerDatasetInWorkspace(this.workspace, dataset, localities);
+          const { dataset: parsed, localities } = importDisbursementWorkbook(bytes, filename);
+          const dataset = registerDatasetInWorkspace(this.workspace, parsed, localities);
           rebindSessionDataset(this.workspace, activeSession.id, 'DISB', dataset.id);
           this.triggerAutosave();
           this.setStatus(
@@ -534,8 +534,8 @@ export class KtxhOfflineApp {
             );
             return;
           }
-          const { dataset } = importRevenueWorkbook(bytes, filename);
-          registerDatasetInWorkspace(this.workspace, dataset);
+          const { dataset: parsed } = importRevenueWorkbook(bytes, filename);
+          const dataset = registerDatasetInWorkspace(this.workspace, parsed);
           rebindSessionDataset(this.workspace, activeSession.id, 'REV', dataset.id);
           this.triggerAutosave();
           this.setStatus(
@@ -552,8 +552,8 @@ export class KtxhOfflineApp {
             );
             return;
           }
-          const { dataset } = importGpmbWorkbook(bytes, filename);
-          registerDatasetInWorkspace(this.workspace, dataset);
+          const { dataset: parsed } = importGpmbWorkbook(bytes, filename);
+          const dataset = registerDatasetInWorkspace(this.workspace, parsed);
           rebindSessionDataset(this.workspace, activeSession.id, 'GPMB', dataset.id);
           this.triggerAutosave();
           this.setStatus(
