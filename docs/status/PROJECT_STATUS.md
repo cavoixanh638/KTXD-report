@@ -162,4 +162,10 @@
 ### Bổ sung gộp DISB và bản phân phối chạy sẵn
 
 - Bổ sung `DISB_BENCHMARK_RATE` vào `isSharedReportIndicator` để cả ba tỷ lệ trung bình dùng ô gộp trên Studio/grid, bản in, XLSX; cập nhật NOV_FIX_03/04 cho 1/9/11/12 địa phương, dọc/ngang, giá trị và trace chung, font, audit.
-- Theo dõi duy nhất `dist/index.html` trong Git. CI hiện tại publish HTML sau kiểm thử; không tự tạo vòng lặp hoặc force-push. Chờ kết quả CI và xác minh commit HTML trên nhánh trước khi công bố sẵn sàng. Windows thực tế NOT_RUN; không merge main.
+- Theo dõi duy nhất `dist/index.html` trong Git. CI hiện tại publish HTML sau kiểm thử; không tự tạo vòng lặp hoặc force-push. Đã kiểm chứng GitHub Actions publish thành công; xem bằng chứng tiếp theo. Windows thực tế NOT_RUN; không merge main.
+
+#### Bằng chứng 25/11/2026
+
+- SHA triển khai và kiểm thử: `25f27edf7aeda0acfb95c0751b33620a3dbdd740`; [CI 45584135248](https://github.com/cavoixanh638/KTXD-report/actions/runs/45584135248), job 139101284007: SUCCESS, 47/47 tests PASS, 3/3 suites, typecheck/build PASS, 4/4 workbook PASS.
+- GitHub Actions đã push commit `f8f2f98b215c161fe682962650437983c6b6deb4` chỉ chứa `dist/index.html`; kiểm chứng file tồn tại trong tree, kích thước 2.295.061 byte, Git blob `12c1a67a7c6f4d84d0442dad5c1e775850258a11`, SHA-256 từ build log `1689d28108f231a1cab4f15ed8119cfca7bc417a9ba6ae1ed0a10fdbdb845c6b`. Artifact 15007133001. Không cần npm khi clone/pull nhánh phân phối. Chỉ commit tài liệu sau bản chạy không thay đổi runtime.
+- Trạng thái: CI_PASS_OFFLINE_BUNDLE_PUBLISHED; Windows/Edge in trực tiếp và nghiệm thu dữ liệu tháng 11 của người dùng NOT_RUN. Chưa merge main. Nếu người dùng có bản HTML local bị sửa, sao lưu rồi bỏ thay đổi local riêng tệp đó trước khi pull; không xóa hồ sơ phiên hoặc workbook cá nhân.

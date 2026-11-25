@@ -10,7 +10,7 @@
       "phase": "PH1",
       "path": "docs/plans/PHASE_1_RESULT_TEMPLATE.md",
       "sha256": "32836c4e9b34334eca8315322fde64e12e38ac2e672a8ecfc5c58d6fca576c21",
-      "status": "MERGE_DISB_AND_BUNDLE_CI_PENDING"
+      "status": "CI_VERIFIED_OFFLINE_BUNDLE_PUBLISHED_USER_ACCEPTANCE_PENDING"
     },
     {
       "phase": "PH2",
@@ -88,7 +88,7 @@
     "T66"
   ],
   "testCount": 66,
-  "runtimeTestStatus": "LATEST_MERGE_DISB_AND_BUNDLE_CI_PENDING",
+  "runtimeTestStatus": "BASELINE_PH1_PASS_64_DEFERRED_2; NOVEMBER_CI_47_OF_47_PASS; OFFLINE_BUNDLE_PUBLISHED",
   "runtimeEvidence": "docs/data_checks/PH1_ACCEPTANCE_EVIDENCE_20261109.json",
   "originalWorkbooks": "data/reference/MANIFEST.json",
   "originalWorkbooksCommitted": true,
@@ -102,17 +102,17 @@
     "note": "Use masterSpec and subplans only; historical versions are not active."
   },
   "novemberUpdate": {
-    "date": "2026-11-24",
+    "date": "2026-11-25",
     "branch": "ai/november-source-report-fix-20261124",
-    "implementationSha": "c29a056c815421cd02a56a2e5e3cebcc25e586c8",
+    "implementationSha": "25f27edf7aeda0acfb95c0751b33620a3dbdd740",
     "tests": [
       "NOV_FIX_01",
       "NOV_FIX_02",
       "NOV_FIX_03",
       "NOV_FIX_04"
     ],
-    "ciRun": "https://github.com/cavoixanh638/KTXD-report/actions/runs/45442571960",
-    "status": "NEW_UPDATE_PENDING_CI_AND_PUBLISH",
+    "ciRun": "https://github.com/cavoixanh638/KTXD-report/actions/runs/45584135248",
+    "status": "CI_PASS_OFFLINE_BUNDLE_PUBLISHED_WINDOWS_PRINT_NOT_RUN",
     "results": {
       "workbooks": "4/4 PASS",
       "typecheck": "PASS",
@@ -121,13 +121,17 @@
       "tests": "47/47 PASS",
       "windowsPrint": "NOT_RUN",
       "userAcceptance": "PENDING",
-      "jobId": 138617443634,
-      "artifactId": "14943004728"
+      "jobId": 139101284007,
+      "artifactId": "15007133001"
     },
     "distribution": {
       "path": "dist/index.html",
       "policy": "COMMIT_ONLY_AFTER_TESTS_PASS",
-      "status": "PENDING"
+      "status": "PUBLISHED_VERIFIED",
+      "commit": "f8f2f98b215c161fe682962650437983c6b6deb4",
+      "blobSha": "12c1a67a7c6f4d84d0442dad5c1e775850258a11",
+      "sha256": "1689d28108f231a1cab4f15ed8119cfca7bc417a9ba6ae1ed0a10fdbdb845c6b",
+      "bytes": 2295061
     }
   }
 }
