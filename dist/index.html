@@ -4972,6 +4972,10 @@ code {
       const previous = workspace.datasets[existingIdx];
       if (previous.workbookSha256 === dataset.workbookSha256 && previous.importedAt) {
         dataset.importedAt = previous.importedAt;
+        const sameMapping = previous.sourceType === dataset.sourceType && previous.mappingVersion === dataset.mappingVersion && previous.schemaFingerprint === dataset.schemaFingerprint && previous.sourceSheet === dataset.sourceSheet;
+        if (sameMapping && hasTrustedSourceDate(previous) && (previous.asOfStatus === "MANUAL_CONFIRMED" || !hasTrustedSourceDate(dataset) || previous.asOfDate === dataset.asOfDate)) {
+          dataset = previous;
+        }
       }
       workspace.datasets[existingIdx] = dataset;
     }
@@ -5001,6 +5005,17 @@ code {
       details: `\u0110\u0103ng k\xFD ngu\u1ED3n ${dataset.sourceType} (${dataset.sourceFilename}, sheet "${dataset.sourceSheet}", SHA=${dataset.workbookSha256.slice(0, 12)}, ng\xE0y ch\u1ED1t=${dataset.asOfDate || "CH\u01AFA X\xC1C NH\u1EACN"})`
     });
     return dataset;
+  }
+  function updateConfirmedPeriodMetadata(ds) {
+    if (ds.sourceType === "DISB" || ds.sourceType === "GPMB" || ds.sourceType === "REV") {
+      const label = "\u0110\u1EBFn ng\xE0y " + formatVnDate(ds.asOfDate);
+      if (!ds.periodLabel || /^(?:Chưa xác nhận|Đến|Lũy kế đến)/i.test(ds.periodLabel)) ds.periodLabel = label;
+      if (!ds.reportPeriodLabel || /^(?:Chưa xác nhận|Đến|Lũy kế đến)/i.test(ds.reportPeriodLabel)) ds.reportPeriodLabel = label;
+    }
+    for (const rec of [...ds.records, ds.summaryRecord, ds.citySummaryRecord, ds.unplannedDisbursementRecord]) {
+      if (!rec) continue;
+      for (const metric of Object.values(rec.metrics)) metric.provenance.asOfDate = ds.asOfDate;
+    }
   }
   function formatVnDate(dateStr) {
     return formatVnDateText(dateStr);
@@ -5506,11 +5521,7 @@ code {
       reason
     };
     targetDs.issues = targetDs.issues.filter((i) => i.ruleId !== "MISSING_CONFIRMED_AS_OF_DATE");
-    for (const rec of targetDs.records) {
-      for (const m of Object.values(rec.metrics)) {
-        m.provenance.asOfDate = targetDs.asOfDate;
-      }
-    }
+    updateConfirmedPeriodMetadata(targetDs);
     syncSessionBenchmarkBindingForDataset(workspace, session, targetDs);
     session.sessionRevision += 1;
     session.updatedAt = (/* @__PURE__ */ new Date()).toISOString();
@@ -17246,8 +17257,8 @@ ${page2}`;
               );
               return;
             }
-            const { dataset, localities } = importDisbursementWorkbook(bytes, filename);
-            registerDatasetInWorkspace(this.workspace, dataset, localities);
+            const { dataset: parsed, localities } = importDisbursementWorkbook(bytes, filename);
+            const dataset = registerDatasetInWorkspace(this.workspace, parsed, localities);
             rebindSessionDataset(this.workspace, activeSession.id, "DISB", dataset.id);
             this.triggerAutosave();
             this.setStatus(
@@ -17264,8 +17275,8 @@ ${page2}`;
               );
               return;
             }
-            const { dataset } = importRevenueWorkbook(bytes, filename);
-            registerDatasetInWorkspace(this.workspace, dataset);
+            const { dataset: parsed } = importRevenueWorkbook(bytes, filename);
+            const dataset = registerDatasetInWorkspace(this.workspace, parsed);
             rebindSessionDataset(this.workspace, activeSession.id, "REV", dataset.id);
             this.triggerAutosave();
             this.setStatus(
@@ -17282,8 +17293,8 @@ ${page2}`;
               );
               return;
             }
-            const { dataset } = importGpmbWorkbook(bytes, filename);
-            registerDatasetInWorkspace(this.workspace, dataset);
+            const { dataset: parsed } = importGpmbWorkbook(bytes, filename);
+            const dataset = registerDatasetInWorkspace(this.workspace, parsed);
             rebindSessionDataset(this.workspace, activeSession.id, "GPMB", dataset.id);
             this.triggerAutosave();
             this.setStatus(
