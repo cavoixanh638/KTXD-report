@@ -100,13 +100,22 @@ export const GROUPED_GPMB_ROLES: Record<string,RegExp> = {
   E:declaredOrgs,F:declaredHouseholds,G:allocatedBudget,H:deadline,I:areaRecorded,
   J:paidBudget,K:doneOrgs,L:doneHouseholds,M:gpmbRate,
 };
-export function validateGroupedGpmbHeaders(sheet:ParsedWorkbookSheet): number[] {
-  requireHeaders(sheet,Object.entries(GROUPED_GPMB_ROLES).map(([c,rx])=>[c,2,rx,'trường GPMB '+c] as HeaderRule));
-  for(const [c,rx] of Object.entries(GROUPED_GPMB_ROLES)){
-    const matches=rowCells(sheet,2).filter(x=>rx.test(normalizedHeader(x.value))).map(x=>x.col);
-    if(matches.length!==1||matches[0]!==c)fail('Tiêu đề GPMB tại '+c+'2 không duy nhất: '+matches.join(', '));
+export function resolveGroupedGpmbHeaders(sheet:ParsedWorkbookSheet): {row:number;columns:Record<string,string>} | null {
+  const candidates:Array<{row:number;columns:Record<string,string>}>=[];
+  for(let r=1;r<=Math.min(12,sheet.maxRow);r++){
+    const cells=rowCells(sheet,r);
+    const roles=Object.entries(GROUPED_GPMB_ROLES).map(([role,rx])=>[role,cells.filter(c=>rx.test(normalizedHeader(c.value))).map(c=>c.col)] as const);
+    if(!roles.some(([k,v])=>k==='B'&&v.length)||!roles.some(([k,v])=>(k==='D'||k==='I')&&v.length))continue;
+    // Avoid mistaking a flat schema for a grouped report.
+    if(cells.some(c=>/^(phuong\s*\/?\s*xa|xa\s*\/?\s*phuong|dia ban|dia phuong)$/.test(normalizedHeader(c.value))))continue;
+    const bad=roles.filter(([,cols])=>cols.length!==1);
+    if(bad.length)fail('Tiêu đề GPMB phân nhóm thiếu hoặc trùng vai trò: '+bad.map(([role,cols])=>role+': '+(cols.join('/')||'thiếu')).join('; '));
+    const columns=Object.fromEntries(roles.map(([role,cols])=>[role,cols[0]]));
+    if(new Set(Object.values(columns)).size!==Object.keys(columns).length)fail('Một cột GPMB có nhiều vai trò.');
+    candidates.push({row:r,columns});
   }
-  return [2];
+  if(candidates.length>1)fail('Có nhiều dòng tiêu đề GPMB phân nhóm; không tự chọn.');
+  return candidates[0]??null;
 }
 
 export type FlatGpmbMap = Partial<Record<'sttCol'|'projectCol'|'localityCol'|'capitalTypeCol'|'declaredAreaCol'|'recordedAreaCol'|'allocatedBudgetCol'|'paidAmountCol'|'declaredOrgsCol'|'declaredHouseholdsCol'|'doneOrgsCol'|'doneHouseholdsCol'|'rateCol'|'deadlineCol',string>>;
@@ -229,7 +238,7 @@ function coreValueCheck(ds:Dataset):SourceValidationCheck{
 function normalizedStructure(s:string):string{
   return normalizedHeader(s).replace(/\b\d{1,2}[./-]\d{1,2}[./-]\d{4}\b/g,'<date>').replace(/\b20\d{2}\b/g,'<year>').replace(/\b\d{1,2}\s+thang\b/g,'<month> thang');
 }
-export function attachSourceValidation(ds:Dataset,sheet:ParsedWorkbookSheet,headerRows:number[]):void{
+export function attachSourceValidation(ds:Dataset,sheet:ParsedWorkbookSheet,headerRows:number[],groupTotals:SourceRecord[]=[]):void{
   if(!ds.records.length||!ds.unitCount)fail('Không có dữ liệu địa phương/dự án hợp lệ.');
   const byField=new Map<string,SourceMappingColumn>();
   for(const rec of ds.records)for(const [field,m] of Object.entries(rec.metrics)){
@@ -261,6 +270,19 @@ export function attachSourceValidation(ds:Dataset,sheet:ParsedWorkbookSheet,head
     checks.push(checkTotals(ds,core));
   }else if(ds.sourceType==='GPMB'){
     checks.push(checkRelation(ds,'GPMB_RATE','Tỷ lệ GPMB ghi nguồn','gpmb_source_reported_rate',['gpmb_recorded_area','gpmb_declared_area'],true,100));
+    let n=0,bad=0;const examples:string[]=[];
+    const groups=new Map<string,SourceRecord[]>();
+    for(const rec of ds.records){const rows=groups.get(rec.localityId)||[];rows.push(rec);groups.set(rec.localityId,rows);}
+    for(const total of groupTotals){
+      const rows=groups.get(total.localityId)||[];if(!rows.length)continue;
+      for(const field of CORE.GPMB){
+        const expected=val(total,field),values=rows.map(r=>val(r,field));
+        if(expected===undefined||values.some(v=>v===undefined))continue;
+        n++;const sum=values.reduce<Decimal>((s,v)=>s.plus(v!),new Decimal(0));
+        if(sum.minus(expected).abs().gt('0.01')){bad++;examples.push(total.localityName+' '+total.metrics[field].provenance.cell+' khác tổng dự án');}
+      }
+    }
+    checks.push(checkResult('GPMB_GROUP_TOTAL','Tổng địa bàn so với tổng dự án',n,bad,examples));
   }
   const original=isOriginalReferenceLayout(ds);
   const status=!original&&checks.some(c=>c.severity==='REVIEW')?'NEEDS_REVIEW':'VERIFIED';
@@ -281,12 +303,13 @@ export function sourceMappingProblem(ds:Dataset):string|undefined{
 }
 function scope(ds:Dataset):string{return ds.sourceType==='DISB'?(ds.schemaFingerprint.startsWith('DISB_PHAN_CAP_XA')?'ALLOCATED':'TOTAL'):ds.sourceType;}
 function numericRows(ds:Dataset,field:string):Map<string,number>{
-  const values=new Map<string,number>(),duplicate=new Set<string>();
+  const values=new Map<string,number>(),duplicate=new Set<string>(),seen=new Set<string>();
   for(const r of ds.records){
     if(!r.localityId)continue;
     if(ds.sourceType==='GPMB'&&!r.projectName?.trim())continue;
     const key=ds.sourceType==='GPMB'?r.localityId+'\0'+r.projectName!.normalize('NFC').trim().toLowerCase():r.localityId;
-    if(values.has(key)){duplicate.add(key);continue;}
+    if(seen.has(key)){duplicate.add(key);continue;}
+    seen.add(key);
     const n=val(r,field)?.toNumber();
     if(n!==undefined&&Number.isFinite(n))values.set(key,n);
   }
@@ -310,7 +333,11 @@ const HISTORY_FIELDS:Record<string,{stable:string[];cumulative:string[]}>={
 /** Compare same-year, same-scope and verified preceding content only.
  * Never apply a fixed percentage-change threshold or auto-remap from history. */
 export function assessSourceHistory(ds:Dataset,workspace:Workspace):void{
-  const v=ds.sourceValidation;if(!v||!ds.asOfDate||ds.asOfStatus==='REQUIRES_USER_CONFIRMATION')return;
+  const v=ds.sourceValidation;if(!v)return;
+  // Recompute only history checks when the cutoff is explicitly corrected.
+  v.checks=v.checks.filter(c=>!c.code.startsWith('HISTORY_')&&c.code!=='STRUCTURE_CHANGE');
+  delete v.historicalDatasetId;delete v.historicalDate;delete v.previousColumnCount;delete v.changedColumns;
+  if(!ds.asOfDate||ds.asOfStatus==='REQUIRES_USER_CONFIRMATION')return;
   const baseline=workspace.datasets.filter(d=>d.sourceType===ds.sourceType&&scope(d)===scope(ds)&&d.workbookSha256!==ds.workbookSha256&&d.asOfStatus!=='REQUIRES_USER_CONFIRMATION'&&d.asOfDate?.slice(0,4)===ds.asOfDate.slice(0,4)&&d.asOfDate<ds.asOfDate&&!sourceMappingProblem(d)).sort((a,b)=>b.asOfDate.localeCompare(a.asOfDate)||a.id.localeCompare(b.id))[0];
   if(!baseline)return;
   v.historicalDatasetId=baseline.id;v.historicalDate=baseline.asOfDate;
@@ -331,7 +358,7 @@ export function assessSourceHistory(ds:Dataset,workspace:Workspace):void{
     const severe=rankAnomaly&&widespread;
     if(rankAnomaly||widespread)v.checks.push({code:'HISTORY_'+field,label:'Lịch sử: '+sourceFieldLabel(field),checked:keys.length,failed:kind==='stable'?changedCount:decreased,severity:severe?'REVIEW':'WARNING',detail:'So với '+baseline.asOfDate+': '+changedCount+' thay đổi, '+decreased+' giảm trên '+keys.length+' đối tượng khớp; Spearman '+(rho===undefined?'không xác định':rho.toFixed(2))+'. Chỉ là dấu hiệu bổ trợ, có thể do nghiệp vụ/điều chỉnh; không dùng % chênh lệch giữa hai kỳ.'});
   }
-  if(v.checks.some(c=>c.severity==='REVIEW')&&!isOriginalReferenceLayout(ds))v.status='NEEDS_REVIEW';
+  if(v.checks.some(c=>c.code.startsWith('HISTORY_')&&c.severity==='REVIEW')&&!isOriginalReferenceLayout(ds)){v.status='NEEDS_REVIEW';delete v.reviewedAt;delete v.reviewReason;}
 }
 export function confirmSourceValidation(ds:Dataset,reason:string):void{
   const v=ds.sourceValidation;

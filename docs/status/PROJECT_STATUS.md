@@ -188,3 +188,5 @@ Nút Nạp 3 file mới nhất chọn độc lập DISB/REV/GPMB trong kho datas
 ### Source Schema Guard V1 (đang kiểm thử)
 
 Kiểm tra đầy đủ vai trò tiêu đề profile DISB/GPMB phân nhóm; REV và GPMB phẳng ánh xạ theo tiêu đề duy nhất. Lưu số cột có nội dung, header fingerprint, map, đơn vị, kiểm tra chéo và lịch sử nguồn đã xác minh cùng năm/phạm vi. Không dùng % biến động cố định, không đoán cột; chặn cấu trúc không xác minh, cảnh báo nguồn cần đối chiếu, giữ phiên cũ. Bỏ giới hạn GPMB 422 dự án. Bản cũ chưa có guard cần nhập lại gốc (trừ fixture SHA/sheet chính xác). NOV_FIX_06/07, CI PENDING. Không thêm workbook thực tế vào repo đang public.
+
+- CI guard đợt 1 `03f5688c1da1ae99589ffe634397ec78bc0abe57`: [45642877918](https://github.com/cavoixanh638/KTXD-report/actions/runs/45642877918), SUCCESS 50/50; HTML `49d0f83d5854af997d9f0c67103adb529ca07a7f`. Tiếp tục remap GPMB phân nhóm theo vai trò, kiểm tra tổng địa bàn, recheck lịch sử khi xác nhận ngày, và corpus test riêng. Repo API xác nhận public; không thêm file thật mới. CI đợt 2 PENDING.

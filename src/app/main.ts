@@ -488,13 +488,16 @@ export class KtxhOfflineApp {
     const existing=this.workspace.datasets.find(d=>d.id===dataset.id&&!sourceMappingProblem(d)&&d.sourceValidation?.schemaSignature===dataset.sourceValidation?.schemaSignature);
     if(existing)return true;
     assessSourceHistory(dataset,this.workspace);
+    return this.confirmPendingSource(dataset);
+  }
+  private confirmPendingSource(dataset:Dataset):boolean {
     const v=dataset.sourceValidation;
     if(!v)return false;
     if(v.status==='VERIFIED')return true;
     const review=v.checks.filter(c=>c.severity==='REVIEW');
     const prior=new Map((v.changedColumns||[]).map(c=>[c.field,c.before]));
     const fields=v.columns.map(c=>sourceFieldLabel(c.field)+': '+(prior.has(c.field)?prior.get(c.field)+' → ':'')+c.column+' | '+c.header+' | '+c.unit);
-    const message=['CẦN XÁC MINH NGUỒN: '+dataset.sourceFilename,'Đã kiểm tra tiêu đề; có bất thường cần đối chiếu Excel gốc.',...review.map(c=>c.label+': '+c.detail+(c.examples?.length?'\n'+c.examples.slice(0,3).join('\n'):'')),'Ánh xạ cột (cột trước → cột mới nếu đổi):',...fields,'Chỉ chọn OK nếu đã kiểm tra đúng cột, đơn vị và số liệu. Hủy sẽ giữ nguyên nguồn phiên đang mở.'].join('\n');
+    const message=['CẦN XÁC MINH NGUỒN: '+dataset.sourceFilename,'Đã kiểm tra tiêu đề; có bất thường cần đối chiếu Excel gốc.',...review.map(c=>c.label+': '+c.detail+(c.examples?.length?'\n'+c.examples.slice(0,3).join('\n'):'')),'Ánh xạ cột (cột trước → cột mới nếu đổi):',...fields,'Chỉ chọn OK nếu đã kiểm tra đúng cột, đơn vị và số liệu. Hủy sẽ không phê duyệt nguồn.'].join('\n');
     if(typeof window==='undefined'||!window.confirm(message))return false;
     confirmSourceValidation(dataset,'Người dùng đã đối chiếu Excel gốc và xác nhận cảnh báo khi nhập.');return true;
   }
@@ -1095,11 +1098,13 @@ export class KtxhOfflineApp {
         const validation=ds?.sourceValidation;
         if(ds){
           const problem=sourceMappingProblem(ds);
-          metaHtml+=problem?'<div class="latest-source-warning">'+escapeHtmlUi(problem)+'</div>':validation?
-            '<details class="source-validation-details"><summary>Kiểm tra cột: '+(validation.reviewedAt?'Đã đối chiếu':'Đã kiểm tra')+' · '+validation.columnCount+' cột có nội dung</summary>'+
+          metaHtml+=problem?'<div class="latest-source-warning">'+escapeHtmlUi(problem)+'</div>'+
+            (validation?.status==='NEEDS_REVIEW'?'<button type="button" class="btn btn-xs btn-primary btn-review-pending-source" data-dataset-id="'+escapeHtmlUi(ds.id)+'">Đối chiếu &amp; xác nhận nguồn</button>':''):'';
+          metaHtml+=validation?
+            '<details class="source-validation-details"><summary>Kiểm tra cột: '+(validation.status==='NEEDS_REVIEW'?'Cần đối chiếu':validation.reviewedAt?'Đã đối chiếu':'Đã kiểm tra')+' · '+validation.columnCount+' cột có nội dung</summary>'+
             (validation.historicalDate?'<div>Đối chiếu lịch sử '+escapeHtmlUi(validation.historicalDate)+'</div>':'')+
             validation.checks.map(c=>'<div class="source-validation-check '+(c.severity==='INFO'?'':'latest-source-warning')+'"><strong>'+escapeHtmlUi(c.label)+'</strong>: '+escapeHtmlUi(c.detail)+'</div>').join('')+
-            '<div class="source-validation-columns">'+validation.columns.map(c=>'<div>'+escapeHtmlUi(c.column+' · '+sourceFieldLabel(c.field)+' · '+c.unit)+'</div>').join('')+'</div></details>':'<div class="muted-xs">Workbook tham chiếu đã kiểm tra SHA gốc.</div>';
+            '<div class="source-validation-columns">'+validation.columns.map(c=>'<div>'+escapeHtmlUi(c.column+' · '+sourceFieldLabel(c.field)+' · '+c.unit)+'</div>').join('')+'</div></details>':!problem?'<div class="muted-xs">Workbook tham chiếu đã kiểm tra SHA gốc.</div>':'';
         }
         const cardTitleTip = ds
           ? `${ds.sourceFilename} · Sheet: ${ds.sourceSheet} · SHA: ${ds.workbookSha256}`
@@ -2804,6 +2809,12 @@ export class KtxhOfflineApp {
       }
     });
 
+    document.querySelectorAll('.btn-review-pending-source').forEach(el=>el.addEventListener('click',()=>{
+      const id=el.getAttribute('data-dataset-id');const ds=this.workspace.datasets.find(d=>d.id===id);
+      if(!ds||!ds.sourceValidation||ds.sourceValidation.status!=='NEEDS_REVIEW')return;
+      if(this.confirmPendingSource(ds)){this.triggerAutosave();this.setStatus('Đã xác nhận nguồn sau khi đối chiếu.','success');}
+    }));
+
     // Save asOfDate per-session (auto-clones dataset if shared with another session)
     document.querySelectorAll('.btn-save-asof-date').forEach((btnEl) => {
       btnEl.addEventListener('click', () => {
@@ -2822,6 +2833,9 @@ export class KtxhOfflineApp {
             inputEl.value
           );
           this.triggerAutosave();
+          if(updated.sourceValidation?.status==='NEEDS_REVIEW'){
+            this.setStatus('Đã lưu ngày chốt. Kiểm tra lịch sử phát hiện bất thường; hãy đối chiếu nguồn tại Khối 1 trước khi lập báo cáo.','warning');return;
+          }
           this.setStatus(
             `Đã cập nhật ngày chốt nguồn ${updated.sourceType} thành ${formatVnDate(
               updated.asOfDate

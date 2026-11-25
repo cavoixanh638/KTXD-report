@@ -9,7 +9,7 @@ import {
 } from './types';
 import { createLocalityFromName } from './localities';
 import { chooseLatestSources, hasTrustedSourceDate, isValidSourceDate, SOURCE_TYPES, LatestSourcePlan } from './latestSources';
-import { sourceMappingProblem } from './sourceValidation';
+import { sourceMappingProblem, assessSourceHistory } from './sourceValidation';
 import {
   formatVnDateText,
   replaceDateInLabel,
@@ -141,6 +141,7 @@ export function confirmDatasetAsOfDate(
   ds.issues = ds.issues.filter((i) => i.ruleId !== 'MISSING_CONFIRMED_AS_OF_DATE');
 
   updateConfirmedPeriodMetadata(ds);
+  assessSourceHistory(ds,workspace);
 
   syncReportLabelsWithDatasetDates(workspace);
   workspace.updatedAt = new Date().toISOString();
@@ -782,6 +783,7 @@ export function updateDatasetAsOfDateForSession(
   targetDs.issues = targetDs.issues.filter((i) => i.ruleId !== 'MISSING_CONFIRMED_AS_OF_DATE');
 
   updateConfirmedPeriodMetadata(targetDs);
+  assessSourceHistory(targetDs,workspace);
 
   syncSessionBenchmarkBindingForDataset(workspace, session, targetDs);
   session.sessionRevision += 1;

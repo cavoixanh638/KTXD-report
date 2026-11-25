@@ -10,7 +10,7 @@
       "phase": "PH1",
       "path": "docs/plans/PHASE_1_RESULT_TEMPLATE.md",
       "sha256": "f4c0f3063df2daca047ba82695a084940fbb63818db0a08538f368d77d1f7987",
-      "status": "SCHEMA_GUARD_CI_PENDING"
+      "status": "SCHEMA_GUARD_CORPUS_CI_PENDING"
     },
     {
       "phase": "PH2",
@@ -88,7 +88,7 @@
     "T66"
   ],
   "testCount": 66,
-  "runtimeTestStatus": "SCHEMA_GUARD_CI_PENDING",
+  "runtimeTestStatus": "SCHEMA_GUARD_CORPUS_CI_PENDING",
   "runtimeEvidence": "docs/data_checks/PH1_ACCEPTANCE_EVIDENCE_20261109.json",
   "originalWorkbooks": "data/reference/MANIFEST.json",
   "originalWorkbooksCommitted": true,
@@ -113,7 +113,7 @@
       "NOV_FIX_05"
     ],
     "ciRun": "https://github.com/cavoixanh638/KTXD-report/actions/runs/45595464837",
-    "status": "SCHEMA_GUARD_CI_PENDING",
+    "status": "SCHEMA_GUARD_CORPUS_CI_PENDING",
     "results": {
       "workbooks": "4/4 PASS",
       "typecheck": "PASS",

@@ -1,7 +1,7 @@
 {
   "schema_version": "1.0",
   "repository": "cavoixanh638/KTXD-report",
-  "visibility": "private",
+  "visibility": "public (verified by repository API on 2026-11-25; do not add real data until private)",
   "authorization": "2026-11-09: user explicitly requested all four original Excel files be committed to the project repository so other AI workers can inspect and test against them",
   "scope": "Four exact source workbooks as originally supplied; not transformed or sanitized",
   "must_not_publish_publicly": true,
@@ -127,5 +127,7 @@
       ]
     }
   ],
-  "verification": "Compare sha256 and Git blob SHA-1 for each exact binary; do not infer equality from workbook name."
+  "verification": "Compare sha256 and Git blob SHA-1 for each exact binary; do not infer equality from workbook name.",
+  "required_visibility": "private",
+  "archive_policy": "Keep original byte-identical files, never overwrite. Additional user-supplied files require confirmed private repository and separate source corpus registration; no automatic upload from offline app."
 }

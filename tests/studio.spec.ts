@@ -463,7 +463,7 @@ describe('KTXH Offline – A4 Report Studio & WYSIWYG Architecture Suite', () =>
     expect(confirmed.periodEnd).toBe('2026-11-24');
   });
 
-  it('NOV_FIX_06: verifies mapped headers and units; refuses changed fixed layout, ambiguous flat headers, and includes project 423+',()=>{
+  it('NOV_FIX_06: verifies headers and units; rejects ambiguous layouts and remaps GPMB with 423+ projects',()=>{
     const makeRows=(id:string,rename:(col:string)=>string=(c)=>c,modify?:(r:number,c:string,v:string|number)=>string|number|undefined)=>{
       const wb=parseWorkbookBytes(new Uint8Array(fs.readFileSync(filePaths[id])),id+'.xlsx');
       const sh=wb.sheets.find(s=>s.state==='visible')!;
@@ -485,9 +485,28 @@ describe('KTXH Offline – A4 Report Studio & WYSIWYG Architecture Suite', () =>
       const ok=parser(buildSingleSheetXlsx('Sheet chuẩn mới',unchanged),id+'-copy.xlsx').dataset;
       expect(ok.sourceValidation?.schemaSignature).toMatch(/^[a-f0-9]{64}$/);
       const added=makeRows(id,shift(7));for(const [row,cells] of added)if(row>3)cells.push(['G',88888]);
-      expect(()=>parser(buildSingleSheetXlsx('Sheet đã chèn cột',added),'shifted.xlsx')).toThrow(/BLOCKER_MAPPING_REQUIRED|BLOCKER_SHEET_SELECTION/);
       const swapped=makeRows(id,c=>c==='D'?'I':c==='I'?'D':c);
-      expect(()=>parser(buildSingleSheetXlsx('Sheet đã đảo cột',swapped),'swapped.xlsx')).toThrow();
+      if(id==='DISB_20261015'){
+        expect(()=>parser(buildSingleSheetXlsx('Sheet đã chèn cột',added),'shifted.xlsx')).toThrow(/BLOCKER_MAPPING_REQUIRED|BLOCKER_SHEET_SELECTION/);
+        expect(()=>parser(buildSingleSheetXlsx('Sheet đã đảo cột',swapped),'swapped.xlsx')).toThrow();
+      }else{
+        const shifted=parser(buildSingleSheetXlsx('Sheet đã chèn cột',added),'shifted.xlsx').dataset;
+        const moved=parser(buildSingleSheetXlsx('Sheet đã đảo cột',swapped),'swapped.xlsx').dataset;
+        expect(shifted.projectRowCount).toBe(ok.projectRowCount);
+        expect(moved.projectRowCount).toBe(ok.projectRowCount);
+        for(const field of ['gpmb_declared_area','gpmb_recorded_area','gpmb_allocated_budget','gpmb_paid_amount']){
+          expect(shifted.records.map(r=>r.metrics[field].normalizedDecimal)).toEqual(ok.records.map(r=>r.metrics[field].normalizedDecimal));
+          expect(moved.records.map(r=>r.metrics[field].normalizedDecimal)).toEqual(ok.records.map(r=>r.metrics[field].normalizedDecimal));
+        }
+        expect(shifted.records[0].metrics.gpmb_recorded_area.sourceColumn).toBe('J');
+        expect(moved.records[0].metrics.gpmb_declared_area.sourceColumn).toBe('I');
+        const missing=makeRows(id,c=>c,(r,c,v)=>r===2&&c==='I'?undefined:v);
+        expect(()=>parser(buildSingleSheetXlsx('Thiếu tiêu đề',missing),'missing.xlsx')).toThrow();
+        const duplicated=makeRows(id);duplicated.find(([r])=>r===2)![1].push(['Z','Tổng diện tích phải GPMB (m2)']);
+        expect(()=>parser(buildSingleSheetXlsx('Trùng tiêu đề',duplicated),'duplicated.xlsx')).toThrow();
+        const rowShift=makeRows(id).map(([r,cols])=>[r===1?r:r+1,cols] as [number,Array<[string,string|number]>]);
+        expect(parser(buildSingleSheetXlsx('Chèn dòng tiêu đề',rowShift),'rowshift.xlsx').dataset.projectRowCount).toBe(ok.projectRowCount);
+      }
       const extra=makeRows(id);extra.find(([r])=>r=== (id==='DISB_20261015'?3:2))![1].push(['AZ','Ghi chú ngoài vùng']);
       const ex=parser(buildSingleSheetXlsx('Thêm ghi chú cuối bảng',extra),'extra.xlsx').dataset;
       expect(ex.records.length).toBe(ok.records.length);
@@ -529,6 +548,13 @@ describe('KTXH Offline – A4 Report Studio & WYSIWYG Architecture Suite', () =>
     reverse.records.forEach((r,i)=>{r.metrics.disbursed_total.normalizedDecimal=vals[i];});
     assessSourceHistory(reverse,ws);
     expect(reverse.sourceValidation?.checks.some(c=>c.code==='HISTORY_disbursed_total')).toBe(true);
+    const dateUnknown=synthetic('date-unknown','',1);dateUnknown.asOfStatus='REQUIRES_USER_CONFIRMATION';
+    dateUnknown.records.forEach((r,i)=>{r.metrics.disbursed_total.normalizedDecimal=vals[i];});
+    registerDatasetInWorkspace(ws,dateUnknown);
+    const dateSession=createReportSession(ws,{name:'Xác nhận kỳ sau nhập',dataBindings:{DISB:dateUnknown.id},exactBindings:true});
+    const dateConfirmed=updateDatasetAsOfDateForSession(ws,dateSession.id,dateUnknown.id,'2026-12-19');
+    expect(dateConfirmed.sourceValidation?.historicalDatasetId).toBe(disbDataset.id);
+    expect(dateConfirmed.sourceValidation?.checks.some(c=>c.code==='HISTORY_disbursed_total')).toBe(true);
     expect(spearman([1,2,3,4],[10,20,30,40])).toBe(1);
     expect(spearman([1,2,3,4],[40,30,20,10])).toBe(-1);
     const invalid=synthetic('invalid','2026-12-25',1);delete invalid.sourceValidation;

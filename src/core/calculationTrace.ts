@@ -2386,7 +2386,7 @@ export function evaluateLocalityIndicator(params: {
 
       const groupSummaryProvenance = gpmb.localityGroupSummaries?.[locality.id];
       const provenanceNote = groupSummaryProvenance
-        ? ` (Lưu ý provenance nguồn: dòng tổng địa bàn M${groupSummaryProvenance.row} trong Excel gốc ghi ${groupSummaryProvenance.rawM}% theo công thức ${groupSummaryProvenance.formulaM || 'cũ'}, KHÔNG dùng để tính hay hiển thị báo cáo theo R06)`
+        ? ` (Lưu ý provenance nguồn: dòng tổng địa bàn ${groupSummaryProvenance.columnM||'M'}${groupSummaryProvenance.row} trong Excel gốc ghi ${groupSummaryProvenance.rawM}% theo công thức ${groupSummaryProvenance.formulaM || 'cũ'}, KHÔNG dùng để tính hay hiển thị báo cáo theo R06)`
         : '';
 
       const traceId = `TRACE_${indicator.id}_${locality.id}_${gpmb.id}`;

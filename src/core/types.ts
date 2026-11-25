@@ -340,7 +340,7 @@ export interface Dataset {
   summaryRecord?: SourceRecord;
   citySummaryRecord?: SourceRecord;
   unplannedDisbursementRecord?: SourceRecord;
-  localityGroupSummaries?: Record<string, { row: number; rawM: string | number | null; formulaM?: string }>;
+  localityGroupSummaries?: Record<string, { row: number; rawM: string | number | null; formulaM?: string; columnM?:string }>;
   issues: QualityIssue[];
   identityChecks?: IdentityCheckResult[];
   allSheetsMeta: Array<{ index: number; name: string; state: 'visible' | 'hidden' | 'veryHidden' }>;

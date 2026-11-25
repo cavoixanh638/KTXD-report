@@ -1,7 +1,7 @@
 import { unzipSync } from 'fflate';
 import { Decimal, sha256Hex } from './decimal';
 import { dateFromReportTitle, isValidSourceDate } from './latestSources';
-import { validateDisbHeaders, validateGroupedGpmbHeaders, resolveFlatGpmbHeaders, attachSourceValidation } from './sourceValidation';
+import { validateDisbHeaders, resolveGroupedGpmbHeaders, resolveFlatGpmbHeaders, attachSourceValidation } from './sourceValidation';
 import {
   AdjustedScenarioCandidate,
   CalculationTrace,
@@ -731,17 +731,10 @@ export function detectSheetFingerprint(
     return 'REV_V1';
   }
 
-  // Check GPMB_V1
-  if (
-    a1.toUpperCase().includes('GIẢI PHÓNG MẶT BẰNG') ||
-    getCellText(sheet, 'D2').toLowerCase().includes('diện tích')
-  ) {
-    const d4 = sheet.cells.get('D4');
-    if (!d4 || d4.cellType !== 'n') {
-      return 'SCHEMA_MODIFIED_NEEDS_MAPPING';
-    }
-    return 'GPMB_V1';
-  }
+  // Grouped GPMB: classify by semantic roles, not by whether D4 happens to be a number.
+  try { if(resolveGroupedGpmbHeaders(sheet))return 'GPMB_V1'; }
+  catch { return 'SCHEMA_MODIFIED_NEEDS_MAPPING'; }
+  if(a1.toUpperCase().includes('GIẢI PHÓNG MẶT BẰNG'))return 'SCHEMA_MODIFIED_NEEDS_MAPPING';
 
   return 'UNKNOWN';
 }
@@ -1548,7 +1541,10 @@ export function importGpmbWorkbook(
   const flatMapping = sheetFp==='GPMB_FLAT'?resolveFlatGpmbHeaders(targetSheet):null;
   if(sheetFp==='GPMB_FLAT'&&!flatMapping)throw new Error('BLOCKER_MAPPING_REQUIRED: Không xác minh được tiêu đề GPMB bảng phẳng.');
   const isFlatTable = !!flatMapping;
-  const headerRows = flatMapping?[flatMapping.row]:validateGroupedGpmbHeaders(targetSheet);
+  const groupedMapping = isFlatTable?null:resolveGroupedGpmbHeaders(targetSheet);
+  if(!flatMapping&&!groupedMapping)throw new Error('BLOCKER_MAPPING_REQUIRED: Không xác minh được nhóm tiêu đề GPMB.');
+  const headerRows = flatMapping?[flatMapping.row]:[groupedMapping!.row];
+  const groupTotals:SourceRecord[]=[];
 
   const a1Text = getCellText(targetSheet, 'A1');
   // Flat tables often contain only project deadlines, not a report cutoff.
@@ -1570,7 +1566,7 @@ export function importGpmbWorkbook(
   });
   const localityGroupSummaries: Record<
     string,
-    { row: number; rawM: string | number | null; formulaM?: string }
+    { row: number; rawM: string | number | null; formulaM?: string; columnM?:string }
   > = {};
 
   if (isFlatTable && flatMapping) {
@@ -1749,7 +1745,8 @@ export function importGpmbWorkbook(
       }
     }
   } else {
-    const colMap: Record<string, { fieldId: string; unit: string }> = {
+    const g=groupedMapping!.columns;
+    const canonicalMap: Record<string, { fieldId: string; unit: string }> = {
       D: { fieldId: 'gpmb_declared_area', unit: 'm2' },
       E: { fieldId: 'gpmb_declared_orgs', unit: 'org_count' },
       F: { fieldId: 'gpmb_declared_households', unit: 'household_count' },
@@ -1762,13 +1759,14 @@ export function importGpmbWorkbook(
       M: { fieldId: 'gpmb_source_reported_rate', unit: 'percent_100' },
     };
 
+    const colMap=Object.fromEntries(Object.entries(canonicalMap).map(([role,def])=>[g[role],def]));
     let currentLocalityName = '';
     let currentLocalityId = '';
     const seenProjects = new Set<string>();
 
-    for (let row = 3; row <= targetSheet.maxRow; row++) {
-      const cellA = targetSheet.cells.get(`A${row}`);
-      const textB = getCellText(targetSheet, `B${row}`);
+    for (let row = groupedMapping!.row+1; row <= targetSheet.maxRow; row++) {
+      const cellA = targetSheet.cells.get(`${g.A}${row}`);
+      const textB = getCellText(targetSheet, `${g.B}${row}`);
       const normB = canonicalizeLocalityName(textB);
 
     const isGroupHeader =
@@ -1780,23 +1778,24 @@ export function importGpmbWorkbook(
     if (isGroupHeader) {
       currentLocalityName = normB;
       currentLocalityId = makeLocalityId(normB);
-      const cellM = targetSheet.cells.get(`M${row}`);
+      if(localityGroupSummaries[currentLocalityId])throw new Error('BLOCKER_MAPPING_REQUIRED: Trùng nhóm địa bàn '+normB+' dòng '+row+'.');
+      const cellM = targetSheet.cells.get(`${g.M}${row}`);
       localityGroupSummaries[currentLocalityId] = {
         row,
         rawM: cellM?.value ?? null,
         formulaM: cellM?.formula,
+        columnM:g.M,
       };
+      const metrics:Record<string,MetricCellValue>={};
+      for(const [col,def] of Object.entries(colMap))metrics[def.fieldId]=buildMetricCell(targetSheet,col,row,def.unit,wb,asOfDate,mappingVersion);
+      groupTotals.push({id:datasetId+'_GROUP_'+row,datasetId,localityId:currentLocalityId,localityName:currentLocalityName,sourceRow:row,metrics});
       continue;
     }
 
-    if (
-      cellA &&
-      cellA.cellType === 'n' &&
-      typeof cellA.value === 'number' &&
-      Number.isInteger(cellA.value) &&
-      cellA.value >= 1
-    ) {
-      const stt = cellA.value;
+    const rawStt=cellA?.value;
+    const numericStt=typeof rawStt==='number'?rawStt:typeof rawStt==='string'&&/^\d+$/.test(rawStt.trim())?Number(rawStt):NaN;
+    if (Number.isSafeInteger(numericStt)&&numericStt>=1) {
+      const stt = numericStt;
       if (!currentLocalityId || !normB) throw new Error('BLOCKER_MAPPING_REQUIRED: Dự án dòng '+row+' chưa có địa bàn/tên dự án rõ ràng.');
       const projectKey=currentLocalityId+'|'+stt;
       if(seenProjects.has(projectKey))throw new Error('BLOCKER_MAPPING_REQUIRED: Trùng STT dự án trong địa bàn tại dòng '+row+'.');
@@ -1824,20 +1823,20 @@ export function importGpmbWorkbook(
         projectRowId: projectRecordId,
         projectStt: stt,
         projectName: normB,
-        capitalType: getCellText(targetSheet, `C${row}`).trim(),
+        capitalType: getCellText(targetSheet, `${g.C}${row}`).trim(),
         metrics,
       });
 
       // Quality Checks per §4.3, §12.1, T29, T33, T60
-      const dVal = getCellNumber(targetSheet, `D${row}`);
-      const eVal = getCellNumber(targetSheet, `E${row}`);
-      const fVal = getCellNumber(targetSheet, `F${row}`);
-      const gVal = getCellNumber(targetSheet, `G${row}`);
-      const iVal = getCellNumber(targetSheet, `I${row}`);
-      const jVal = getCellNumber(targetSheet, `J${row}`);
-      const kVal = getCellNumber(targetSheet, `K${row}`);
-      const lVal = getCellNumber(targetSheet, `L${row}`);
-      const mVal = getCellNumber(targetSheet, `M${row}`);
+      const dVal = getCellNumber(targetSheet, `${g.D}${row}`);
+      const eVal = getCellNumber(targetSheet, `${g.E}${row}`);
+      const fVal = getCellNumber(targetSheet, `${g.F}${row}`);
+      const gVal = getCellNumber(targetSheet, `${g.G}${row}`);
+      const iVal = getCellNumber(targetSheet, `${g.I}${row}`);
+      const jVal = getCellNumber(targetSheet, `${g.J}${row}`);
+      const kVal = getCellNumber(targetSheet, `${g.K}${row}`);
+      const lVal = getCellNumber(targetSheet, `${g.L}${row}`);
+      const mVal = getCellNumber(targetSheet, `${g.M}${row}`);
 
       const overChecks: Array<{
         ruleId: string;
@@ -1850,39 +1849,39 @@ export function importGpmbWorkbook(
       }> = [
         {
           ruleId: 'GPMB_I_GT_D',
-          numCol: 'I',
-          denCol: 'D',
+          numCol: g.I,
+          denCol: g.D,
           numV: iVal,
           denV: dVal,
           fieldId: 'gpmb_recorded_area',
-          desc: 'Diện tích đã GPMB (I) lớn hơn diện tích phải GPMB (D)',
+          desc: 'Diện tích đã GPMB lớn hơn diện tích phải GPMB',
         },
         {
           ruleId: 'GPMB_J_GT_G',
-          numCol: 'J',
-          denCol: 'G',
+          numCol: g.J,
+          denCol: g.G,
           numV: jVal,
           denV: gVal,
           fieldId: 'gpmb_paid_amount',
-          desc: 'Kinh phí đã chi GPMB (J) lớn hơn kinh phí phân bổ (G)',
+          desc: 'Kinh phí đã chi GPMB lớn hơn kinh phí phân bổ',
         },
         {
           ruleId: 'GPMB_K_GT_E',
-          numCol: 'K',
-          denCol: 'E',
+          numCol: g.K,
+          denCol: g.E,
           numV: kVal,
           denV: eVal,
           fieldId: 'gpmb_done_orgs',
-          desc: 'Số tổ chức đã GPMB (K) lớn hơn số tổ chức phải thu hồi (E)',
+          desc: 'Số tổ chức đã GPMB lớn hơn số tổ chức phải thu hồi',
         },
         {
           ruleId: 'GPMB_L_GT_F',
-          numCol: 'L',
-          denCol: 'F',
+          numCol: g.L,
+          denCol: g.F,
           numV: lVal,
           denV: fVal,
           fieldId: 'gpmb_done_households',
-          desc: 'Số hộ đã GPMB (L) lớn hơn số hộ phải thu hồi (F)',
+          desc: 'Số hộ đã GPMB lớn hơn số hộ phải thu hồi',
         },
       ];
 
@@ -1929,11 +1928,11 @@ export function importGpmbWorkbook(
           localityId: currentLocalityId,
           localityName: currentLocalityName,
           fieldId: 'gpmb_recorded_area',
-          sourceCell: `I${row}`,
-          sourceCells: { declared: `D${row}`, recorded: `I${row}`, reportedM: `M${row}` },
+          sourceCell: `${g.I}${row}`,
+          sourceCells: { declared: `${g.D}${row}`, recorded: `${g.I}${row}`, reportedM: `${g.M}${row}` },
           observed: iVal,
           expected: dVal,
-          explanation: `Dự án STT ${stt} (dòng ${row}, ${currentLocalityName}) có D${row}=${dVal} m² nhưng thiếu kết quả I${row}/M${row} (MISSING). Giữ D trong mẫu số và gắn cờ PARTIAL_AGGREGATE, không gán I=0.`,
+          explanation: `Dự án STT ${stt} (dòng ${row}, ${currentLocalityName}) có ${g.D}${row}=${dVal} m² nhưng thiếu kết quả ${g.I}${row}/${g.M}${row} (MISSING). Giữ diện tích phải GPMB trong mẫu số và gắn cờ PARTIAL_AGGREGATE, không gán số đã GPMB=0.`,
         });
       }
 
@@ -1955,20 +1954,23 @@ export function importGpmbWorkbook(
             localityId: currentLocalityId,
             localityName: currentLocalityName,
             fieldId: 'gpmb_source_reported_rate',
-            sourceCell: `M${row}`,
+            sourceCell: `${g.M}${row}`,
             sourceCells: {
-              declared: `D${row}`,
-              recorded: `I${row}`,
-              reportedPercent: `M${row}`,
+              declared: `${g.D}${row}`,
+              recorded: `${g.I}${row}`,
+              reportedPercent: `${g.M}${row}`,
             },
             observed: mVal,
             expected: recomputedPct,
             delta: deltaPp,
             threshold: 0.1,
-            explanation: `Cột M dòng dự án ${row} (STT ${stt}, ${currentLocalityName}) ghi ${mVal}%, lệch ${deltaPp.toFixed(2)} điểm % so với 100*I${row}/D${row} (${recomputedPct.toFixed(2)}%). Báo cáo chỉ tính theo SUM(I)/SUM(D), không dùng cột M để tính trung bình.`,
+            explanation: `Cột ${g.M} dòng dự án ${row} (STT ${stt}, ${currentLocalityName}) ghi ${mVal}%, lệch ${deltaPp.toFixed(2)} điểm % so với 100*${g.I}${row}/${g.D}${row} (${recomputedPct.toFixed(2)}%). Báo cáo chỉ tính theo SUM(${g.I})/SUM(${g.D}), không dùng cột ${g.M} để tính trung bình.`,
           });
         }
       }
+    } else if (textB.trim() && !/^(tong so|tong cong|tong hop|ghi chu)(\b|$)/.test(headerKey(textB)) &&
+      [g.D,g.G,g.I,g.J].some(c=>{const cell=targetSheet.cells.get(c+row);return cell&&cell.value!==null&&String(cell.value).trim()!=='';})) {
+      throw new Error('BLOCKER_MAPPING_REQUIRED: Dòng GPMB '+row+' có số liệu nhưng không xác định được STT/nhóm địa bàn; không bỏ qua.');
     }
   }
 }
@@ -2010,6 +2012,6 @@ export function importGpmbWorkbook(
     allSheetsMeta,
   };
 
-  attachSourceValidation(dataset,targetSheet,headerRows);
+  attachSourceValidation(dataset,targetSheet,headerRows,groupTotals);
   return { dataset };
 }
