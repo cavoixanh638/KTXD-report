@@ -1,5 +1,6 @@
 import { unzipSync } from 'fflate';
 import { Decimal, sha256Hex } from './decimal';
+import { dateFromReportTitle, isValidSourceDate } from './latestSources';
 import {
   AdjustedScenarioCandidate,
   CalculationTrace,
@@ -964,17 +965,23 @@ export function importDisbursementWorkbook(
 
   const profile = getDisbSchemaProfile(targetFp);
   const a1Text = getCellText(targetSheet, 'A1');
-  const dateMatch = a1Text.match(/(\d{1,2})\/(\d{1,2})\/(\d{4})/);
-  const detectedDate = dateMatch
-    ? `${dateMatch[3]}-${dateMatch[2].padStart(2, '0')}-${dateMatch[1].padStart(2, '0')}`
-    : '2026-10-15';
-  const asOfDate = options.confirmedAsOfDate || detectedDate;
+  const detectedDate = dateFromReportTitle(a1Text);
+  const manualDate = options.confirmedAsOfDate?.trim();
+  if (manualDate && !isValidSourceDate(manualDate)) throw new Error('Ngày chốt không hợp lệ.');
+  const asOfDate = manualDate || detectedDate || '';
+  const asOfStatus: Dataset['asOfStatus'] = manualDate ? 'MANUAL_CONFIRMED' : detectedDate ? 'DETECTED_CONFIRMED' : 'REQUIRES_USER_CONFIRMATION';
   const datasetId = `DISB_${wb.sha256.slice(0, 12)}`;
   const mappingVersion = profile.mappingVersion;
 
   const localities: Locality[] = [];
   const records: SourceRecord[] = [];
   const issues: QualityIssue[] = [];
+  if (!asOfDate) issues.push({
+    id: `${datasetId}_BLOCKER_AS_OF_DATE`, ruleId: 'MISSING_CONFIRMED_AS_OF_DATE',
+    severity: 'BLOCKER', status: 'OPEN', datasetId, sourceType: 'DISB', rowId: 'HEADER_A1',
+    sourceRow: 1, localityId: 'ALL', localityName: 'Toàn bộ nguồn', fieldId: 'asOfDate',
+    sourceCell: 'A1', observed: null, explanation: 'Không xác định được ngày chốt từ tiêu đề báo cáo. Cần xác nhận ngày chốt thực tế; không dùng tên file hoặc ngày mặc định.',
+  });
   const identityChecks: IdentityCheckResult[] = [];
 
   const parseDisbRow = (row: number, locId: string, locName: string): SourceRecord => {
@@ -1275,23 +1282,16 @@ export function importDisbursementWorkbook(
     calculationPolicyVersion: 'V2.2_R06',
     unitCount: records.length,
     asOfDate,
-    reportPeriodLabel: `Đến hết ngày ${asOfDate.split('-').reverse().join('/')}`,
-    periodLabel: `Đến hết ngày ${asOfDate.split('-').reverse().join('/')}`,
-    periodStart: '2026-01-01',
-    periodEnd: asOfDate,
-    asOfStatus: 'DETECTED_CONFIRMED',
-    asOfDateEvidence:
-      targetFp === 'DISB_TOTAL_LOCALITY_V2'
-        ? `Sheet ${targetSheet.name}!A1 ("${a1Text.trim()}"); tiêu đề tổng vốn sau điều chỉnh, giải ngân tổng, tỷ lệ sau điều chỉnh và ghi chú được nhận diện.`
-        : targetFp === 'DISB_PHAN_CAP_XA_V2'
-        ? `Sheet ${targetSheet.name}!A1 ("${a1Text.trim()}"). Báo cáo nguồn vốn phân cấp cho cấp xã (gồm KHV đầu năm C–E, sau điều chỉnh F–I, giải ngân J–M, tỷ lệ N, ghi chú O; không gồm dự án khối TP).`
-        : targetFp === 'DISB_PHAN_CAP_XA_V1'
-        ? `Sheet ${targetSheet.name}!A1 ("${a1Text.trim()}"). Báo cáo nguồn vốn phân cấp cho cấp xã (12 cột A–L, không bao gồm dự án khối TP và không có cột KHV trước điều chỉnh).`
-        : `Sheet ${targetSheet.name}!A1 ("${a1Text.trim()}"). Không dùng ngày 22/10 ở cột P hay 25/9 ở cột Q làm ngày chốt.`,
+    reportPeriodLabel: asOfDate ? `Đến hết ngày ${asOfDate.split('-').reverse().join('/')}` : 'Chưa xác nhận ngày chốt',
+    periodLabel: asOfDate ? `Đến hết ngày ${asOfDate.split('-').reverse().join('/')}` : 'Chưa xác nhận ngày chốt',
+    periodStart: asOfDate ? asOfDate.slice(0,4)+'-01-01' : undefined,
+    periodEnd: asOfDate || undefined,
+    asOfStatus,
+    asOfDateEvidence: detectedDate ? `VERIFIED_TITLE_DATE:${detectedDate} Sheet ${targetSheet.name}!A1 ("${a1Text.trim()}")` : `Sheet ${targetSheet.name}!A1: chưa xác định ngày chốt`,
     asOfDateConfirmation: {
-      confirmedByUser: true,
-      confirmedAt: new Date().toISOString(),
-      reason: options.asOfConfirmationReason || 'Trích xuất rõ ràng từ tiêu đề ô A1',
+      confirmedByUser: !!manualDate,
+      confirmedAt: manualDate ? new Date().toISOString() : null,
+      reason: options.asOfConfirmationReason,
     },
     importedAt: new Date().toISOString(),
     records,
@@ -1358,6 +1358,7 @@ export function importRevenueWorkbook(
   );
   const title = getCellText(targetSheet,'A3');
   const titleDate = explicitTitleDate(title);
+  if (hasUserConfirmedDate && !isValidSourceDate(options.confirmedAsOfDate!.trim())) throw new Error('Ngày chốt không hợp lệ.');
   const asOfDate = hasUserConfirmedDate ? options.confirmedAsOfDate!.trim() : (titleDate || '');
   const asOfStatus: Dataset['asOfStatus'] = hasUserConfirmedDate
     ? 'MANUAL_CONFIRMED'
@@ -1541,23 +1542,23 @@ export function importGpmbWorkbook(
   const isFlatTable = sheetFp === 'GPMB_FLAT';
 
   const a1Text = getCellText(targetSheet, 'A1');
-  let detectedDate = '2026-10-26';
-  const dateMatch = a1Text.match(/(\d{1,2})\/(\d{1,2})\/(\d{4})/);
-  if (dateMatch) {
-    detectedDate = `${dateMatch[3]}-${dateMatch[2].padStart(2, '0')}-${dateMatch[1].padStart(2, '0')}`;
-  } else {
-    const fnMatch = filename.match(/(\d{1,2})[\.\-](\d{1,2})[\.\-](\d{2,4})/);
-    if (fnMatch) {
-      const year = fnMatch[3].length === 2 ? `20${fnMatch[3]}` : fnMatch[3];
-      detectedDate = `${year}-${fnMatch[2].padStart(2, '0')}-${fnMatch[1].padStart(2, '0')}`;
-    }
-  }
-  const asOfDate = options.confirmedAsOfDate || detectedDate;
+  // Flat tables often contain only project deadlines, not a report cutoff.
+  const detectedDate = isFlatTable ? undefined : dateFromReportTitle(a1Text);
+  const manualDate = options.confirmedAsOfDate?.trim();
+  if (manualDate && !isValidSourceDate(manualDate)) throw new Error('Ngày chốt không hợp lệ.');
+  const asOfDate = manualDate || detectedDate || '';
+  const asOfStatus: Dataset['asOfStatus'] = manualDate ? 'MANUAL_CONFIRMED' : detectedDate ? 'DETECTED_CONFIRMED' : 'REQUIRES_USER_CONFIRMATION';
   const datasetId = `GPMB_${wb.sha256.slice(0, 12)}`;
   const mappingVersion = isFlatTable ? 'GPMB_FLAT_ADAPTER_V2.2' : 'GPMB_ADAPTER_V2.2';
 
   const records: SourceRecord[] = [];
   const issues: QualityIssue[] = [];
+  if (!asOfDate) issues.push({
+    id: `${datasetId}_BLOCKER_AS_OF_DATE`, ruleId: 'MISSING_CONFIRMED_AS_OF_DATE',
+    severity: 'BLOCKER', status: 'OPEN', datasetId, sourceType: 'GPMB', rowId: 'HEADER_A1',
+    sourceRow: 1, localityId: 'ALL', localityName: 'Toàn bộ nguồn', fieldId: 'asOfDate',
+    sourceCell: 'A1', observed: null, explanation: 'Không xác định được ngày chốt từ tiêu đề báo cáo. Cần xác nhận ngày chốt thực tế; không dùng tên file hoặc ngày mặc định.',
+  });
   const localityGroupSummaries: Record<
     string,
     { row: number; rawM: string | number | null; formulaM?: string }
@@ -2020,18 +2021,16 @@ export function importGpmbWorkbook(
     unitCount: isFlatTable ? uniqueLocCount : Object.keys(localityGroupSummaries).length,
     projectRowCount: records.length,
     asOfDate,
-    reportPeriodLabel: `Đến ngày ${asOfDate.split('-').reverse().join('/')}`,
-    periodLabel: `Đến ngày ${asOfDate.split('-').reverse().join('/')}`,
-    periodStart: '2026-01-01',
-    periodEnd: asOfDate,
-    asOfStatus: 'DETECTED_CONFIRMED',
-    asOfDateEvidence: isFlatTable
-      ? `Bảng phẳng CSDL (${records.length} dự án, ${uniqueLocCount} địa bàn, tệp ${filename})`
-      : `Sheet ${targetSheet.name}!A1 ("${a1Text.trim()}"). Lưu ý tên tệp có chuỗi 26.12.26 nhưng tiêu đề sheet ghi rõ 26/10/2026.`,
+    reportPeriodLabel: asOfDate ? `Đến ngày ${asOfDate.split('-').reverse().join('/')}` : 'Chưa xác nhận ngày chốt',
+    periodLabel: asOfDate ? `Đến ngày ${asOfDate.split('-').reverse().join('/')}` : 'Chưa xác nhận ngày chốt',
+    periodStart: asOfDate ? asOfDate.slice(0,4)+'-01-01' : undefined,
+    periodEnd: asOfDate || undefined,
+    asOfStatus,
+    asOfDateEvidence: detectedDate ? `VERIFIED_TITLE_DATE:${detectedDate} Sheet ${targetSheet.name}!A1 ("${a1Text.trim()}")` : 'Chưa xác định ngày chốt từ tiêu đề; cần xác nhận thủ công',
     asOfDateConfirmation: {
-      confirmedByUser: true,
-      confirmedAt: new Date().toISOString(),
-      reason: options.asOfConfirmationReason || `Xác nhận ngày chốt ${asOfDate}`,
+      confirmedByUser: !!manualDate,
+      confirmedAt: manualDate ? new Date().toISOString() : null,
+      reason: options.asOfConfirmationReason,
     },
     importedAt: new Date().toISOString(),
     records,

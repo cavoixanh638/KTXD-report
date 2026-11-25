@@ -11,6 +11,7 @@ import {
 } from '../src/core/sourceReaders';
 import {
   createEmptyWorkspace,
+  applyLatestSources,
   registerDatasetInWorkspace,
   createReportSession,
   setSessionLocalities,
@@ -28,6 +29,7 @@ import {
   formatIsoDate,
 } from '../src/core/sessions';
 import { evaluateSessionReport } from '../src/core/calculationTrace';
+import { chooseLatestSources, hasTrustedSourceDate, dateFromReportTitle, isValidSourceDate } from '../src/core/latestSources';
 import { saveWorkspacePersistent, loadWorkspacePersistent } from '../src/core/storage';
 import { searchLocalities } from '../src/core/localities';
 import { generatePrintableReportHtml } from '../src/export/print';
@@ -395,6 +397,56 @@ describe('KTXH Offline – A4 Report Studio & WYSIWYG Architecture Suite', () =>
     plan.customLabel = 'Kế hoạch riêng do người dùng đặt';
     migrateLegacySessionLabels(ws);
     expect(evaluate().rows.find(r => r.indicator.id === 'DISB_PLAN')?.rowConfig.customLabel).toBe('Kế hoạch riêng do người dùng đặt');
+  });
+
+  it('NOV_FIX_05: selects latest confirmed cutoff per source, preserves scope, deduplicates and updates only target session', () => {
+    const ws = createEmptyWorkspace();
+    const copy = (d: Dataset, id: string, date: string, imported: string, extra: Partial<Dataset> = {}): Dataset => ({
+      ...d, id, workbookSha256: id, sourceHash:id, sourceFilename:id+'.xlsx', asOfDate:date,
+      importedAt:imported, asOfStatus:'MANUAL_CONFIRMED', issues:[], ...extra,
+    });
+    const d = copy(disbDataset,'total-new','2026-11-22','2026-11-23T00:00:00Z',{schemaFingerprint:'DISB_TOTAL_LOCALITY_V2'});
+    const r = copy(revDataset,'rev-new','2026-11-23','2026-11-23T00:00:00Z',{mappingVersion:'REV_HEADER_SEMANTIC_V3'});
+    const g = copy(gpmbDataset,'gpmb-new','2026-11-24','2026-11-24T00:00:00Z');
+    registerDatasetInWorkspace(ws, disbDataset, baselineLocalities);
+    registerDatasetInWorkspace(ws, revDataset);
+    registerDatasetInWorkspace(ws, gpmbDataset);
+    const session = createReportSession(ws,{name:'Target'});
+    const other = createReportSession(ws,{name:'Keep old'});
+    const original = JSON.stringify(other.dataBindings);
+    const old = copy(r,'rev-older','2026-11-20','2026-11-25T01:00:00Z');
+    const corrected = copy(r,'rev-corrected','2026-11-23','2026-11-24T00:00:00Z');
+    const allocated = copy(d,'allocated','2026-11-25','2026-11-25T00:00:00Z',{schemaFingerprint:'DISB_PHAN_CAP_XA_V2'});
+    const unknown = copy(g,'gpmb-unknown','2026-11-25','2026-11-25T00:00:00Z',{asOfStatus:'DETECTED_CONFIRMED',asOfDateEvidence:'Bảng phẳng, tệp abc-25.11.26.csv'});
+    const wrong = copy(r,'rev-wrong','2026-11-25','2026-11-25T00:00:00Z',{mappingVersion:'REV_ADAPTER_V2.2'});
+    for (const ds of [d,r,g,old,corrected,allocated,unknown,wrong]) registerDatasetInWorkspace(ws,ds);
+    registerDatasetInWorkspace(ws,{...r,importedAt:'2026-11-25T02:00:00Z'});
+    expect(ws.datasets.find(x=>x.id===r.id)?.importedAt).toBe(r.importedAt);
+    const preview = chooseLatestSources(ws,session);
+    expect(preview.complete).toBe(true);
+    expect(preview.bindings).toEqual({DISB:d.id,REV:corrected.id,GPMB:g.id});
+    expect(preview.choices.find(x=>x.type==='REV')?.sameDateVersions).toBe(2);
+    expect(preview.choices.find(x=>x.type==='GPMB')?.skipped.some(x=>x.dataset.id===unknown.id)).toBe(true);
+    applyLatestSources(ws,session.id,preview);
+    expect(session.dataBindings).toEqual(preview.bindings);
+    expect(JSON.stringify(other.dataBindings)).toBe(original);
+    expect(session.benchmarkBindings.DISB_BENCHMARK_RATE.datasetId).toBe(d.id);
+    rebindSessionDataset(ws,session.id,'DISB',allocated.id);
+    expect(chooseLatestSources(ws,session).bindings.DISB).toBe(allocated.id);
+    expect(()=>applyLatestSources(ws,session.id,preview)).toThrow();
+    const blank = createEmptyWorkspace();
+    for (const ds of [disbDataset,revDataset,gpmbDataset]) registerDatasetInWorkspace(blank,ds);
+    expect(chooseLatestSources(blank).choices.every(c=>c.referenceFallback)).toBe(true);
+    registerDatasetInWorkspace(blank,unknown);
+    expect(chooseLatestSources(blank).complete).toBe(false);
+    expect(chooseLatestSources(blank).bindings.GPMB).toBeUndefined();
+    const conflicting = {...g,id:'gpmb-clone',asOfDate:'2026-11-25'};
+    registerDatasetInWorkspace(ws,conflicting);
+    expect(chooseLatestSources(ws,session).bindings.GPMB).toBeUndefined();
+    expect(hasTrustedSourceDate(unknown)).toBe(false);
+    expect(isValidSourceDate('2026-02-30')).toBe(false);
+    expect(dateFromReportTitle('Đến ngày 24/11/2026')).toBe('2026-11-24');
+    expect(dateFromReportTitle('Ngày 24/11/2026 và 25/11/2026')).toBeUndefined();
   });
 
   it('1. Auto Layout Algorithm on A4 Landscape: picks Horizontal for <= 11 localities on A4 landscape', () => {
@@ -836,6 +888,9 @@ describe('KTXH Offline – A4 Report Studio & WYSIWYG Architecture Suite', () =>
     const { dataset: flatGpmb } = importGpmbWorkbook(bytes, 'gpmb_du_lieu_phang.csv');
     expect(flatGpmb.sourceType).toBe('GPMB');
     expect(flatGpmb.schemaFingerprint).toBe('GPMB_FLAT');
+    expect(flatGpmb.asOfDate).toBe('');
+    expect(flatGpmb.asOfStatus).toBe('REQUIRES_USER_CONFIRMATION');
+    expect(hasTrustedSourceDate(flatGpmb)).toBe(false);
     expect(flatGpmb.projectRowCount).toBe(6);
     expect(flatGpmb.unitCount).toBe(2); // Đặc khu Cát Hải & Phường An Biên
 

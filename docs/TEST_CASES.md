@@ -240,3 +240,5 @@ Mọi kết quả kiểm thử trong Cổng PH1 đều được đối soát bit
 T01–T66 là baseline lịch sử, không dùng kết quả cũ để kết luận PASS cho SHA mới. Kiểm tra PDF/Excel trên Windows bằng dữ liệu thực người dùng nhập; không commit workbook mới.
 
 - Gate phân phối: CI xác minh nguồn, typecheck/build/test, kiểm tra `dist/index.html` không rỗng và SHA-256, upload artifact, commit riêng HTML đã kiểm thử nếu thay đổi; HEAD nhánh phải thực sự chứa `dist/index.html` mới trước khi xác nhận người dùng chỉ cần pull. Không coi upload artifact là đã có file trong repo.
+
+- NOV_FIX_05: chọn cutoff mới nhất thay vì nhập cuối; giữ phạm vi DISB; loại mapping sai/ngày chưa xác nhận; xử lý bản sửa cùng ngày, nhập lại SHA, ngày mâu thuẫn; fallback mẫu có điều kiện; preview đủ ba nguồn; chỉ đổi phiên mục tiêu; CSV GPMB thiếu ngày phải xác nhận.

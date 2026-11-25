@@ -10,7 +10,7 @@
       "phase": "PH1",
       "path": "docs/plans/PHASE_1_RESULT_TEMPLATE.md",
       "sha256": "32836c4e9b34334eca8315322fde64e12e38ac2e672a8ecfc5c58d6fca576c21",
-      "status": "CI_VERIFIED_OFFLINE_BUNDLE_PUBLISHED_USER_ACCEPTANCE_PENDING"
+      "status": "LATEST_SOURCES_CI_PENDING"
     },
     {
       "phase": "PH2",
@@ -88,7 +88,7 @@
     "T66"
   ],
   "testCount": 66,
-  "runtimeTestStatus": "BASELINE_PH1_PASS_64_DEFERRED_2; NOVEMBER_CI_47_OF_47_PASS; OFFLINE_BUNDLE_PUBLISHED",
+  "runtimeTestStatus": "LATEST_SOURCES_CI_PENDING",
   "runtimeEvidence": "docs/data_checks/PH1_ACCEPTANCE_EVIDENCE_20261109.json",
   "originalWorkbooks": "data/reference/MANIFEST.json",
   "originalWorkbooksCommitted": true,
@@ -112,7 +112,7 @@
       "NOV_FIX_04"
     ],
     "ciRun": "https://github.com/cavoixanh638/KTXD-report/actions/runs/45586482726",
-    "status": "CI_PASS_OFFLINE_BUNDLE_PUBLISHED_WINDOWS_PRINT_NOT_RUN",
+    "status": "LATEST_SOURCES_PENDING_CI_AND_PUBLISH",
     "results": {
       "workbooks": "4/4 PASS",
       "typecheck": "PASS",

@@ -8,6 +8,7 @@ import {
   Workspace,
 } from './types';
 import { createLocalityFromName } from './localities';
+import { chooseLatestSources, isValidSourceDate, SOURCE_TYPES, LatestSourcePlan } from './latestSources';
 import {
   formatVnDateText,
   replaceDateInLabel,
@@ -49,6 +50,11 @@ export function registerDatasetInWorkspace(
     workspace.datasets.push(dataset);
   } else {
     // Only update if confirming asOfDate on the exact same dataset hash
+    const previous = workspace.datasets[existingIdx];
+    // A repeat import of identical workbook content must not win a same-date tie.
+    if (previous.workbookSha256 === dataset.workbookSha256 && previous.importedAt) {
+      dataset.importedAt = previous.importedAt;
+    }
     workspace.datasets[existingIdx] = dataset;
   }
 
@@ -92,12 +98,14 @@ export function confirmDatasetAsOfDate(
   if (!ds) {
     throw new Error(`Dataset ${datasetId} not found`);
   }
-  if (!/^\d{4}-\d{2}-\d{2}$/.test(confirmedDate.trim())) {
+  if (!isValidSourceDate(confirmedDate.trim())) {
     throw new Error('Ngày chốt phải có định dạng YYYY-MM-DD hợp lệ.');
   }
 
   ds.asOfDate = confirmedDate.trim();
   ds.asOfStatus = 'MANUAL_CONFIRMED';
+  ds.periodEnd = ds.asOfDate;
+  ds.periodStart = ds.asOfDate.slice(0,4)+'-01-01';
   ds.asOfDateConfirmation = {
     confirmedByUser: true,
     confirmedAt: new Date().toISOString(),
@@ -720,7 +728,7 @@ export function updateDatasetAsOfDateForSession(
     throw new Error(`Dataset ${datasetId} not found`);
   }
   const cleanDate = newDateIso.trim();
-  if (!/^\d{4}-\d{2}-\d{2}$/.test(cleanDate)) {
+  if (!isValidSourceDate(cleanDate)) {
     throw new Error('Ngày chốt phải có định dạng YYYY-MM-DD hợp lệ.');
   }
 
@@ -743,6 +751,8 @@ export function updateDatasetAsOfDateForSession(
 
   targetDs.asOfDate = cleanDate;
   targetDs.asOfStatus = 'MANUAL_CONFIRMED';
+  targetDs.periodEnd = cleanDate;
+  targetDs.periodStart = cleanDate.slice(0,4)+'-01-01';
   targetDs.asOfDateConfirmation = {
     confirmedByUser: true,
     confirmedAt: new Date().toISOString(),
@@ -855,4 +865,18 @@ export function resolveSessionDatasets(
       ? workspace.datasets.find((d) => d.id === session.dataBindings.GPMB)
       : undefined,
   };
+}
+
+/** Commit only a complete, still-current preview; all validation precedes mutation. */
+export function applyLatestSources(workspace: Workspace, sessionId: string, preview: LatestSourcePlan): ReportSession {
+  const session = workspace.sessions.find(s => s.id === sessionId);
+  if (!session) throw new Error('Không tìm thấy phiên báo cáo.');
+  const current = chooseLatestSources(workspace, session);
+  if (!preview.complete || !current.complete || SOURCE_TYPES.some(t => current.bindings[t] !== preview.bindings[t])) {
+    throw new Error('Bộ nguồn chưa đủ hoặc đã thay đổi; hãy xem lại trước khi nạp.');
+  }
+  for (const t of SOURCE_TYPES) {
+    if (session.dataBindings[t] !== current.bindings[t]) rebindSessionDataset(workspace, sessionId, t, current.bindings[t]!);
+  }
+  return session;
 }

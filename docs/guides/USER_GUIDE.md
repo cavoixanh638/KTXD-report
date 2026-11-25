@@ -190,3 +190,9 @@ Trong GitHub Desktop chọn nhánh phân phối `ai/november-source-report-fix-2
 Ba chỉ tiêu tỷ lệ trung bình REV/DISB/GPMB đều gộp toàn bộ cột địa phương trong mỗi nhóm/trang ngang, gộp hàng trong Studio dọc và merge ô giá trị trong Excel. Mỗi nhóm/trang chỉ hiển thị một kết quả, căn giữa; giữ cỡ chữ lớn hơn 10% (Excel 11 pt), trace chung, công thức và phạm vi nguồn. Không gộp chỉ tiêu riêng từng địa phương.
 
 **Nhãn kinh phí GPMB:** Phiên đã lưu nhãn mặc định “Kinh phí phân bổ GPMB cho từng phường” hoặc “Kinh phí phân bổ GPMB cho từng xã” tự chuyển thành “Kinh phí phân bổ GPMB cho từng địa phương” trên bảng và bản xuất; không cần tạo lại phiên.
+
+## Nạp 3 file mới nhất
+
+Nút Nạp 3 file mới nhất chọn độc lập DISB/REV/GPMB trong kho dataset của workspace theo ngày chốt hợp lệ đã xác nhận; không quét ổ đĩa. DISB giữ phạm vi tổng vốn hoặc phân cấp của phiên hiện tại; nếu chưa có DISB mặc định tổng vốn. Loại nguồn sai mapping, ngày chưa xác minh, lỗi BLOCKER hoặc ERROR trường tính chính; không loại chỉ vì thiếu vài địa phương. Ưu tiên nguồn thực tế; chỉ dùng mẫu SHA gốc nếu chưa có nguồn thực tế tương thích. Cùng ngày và chưa có metadata phiên bản chính thức, chọn nội dung khác SHA được nhập lần đầu gần nhất, cảnh báo nhiều bản; nhập lại cùng SHA không làm mới thứ hạng. Cùng SHA có ngày chốt xác nhận mâu thuẫn thì không tự chọn. Tên file không quyết định ngày chốt. Preview tên file, ngày, độ phủ, phạm vi, nguồn mẫu/cảnh báo; chỉ nạp khi đủ ba nguồn và người dùng xác nhận. Không thay dữ liệu các phiên khác. Tạo phiên mới có tùy chọn 3 nguồn mới nhất; không thay đổi mặc định dùng nguồn phiên đang mở. Ngày chốt DISB/GPMB không còn fallback tháng 10/tên file; nguồn cũ có bằng chứng A1 không đủ phải xác nhận tại Khối 1. Không tự suy ngày từ hạn dự án CSV.
+
+Nếu thiếu nguồn đủ điều kiện, chọn từng file ở Khối 1 và xác nhận ngày chốt rồi bấm lại nút. Nếu nhiều bản cùng ngày, đối chiếu tên file và chọn thủ công bản chính thức khi cần.

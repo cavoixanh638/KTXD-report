@@ -4120,3 +4120,10 @@ code {
 .report-benchmark-value > .val-text {
   font-size: 1.1em;
 }
+
+.latest-source-card {border:1px solid #dbe3ed;border-radius:6px;padding:8px 10px;margin:8px 0;font-size:12px;overflow-wrap:anywhere;}
+.latest-source-name {margin:4px 0;color:#334155;}
+.latest-source-warning {color:#92400e;margin-top:4px;}
+.latest-source-skipped {font-size:11px;color:#64748b;margin-top:5px;}
+.latest-source-skipped div {padding:3px 0;}
+.source-mode-radio-item > div {min-width:0;flex:1;}
