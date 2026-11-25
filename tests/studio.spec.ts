@@ -200,6 +200,23 @@ describe('KTXH Offline – A4 Report Studio & WYSIWYG Architecture Suite', () =>
     expect(dataset.records[0].metrics.actual_land_revenue.provenance.cell).toBe('T11');
     expect(dataset.records[0].metrics.actual_nonland_revenue.provenance.cell).toBe('Y11');
     expect(dataset.records[0].metrics.actual_nonland_revenue.normalizedDecimal).toBe('80000');
+    // Same workbook with both the locality and all numeric columns moved,
+    // including AA..AE, plus shifted header rows and explicit rate groups.
+    const nextCol=(col:string)=>{let n=[...col].reduce((v,c)=>v*26+c.charCodeAt(0)-64,0)+1,s='';while(n){n--;s=String.fromCharCode(65+n%26)+s;n=Math.floor(n/26);}return s;};
+    const expanded=rows.map(([r,cols])=>[r+1,cols.map(([c,v])=>[nextCol(c),v])] as [number,Array<[string,string|number]>]);
+    expanded.push([8,[['AA','Tỷ lệ thực hiện so dự toán'],['AD','Tỷ lệ thực hiện so kế hoạch kỳ']]]);
+    expanded.push([6,[['AF','ĐVT: Triệu đồng']]]);
+    const revShift=importRevenueWorkbook(buildSingleSheetXlsx('REV dịch định danh',expanded),'rev-shifted.xlsx').dataset;
+    expect(revShift.unitCount).toBe(1);
+    expect(revShift.asOfDate).toBe('2026-11-23');
+    expect(revShift.records[0].localityName).toBe(name);
+    expect(revShift.records[0].metrics.actual_total_revenue.provenance.cell).toBe('K12');
+    expect(revShift.records[0].metrics.actual_land_revenue.normalizedDecimal).toBe('40000');
+    expect(revShift.records[0].metrics.source_rate_total_y.sourceColumn).toBe('AA');
+    expect(revShift.sourceValidation?.checks.find(c=>c.code==='REV_RATE_total_y')?.failed).toBe(0);
+    expect(revShift.sourceValidation?.checks.find(c=>c.code==='UNITS')?.failed).toBe(0);
+    const mixedUnits=expanded.map(([r,cols])=>[r,cols.map(([c,v])=>[c,r===6&&c==='AF'?'ĐVT: Triệu đồng / tỷ đồng':v])] as [number,Array<[string,string|number]>]);
+    expect(()=>importRevenueWorkbook(buildSingleSheetXlsx('Đơn vị xung đột',mixedUnits),'bad-unit.xlsx')).toThrow(/Đơn vị/);
     const ws=createEmptyWorkspace();
     registerDatasetInWorkspace(ws,disbDataset,baselineLocalities);registerDatasetInWorkspace(ws,dataset);registerDatasetInWorkspace(ws,gpmbDataset);
     const session=createReportSession(ws,{name:'Optional realized revenue'});
@@ -413,7 +430,10 @@ describe('KTXH Offline – A4 Report Studio & WYSIWYG Architecture Suite', () =>
     const ws = createEmptyWorkspace();
     const copy = (d: Dataset, id: string, date: string, imported: string, extra: Partial<Dataset> = {}): Dataset => ({
       ...d, id, workbookSha256: id, sourceHash:id, sourceFilename:id+'.xlsx', asOfDate:date,
-      importedAt:imported, asOfStatus:'MANUAL_CONFIRMED', issues:[], sourceValidation:{...d.sourceValidation!,workbookSha256:id,status:'VERIFIED'}, ...extra,
+      importedAt:imported, asOfStatus:'MANUAL_CONFIRMED', issues:[], sourceValidation:{...d.sourceValidation!,workbookSha256:id,status:'VERIFIED'},
+      // Selection fixtures represent independently verified synthetic profiles.
+      // Do not retain an actual DISB layout from a different scope.
+      disbLayout:extra.schemaFingerprint&&extra.schemaFingerprint!==d.schemaFingerprint?undefined:d.disbLayout, ...extra,
     });
     const d = copy(disbDataset,'total-new','2026-11-22','2026-11-23T00:00:00Z',{schemaFingerprint:'DISB_TOTAL_LOCALITY_V2'});
     const r = copy(revDataset,'rev-new','2026-11-23','2026-11-23T00:00:00Z',{mappingVersion:'REV_HEADER_SEMANTIC_V3'});
@@ -427,6 +447,8 @@ describe('KTXH Offline – A4 Report Studio & WYSIWYG Architecture Suite', () =>
     const old = copy(r,'rev-older','2026-11-20','2026-11-25T01:00:00Z');
     const corrected = copy(r,'rev-corrected','2026-11-23','2026-11-24T00:00:00Z');
     const allocated = copy(d,'allocated','2026-11-25','2026-11-25T00:00:00Z',{schemaFingerprint:'DISB_PHAN_CAP_XA_V2'});
+    const inconsistent=copy(disbDataset,'bad-profile','2026-11-26','2026-11-26T00:00:00Z',{schemaFingerprint:'DISB_TOTAL_LOCALITY_V2',disbLayout:disbDataset.disbLayout});
+    expect(sourceMappingProblem(inconsistent)).toContain('Phạm vi giải ngân');
     const unknown = copy(g,'gpmb-unknown','2026-11-25','2026-11-25T00:00:00Z',{asOfStatus:'DETECTED_CONFIRMED',asOfDateEvidence:'Bảng phẳng, tệp abc-25.11.26.csv'});
     const wrong = copy(r,'rev-wrong','2026-11-25','2026-11-25T00:00:00Z',{mappingVersion:'REV_ADAPTER_V2.2'});
     for (const ds of [d,r,g,old,corrected,allocated,unknown,wrong]) registerDatasetInWorkspace(ws,ds);
@@ -563,6 +585,11 @@ describe('KTXH Offline – A4 Report Studio & WYSIWYG Architecture Suite', () =>
     const later=synthetic('later','2026-12-20',10);assessSourceHistory(later,ws);
     expect(later.sourceValidation?.historicalDatasetId).toBe(disbDataset.id);
     expect(later.sourceValidation?.checks.some(c=>c.code==='HISTORY_disbursed_total')).toBe(false);
+    const unitChanged=synthetic('unit-scale','2026-12-20',1);
+    for(const rec of unitChanged.records){const metric=rec.metrics.adjusted_total_plan;if(metric?.normalizedDecimal!==null&&metric?.normalizedDecimal!==undefined)metric.normalizedDecimal=String(Number(metric.normalizedDecimal)*1000);}
+    assessSourceHistory(unitChanged,ws);
+    expect(unitChanged.sourceValidation?.checks.some(c=>c.code==='HISTORY_SCALE_adjusted_total_plan'&&c.severity==='REVIEW')).toBe(true);
+    expect(unitChanged.sourceValidation?.status).toBe('NEEDS_REVIEW');
     const reverse=synthetic('reverse','2026-12-20',1);
     const vals=reverse.records.map(r=>r.metrics.disbursed_total.normalizedDecimal).reverse();
     reverse.records.forEach((r,i)=>{r.metrics.disbursed_total.normalizedDecimal=vals[i];});

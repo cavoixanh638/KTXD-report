@@ -515,9 +515,16 @@ export class KtxhOfflineApp {
 
     try {
       const wb = parseWorkbookBytes(bytes, filename);
-      const visibleSheets = wb.sheets.filter((s) => s.state === 'visible');
-      for (const s of visibleSheets) {
-        const fp = detectSheetFingerprint(s);
+      const visibleSheets = wb.sheets.filter((s) => s.state === 'visible').map(sheet=>({sheet,fp:detectSheetFingerprint(sheet)}));
+      const sourceType=(fp:string)=>fp.startsWith('DISB_')?'DISB':fp==='REV_V1'?'REV':fp==='GPMB_V1'||fp==='GPMB_FLAT'?'GPMB':undefined;
+      const recognized=visibleSheets.filter(x=>sourceType(x.fp));
+      const kinds=new Set(recognized.map(x=>sourceType(x.fp)));
+      if(!expectedSourceType&&kinds.size>1){
+        this.setStatus('Tệp chứa nhiều loại nguồn hợp lệ. Hãy nhập tại ô nguồn cụ thể để tránh chọn nhầm sheet.','warning');return;
+      }
+      const matching=expectedSourceType?recognized.filter(x=>sourceType(x.fp)===expectedSourceType):recognized;
+      const candidates=matching.length?matching:recognized.length?recognized:visibleSheets;
+      for (const {fp} of candidates) {
         if (
           fp === 'DISB_V1' ||
           fp === 'DISB_TOTAL_LOCALITY_V2' ||

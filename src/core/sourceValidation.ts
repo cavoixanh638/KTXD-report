@@ -237,28 +237,30 @@ const CORE:Record<string,string[]> = {
 };
 function unitCheck(ds:Dataset,sheet:ParsedWorkbookSheet,rows:number[],columns:SourceMappingColumn[]):SourceValidationCheck {
   const headerText=[...sheet.cells.values()].filter(c=>c.row<=Math.max(...rows)&&c.value!==null&&c.cellType!=='n').map(c=>normalizedHeader(c.value));
-  const declarations=headerText.filter(x=>/^don vi(?: tinh)?\s*:/.test(x));
-  const money=(s:string)=>/\btrieu\s*(?:dong|vnd)\b/.test(s)?'million_vnd':/\bty\s*(?:dong|vnd)\b/.test(s)?'billion':/\bnghin\s*(?:dong|vnd)\b/.test(s)?'thousand':/\b(?:dong|vnd)\b/.test(s)?'vnd':undefined;
+  const declarations=headerText.filter(x=>/^(?:don vi(?: tinh)?|dvt)\s*:/.test(x));
+  const moneyUnits=(s:string)=>[...new Set([...s.matchAll(/\b(?:(trieu|ty|nghin|ngan)\s+)?(?:dong|vnd)\b/g)].map(m=>m[1]==='trieu'?'million_vnd':m[1]==='ty'?'billion':m[1]?'thousand':'vnd'))];
   let missing:string[]=[];
   if(ds.sourceType==='REV'||ds.sourceType==='DISB'){
-    const globalUnits=declarations.map(money).filter(Boolean);
+    const globalUnits=declarations.flatMap(moneyUnits);
     if(globalUnits.some(u=>u!=='million_vnd'))fail('Đơn vị tiền không phải triệu đồng theo mẫu: '+declarations.join('; ')+'. Cần xác minh/quy đổi trước khi nạp.');
     const core=columns.filter(c=>CORE[ds.sourceType]?.includes(c.field)||c.unit==='million_vnd');
     for(const c of core){
-      const unit=money(normalizedHeader(c.header).match(/\([^)]*\b(?:dong|vnd)\b[^)]*\)/)?.[0]||'');
-      if(unit&&unit!=='million_vnd')fail('Đơn vị của '+c.column+' ('+c.header+') không khớp triệu đồng.');
-      if(!unit&&!globalUnits.includes('million_vnd'))missing.push(c.column);
+      const header=normalizedHeader(c.header);
+      const units=[...new Set([...header.matchAll(/\([^)]*\b(?:dong|vnd)\b[^)]*\)/g)].flatMap(m=>moneyUnits(m[0])).concat(moneyUnits([...header.matchAll(/\b(?:trieu|ty|nghin|ngan)\s+(?:dong|vnd)\b/g)].map(m=>m[0]).join(' '))))];
+      if(units.some(u=>u!=='million_vnd'))fail('Đơn vị của '+c.column+' ('+c.header+') không khớp triệu đồng.');
+      if(!units.length&&!globalUnits.includes('million_vnd'))missing.push(c.column);
     }
   }else if(ds.sourceType==='GPMB'){
+    if(declarations.some(d=>/\bha\b|hecta|km2/.test(d))||declarations.flatMap(moneyUnits).some(u=>u!=='vnd'))fail('Đơn vị chung GPMB xung đột với m²/đồng của cấu trúc chuẩn.');
     for(const c of columns.filter(x=>CORE.GPMB.includes(x.field))){
       const key=normalizedHeader(c.header);
       if(c.unit==='m2'){
         if(/\bha\b|hecta|km2/.test(key))fail('Đơn vị diện tích '+c.column+' không phải m².');
         if(!/\bm2\b|met vuong/.test(key))missing.push(c.column);
       }else{
-        const u=money(key);
-        if(u&&u!=='vnd')fail('Đơn vị kinh phí '+c.column+' không phải đồng.');
-        if(!u)missing.push(c.column);
+        const u=moneyUnits(key);
+        if(u.some(unit=>unit!=='vnd'))fail('Đơn vị kinh phí '+c.column+' không phải đồng.');
+        if(!u.length)missing.push(c.column);
       }
     }
   }
@@ -337,6 +339,8 @@ export function attachSourceValidation(ds:Dataset,sheet:ParsedWorkbookSheet,head
       const den=(period==='y'?'annual_'+part+'_budget':'period_'+part+'_plan');
       checks.push(checkRelation(ds,'REV_RATE_'+part+'_'+period,'Tỷ lệ thu '+part+' '+(period==='y'?'so dự toán':'so kế hoạch kỳ'),'source_rate_'+part+'_'+period,['actual_'+part+'_revenue',den],true));
     }
+    const rateCount=cols.filter(c=>c.field.startsWith('source_rate_')).length;
+    if(rateCount!==6)checks.push({code:'REV_RATE_MAPPING',label:'Nhóm tỷ lệ nguồn',checked:6,failed:6-rateCount,severity:'WARNING',detail:'Không xác minh đủ 6 tỷ lệ nguồn theo tiêu đề nhóm dự toán/kế hoạch kỳ. Không suy đoán; tỷ lệ báo cáo vẫn tính từ số tiền gốc.'});
     checks.push(checkTotals(ds,core));
   }else if(ds.sourceType==='DISB'){
     for(const eq of new Set((ds.identityChecks||[]).map(i=>i.equation))){
@@ -435,6 +439,16 @@ export function assessSourceHistory(ds:Dataset,workspace:Workspace):void{
     const rankAnomaly=keys.length>=12&&rho!==undefined&&rho<0.35;
     const widespread=kind==='stable'?changedCount>keys.length/2:decreased>keys.length/2;
     const severe=rankAnomaly&&widespread;
+    // Stable anchor fields may reveal a unit error even if every rank is
+    // preserved. This is an exact scale-factor pattern, not a period-change %.
+    if(kind==='stable'&&keys.length>=12){
+      const nonzero=a.map((x,i)=>({x,y:b[i]})).filter(p=>p.x!==0&&p.y!==0&&Math.sign(p.x)===Math.sign(p.y));
+      if(nonzero.length>=12){
+        const factors=[0.000001,0.001,0.01,100,1000,1000000];
+        const matches=factors.map(factor=>({factor,count:nonzero.filter(p=>Math.abs(p.y-p.x*factor)<=Math.max(0.000001,Math.abs(p.x*factor)*1e-8)).length})).sort((x,y)=>y.count-x.count);
+        if(matches[0].count>=12&&matches[0].count*2>nonzero.length)v.checks.push({code:'HISTORY_SCALE_'+field,label:'Lịch sử: dấu hiệu sai đơn vị '+sourceFieldLabel(field),checked:nonzero.length,failed:matches[0].count,severity:'REVIEW',detail:matches[0].count+' đối tượng cùng thay đổi gần đúng hệ số '+matches[0].factor+' so với nguồn '+baseline.asOfDate+'. Cần kiểm tra đơn vị; không tự quy đổi hoặc kết luận sai.'});
+      }
+    }
     if(rankAnomaly||widespread)v.checks.push({code:'HISTORY_'+field,label:'Lịch sử: '+sourceFieldLabel(field),checked:keys.length,failed:kind==='stable'?changedCount:decreased,severity:severe?'REVIEW':'WARNING',detail:'So với '+baseline.asOfDate+': '+changedCount+' thay đổi, '+decreased+' giảm trên '+keys.length+' đối tượng khớp; Spearman '+(rho===undefined?'không xác định':rho.toFixed(2))+'. Chỉ là dấu hiệu bổ trợ, có thể do nghiệp vụ/điều chỉnh; không dùng % chênh lệch giữa hai kỳ.'});
   }
   if(v.checks.some(c=>c.code.startsWith('HISTORY_')&&c.severity==='REVIEW')&&!isOriginalReferenceLayout(ds)){v.status='NEEDS_REVIEW';delete v.reviewedAt;delete v.reviewReason;}

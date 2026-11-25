@@ -50,7 +50,7 @@ export function sourceEligibilityProblem(ds: Dataset): string | undefined {
   if (!ds.records?.length || !ds.unitCount) return 'Không có bản ghi địa phương';
   const mappingIssue=sourceMappingProblem(ds);if(mappingIssue)return mappingIssue;
   if (ds.sourceType === 'REV' && ds.mappingVersion === 'REV_ADAPTER_V2.2' && !isReferenceSource(ds)) return 'Cần nhập lại Excel (ánh xạ REV cũ)';
-  if (ds.sourceType === 'DISB' && ds.schemaFingerprint === 'DISB_V1' && ds.unitCount === 109) return 'Cần nhập lại Excel (cấu trúc DISB cũ)';
+  if (ds.sourceType === 'DISB' && ds.schemaFingerprint === 'DISB_V1' && ds.unitCount === 109 && !ds.disbLayout) return 'Cần nhập lại Excel (cấu trúc DISB cũ)';
   if (!hasTrustedSourceDate(ds)) return 'Ngày chốt chưa được xác nhận';
   const coreFields = ['adjusted_total_plan', 'disbursed_total', 'actual_total_revenue', 'annual_total_budget', 'actual_land_revenue', 'actual_nonland_revenue', 'gpmb_recorded_area', 'gpmb_declared_area'];
   if ((ds.issues || []).some(i => i.severity === 'BLOCKER' || (i.severity === 'ERROR' && (i.localityId === 'ALL' || coreFields.includes(i.fieldId))))) {
