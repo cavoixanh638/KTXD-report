@@ -340,6 +340,27 @@ describe('KTXH Offline – A4 Report Studio & WYSIWYG Architecture Suite', () =>
       expect(printed).toContain(label);
       expect(sheet).toContain(label);
     }
+    // A ward-specific saved title from an older session must also migrate.
+    const budgetRow = session.templateRows.find(r => r.indicatorId === 'GPMB_BUDGET')!;
+    const wardLabel = 'Kinh phí phân bổ GPMB cho từng phường';
+    budgetRow.customLabel = wardLabel;
+    expect(evaluate().rows.find(r => r.indicator.id === 'GPMB_BUDGET')?.rowConfig.customLabel).toBe(labels.GPMB_BUDGET);
+    migrateLegacySessionLabels(ws);
+    expect(budgetRow.customLabel).toBe(labels.GPMB_BUDGET);
+    const wardArgs = { evaluated: evaluate(), baselineLocalities, datasets };
+    const wardOutputs = [
+      renderA4DocumentStudioHtml(wardArgs).replace(/<[^>]+>/g, ''),
+      generatePrintableReportHtml({ ...wardArgs, includeAppendix: false }).replace(/<[^>]+>/g, ''),
+      strFromU8(unzipSync(exportSessionReportToXlsxBytes(wardArgs))['xl/worksheets/sheet1.xml']).replace(/<[^>]+>/g, ''),
+    ];
+    for (const output of wardOutputs) {
+      expect(output).toContain(labels.GPMB_BUDGET);
+      expect(output).not.toContain(wardLabel);
+    }
+    budgetRow.customLabel = wardLabel + ' (nguồn riêng)';
+    migrateLegacySessionLabels(ws);
+    expect(budgetRow.customLabel).toBe(wardLabel + ' (nguồn riêng)');
+    budgetRow.customLabel = labels.GPMB_BUDGET;
     // Saved partial-coverage labels from the previous release must migrate too.
     session.settings.revBenchmarkRowCustomLabel = 'Tỷ lệ thu NSNN trung bình của 113/114 địa phương có dữ liệu (đến ngày 23/11/2026)';
     session.templateRows.find(r => r.indicatorId === 'GPMB_BENCHMARK_AREA_RATE')!.customLabel = 'Tỷ lệ GPMB trung bình của 108/114 địa phương có dữ liệu (đến ngày 24/11/2026)';

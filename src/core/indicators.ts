@@ -593,7 +593,8 @@ export function normalizeLocalityReportLabel(indicatorId: string, label: string)
   if (!pair) return label;
   const suffix = trimmed.match(/\s*\(đến ngày[^)]*\)$/i)?.[0] || '';
   const base = suffix ? trimmed.slice(0, -suffix.length).trimEnd() : trimmed;
-  return base === pair[0] ? pair[1] + suffix : label;
+  const isLegacyWardBudget = indicatorId === 'GPMB_BUDGET' && base === 'Kinh phí phân bổ GPMB cho từng phường';
+  return base === pair[0] || isLegacyWardBudget ? pair[1] + suffix : label;
 }
 
 /** Fixed report-facing title for the city's 114-locality universe. Actual source coverage remains in audit/trace; this is not a calculation-scope assertion. */

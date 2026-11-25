@@ -169,3 +169,8 @@
 - SHA triển khai và kiểm thử: `25f27edf7aeda0acfb95c0751b33620a3dbdd740`; [CI 45584135248](https://github.com/cavoixanh638/KTXD-report/actions/runs/45584135248), job 139101284007: SUCCESS, 47/47 tests PASS, 3/3 suites, typecheck/build PASS, 4/4 workbook PASS.
 - GitHub Actions đã push commit `f8f2f98b215c161fe682962650437983c6b6deb4` chỉ chứa `dist/index.html`; kiểm chứng file tồn tại trong tree, kích thước 2.295.061 byte, Git blob `12c1a67a7c6f4d84d0442dad5c1e775850258a11`, SHA-256 từ build log `1689d28108f231a1cab4f15ed8119cfca7bc417a9ba6ae1ed0a10fdbdb845c6b`. Artifact 15007133001. Không cần npm khi clone/pull nhánh phân phối. Chỉ commit tài liệu sau bản chạy không thay đổi runtime.
 - Trạng thái: CI_PASS_OFFLINE_BUNDLE_PUBLISHED; Windows/Edge in trực tiếp và nghiệm thu dữ liệu tháng 11 của người dùng NOT_RUN. Chưa merge main. Nếu người dùng có bản HTML local bị sửa, sao lưu rồi bỏ thay đổi local riêng tệp đó trước khi pull; không xóa hồ sơ phiên hoặc workbook cá nhân.
+
+### Chuẩn hóa nhãn kinh phí GPMB của phiên cũ
+
+- Nhãn chuẩn đã có trong MASTER và template. Bổ sung alias chính xác `Kinh phí phân bổ GPMB cho từng phường` trong `normalizeLocalityReportLabel` cho GPMB_BUDGET, không thay đổi phép tính hoặc dữ liệu. Kiểm thử NOV_FIX_04 mở rộng kiểm tra nhãn phiên cũ và ba đầu ra; giữ nhãn tùy chỉnh khác.
+- Chờ CI và tự publish HTML; kết quả sẽ được ghi nhận theo SHA mới.

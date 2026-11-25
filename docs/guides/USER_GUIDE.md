@@ -188,3 +188,5 @@ Chỉ tăng cỡ chữ giá trị của ba tỷ lệ trung bình REV/DISB/GPMB: 
 Trong GitHub Desktop chọn nhánh phân phối `ai/november-source-report-fix-20261124`, chọn Fetch origin → Pull origin sau khi CI hoàn tất, sau đó mở lại `dist/index.html` trong đúng thư mục cũ. Clone mới cũng đã có file này; không cần cài Node.js hoặc chạy lệnh. Nếu chưa thấy file, kiểm tra commit build mới nhất trên GitHub. Không đổi đường dẫn thư mục đang sử dụng nếu muốn giữ phiên cũ trong bộ nhớ trình duyệt.
 
 Ba chỉ tiêu tỷ lệ trung bình REV/DISB/GPMB đều gộp toàn bộ cột địa phương trong mỗi nhóm/trang ngang, gộp hàng trong Studio dọc và merge ô giá trị trong Excel. Mỗi nhóm/trang chỉ hiển thị một kết quả, căn giữa; giữ cỡ chữ lớn hơn 10% (Excel 11 pt), trace chung, công thức và phạm vi nguồn. Không gộp chỉ tiêu riêng từng địa phương.
+
+**Nhãn kinh phí GPMB:** Phiên đã lưu nhãn mặc định “Kinh phí phân bổ GPMB cho từng phường” hoặc “Kinh phí phân bổ GPMB cho từng xã” tự chuyển thành “Kinh phí phân bổ GPMB cho từng địa phương” trên bảng và bản xuất; không cần tạo lại phiên.
