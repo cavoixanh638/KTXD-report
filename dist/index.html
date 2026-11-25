@@ -4129,6 +4129,13 @@ code {
   font-size: 1.1em;
 }
 
+.latest-source-card {border:1px solid #dbe3ed;border-radius:6px;padding:8px 10px;margin:8px 0;font-size:12px;overflow-wrap:anywhere;}
+.latest-source-name {margin:4px 0;color:#334155;}
+.latest-source-warning {color:#92400e;margin-top:4px;}
+.latest-source-skipped {font-size:11px;color:#64748b;margin-top:5px;}
+.latest-source-skipped div {padding:3px 0;}
+.source-mode-radio-item > div {min-width:0;flex:1;}
+
   </style>
 </head>
 <body>
@@ -4230,6 +4237,113 @@ code {
       const nameUnaccented = toUnaccentedSearchKey(loc.canonicalNameNFC);
       return nameUnaccented.includes(qUnaccented);
     });
+  }
+
+  // src/core/latestSources.ts
+  var SOURCE_TYPES = ["DISB", "REV", "GPMB"];
+  var REFERENCE_SHA = {
+    DISB: "3ba33b3efd579499500d956c2580a170e84dd38b8d700fdfaaf9a361ea7cb38c",
+    REV: "b41227d1444c581e6f3b65d761fad8918b65aedfbd8114443e6dee9d4938356f",
+    GPMB: "d393c3c1f3f9c99c95cc3d0035eab3386ff3cab8e63e623eaa9c925103ef9e0f"
+  };
+  var REFERENCE_DATE = { DISB: "2026-10-15", REV: "2026-10-19", GPMB: "2026-10-26" };
+  function isValidSourceDate(value) {
+    if (!value || !/^\d{4}-\d{2}-\d{2}$/.test(value)) return false;
+    const d = /* @__PURE__ */ new Date(value + "T00:00:00Z");
+    return Number.isFinite(d.getTime()) && d.toISOString().slice(0, 10) === value;
+  }
+  function dateFromReportTitle(title) {
+    const dates = [...title.matchAll(/(?:^|[^\d])(\d{1,2})[./-](\d{1,2})[./-](\d{4})(?!\d)/g)].map((m) => m[3] + "-" + m[2].padStart(2, "0") + "-" + m[1].padStart(2, "0"));
+    const unique = [...new Set(dates)];
+    return unique.length === 1 && isValidSourceDate(unique[0]) ? unique[0] : void 0;
+  }
+  function isReferenceSource(ds) {
+    return SOURCE_TYPES.some((t) => ds.sourceType === t && ds.workbookSha256 === REFERENCE_SHA[t]);
+  }
+  function hasTrustedSourceDate(ds) {
+    if (!isValidSourceDate(ds.asOfDate) || ds.asOfStatus === "REQUIRES_USER_CONFIRMATION") return false;
+    if (ds.asOfStatus === "MANUAL_CONFIRMED") return true;
+    if (ds.asOfStatus !== "DETECTED_CONFIRMED") return false;
+    if (ds.sourceType === "REV") {
+      return true;
+    }
+    if (ds.sourceType === "MANUAL") return false;
+    if (isReferenceSource(ds) && ds.asOfDate === REFERENCE_DATE[ds.sourceType]) return true;
+    const evidence = ds.asOfDateEvidence || "";
+    const verified = evidence.match(/^VERIFIED_TITLE_DATE:(\d{4}-\d{2}-\d{2})\b/);
+    if (verified) return verified[1] === ds.asOfDate;
+    const title = evidence.match(/!A1\s*\("([^"]*)"\)/)?.[1];
+    return !!title && dateFromReportTitle(title) === ds.asOfDate;
+  }
+  function disbScope(ds) {
+    if (!ds) return "TOTAL";
+    if (ds.schemaFingerprint === "DISB_V1" || ds.schemaFingerprint === "DISB_TOTAL_LOCALITY_V2") return "TOTAL";
+    if (ds.schemaFingerprint === "DISB_PHAN_CAP_XA_V1" || ds.schemaFingerprint === "DISB_PHAN_CAP_XA_V2") return "ALLOCATED";
+    return "UNKNOWN";
+  }
+  function sourceEligibilityProblem(ds) {
+    if (!ds.records?.length || !ds.unitCount) return "Kh\xF4ng c\xF3 b\u1EA3n ghi \u0111\u1ECBa ph\u01B0\u01A1ng";
+    if (ds.sourceType === "REV" && ds.mappingVersion === "REV_ADAPTER_V2.2" && !isReferenceSource(ds)) return "C\u1EA7n nh\u1EADp l\u1EA1i Excel (\xE1nh x\u1EA1 REV c\u0169)";
+    if (ds.sourceType === "DISB" && ds.schemaFingerprint === "DISB_V1" && ds.unitCount === 109) return "C\u1EA7n nh\u1EADp l\u1EA1i Excel (c\u1EA5u tr\xFAc DISB c\u0169)";
+    if (!hasTrustedSourceDate(ds)) return "Ng\xE0y ch\u1ED1t ch\u01B0a \u0111\u01B0\u1EE3c x\xE1c nh\u1EADn";
+    const coreFields = ["adjusted_total_plan", "disbursed_total", "actual_total_revenue", "annual_total_budget", "actual_land_revenue", "actual_nonland_revenue", "gpmb_recorded_area", "gpmb_declared_area"];
+    if ((ds.issues || []).some((i) => i.severity === "BLOCKER" || i.severity === "ERROR" && (i.localityId === "ALL" || coreFields.includes(i.fieldId)))) {
+      return "C\xF3 l\u1ED7i nghi\xEAm tr\u1ECDng \u1EDF ngu\u1ED3n ho\u1EB7c tr\u01B0\u1EDDng t\xEDnh ch\xEDnh";
+    }
+    return void 0;
+  }
+  function timestamp(value) {
+    const n = Date.parse(value || "");
+    return Number.isFinite(n) ? n : 0;
+  }
+  function fingerprint(ds) {
+    return ds.workbookSha256 || ds.sourceHash || ds.id;
+  }
+  function chooseLatestSources(workspace, session) {
+    const activeDisb = workspace.datasets.find((d) => d.id === session?.dataBindings?.DISB && d.sourceType === "DISB");
+    const requiredScope = disbScope(activeDisb);
+    const bindings = {};
+    const choices = SOURCE_TYPES.map((type) => {
+      const skipped = [];
+      const all = workspace.datasets.filter((d) => d.sourceType === type);
+      const compatible = all.filter((d) => {
+        if (type === "DISB" && (requiredScope === "UNKNOWN" || disbScope(d) !== requiredScope)) {
+          skipped.push({ dataset: d, reason: "Kh\xE1c ho\u1EB7c ch\u01B0a r\xF5 ph\u1EA1m vi gi\u1EA3i ng\xE2n" });
+          return false;
+        }
+        return true;
+      });
+      const real = compatible.filter((d) => !isReferenceSource(d));
+      const pool = real.length ? real : compatible;
+      const byHash = /* @__PURE__ */ new Map();
+      for (const ds of pool) {
+        const problem = sourceEligibilityProblem(ds);
+        if (problem) {
+          skipped.push({ dataset: ds, reason: problem });
+          continue;
+        }
+        const key = fingerprint(ds);
+        const group = byHash.get(key) || [];
+        group.push(ds);
+        byHash.set(key, group);
+      }
+      const unique = [];
+      for (const [hash, group] of byHash) {
+        if (new Set(group.map((d) => d.asOfDate)).size > 1) {
+          for (const d of group) skipped.push({ dataset: d, reason: "C\xF9ng n\u1ED9i dung nh\u01B0ng ng\xE0y ch\u1ED1t x\xE1c nh\u1EADn m\xE2u thu\u1EABn; c\u1EA7n ch\u1ECDn th\u1EE7 c\xF4ng" });
+          continue;
+        }
+        const imports = workspace.datasets.filter((d) => d.sourceType === type && fingerprint(d) === hash).map((d) => timestamp(d.importedAt)).filter((n) => n > 0);
+        const firstImport = imports.length ? Math.min(...imports) : 0;
+        const ds = group.find((d) => d.id === session?.dataBindings?.[type]) || [...group].sort((a, b) => a.id.localeCompare(b.id))[0];
+        unique.push({ ds, firstImport });
+      }
+      unique.sort((a, b) => b.ds.asOfDate.localeCompare(a.ds.asOfDate) || b.firstImport - a.firstImport || fingerprint(a.ds).localeCompare(fingerprint(b.ds)));
+      const selected = unique[0]?.ds;
+      if (selected) bindings[type] = selected.id;
+      return { type, dataset: selected, skipped, sameDateVersions: selected ? unique.filter((x) => x.ds.asOfDate === selected.asOfDate).length : 0, referenceFallback: !!selected && isReferenceSource(selected) };
+    });
+    return { choices, bindings, complete: SOURCE_TYPES.every((t) => !!bindings[t]) };
   }
 
   // src/core/indicators.ts
@@ -4855,6 +4969,10 @@ code {
     if (existingIdx === -1) {
       workspace.datasets.push(dataset);
     } else {
+      const previous = workspace.datasets[existingIdx];
+      if (previous.workbookSha256 === dataset.workbookSha256 && previous.importedAt) {
+        dataset.importedAt = previous.importedAt;
+      }
       workspace.datasets[existingIdx] = dataset;
     }
     if (localitiesFromDisb && localitiesFromDisb.length > 0) {
@@ -4883,39 +5001,6 @@ code {
       details: `\u0110\u0103ng k\xFD ngu\u1ED3n ${dataset.sourceType} (${dataset.sourceFilename}, sheet "${dataset.sourceSheet}", SHA=${dataset.workbookSha256.slice(0, 12)}, ng\xE0y ch\u1ED1t=${dataset.asOfDate || "CH\u01AFA X\xC1C NH\u1EACN"})`
     });
     return dataset;
-  }
-  function confirmDatasetAsOfDate(workspace, datasetId, confirmedDate, reason) {
-    const ds = workspace.datasets.find((d) => d.id === datasetId);
-    if (!ds) {
-      throw new Error(`Dataset ${datasetId} not found`);
-    }
-    if (!/^\d{4}-\d{2}-\d{2}$/.test(confirmedDate.trim())) {
-      throw new Error("Ng\xE0y ch\u1ED1t ph\u1EA3i c\xF3 \u0111\u1ECBnh d\u1EA1ng YYYY-MM-DD h\u1EE3p l\u1EC7.");
-    }
-    ds.asOfDate = confirmedDate.trim();
-    ds.asOfStatus = "MANUAL_CONFIRMED";
-    ds.asOfDateConfirmation = {
-      confirmedByUser: true,
-      confirmedAt: (/* @__PURE__ */ new Date()).toISOString(),
-      reason: reason.trim() || "Ng\u01B0\u1EDDi d\xF9ng x\xE1c nh\u1EADn th\u1EE7 c\xF4ng trong Wizard nh\u1EADp ngu\u1ED3n"
-    };
-    ds.issues = ds.issues.filter((i) => i.ruleId !== "MISSING_CONFIRMED_AS_OF_DATE");
-    for (const rec of ds.records) {
-      for (const m of Object.values(rec.metrics)) {
-        m.provenance.asOfDate = ds.asOfDate;
-      }
-    }
-    syncReportLabelsWithDatasetDates(workspace);
-    workspace.updatedAt = (/* @__PURE__ */ new Date()).toISOString();
-    workspace.unsavedChanges = true;
-    workspace.auditLog.push({
-      id: `AUDIT_${Date.now()}_CONFIRM_DATE`,
-      timestamp: (/* @__PURE__ */ new Date()).toISOString(),
-      action: "DATASET_AS_OF_DATE_CONFIRMED",
-      datasetId: ds.id,
-      details: `X\xE1c nh\u1EADn ng\xE0y ch\u1ED1t ${ds.asOfDate} cho ngu\u1ED3n ${ds.sourceType} (${reason})`
-    });
-    return ds;
   }
   function formatVnDate(dateStr) {
     return formatVnDateText(dateStr);
@@ -5397,7 +5482,7 @@ code {
       throw new Error(`Dataset ${datasetId} not found`);
     }
     const cleanDate = newDateIso.trim();
-    if (!/^\d{4}-\d{2}-\d{2}$/.test(cleanDate)) {
+    if (!isValidSourceDate(cleanDate)) {
       throw new Error("Ng\xE0y ch\u1ED1t ph\u1EA3i c\xF3 \u0111\u1ECBnh d\u1EA1ng YYYY-MM-DD h\u1EE3p l\u1EC7.");
     }
     const sharedByOtherSession = workspace.sessions.some(
@@ -5413,6 +5498,8 @@ code {
     }
     targetDs.asOfDate = cleanDate;
     targetDs.asOfStatus = "MANUAL_CONFIRMED";
+    targetDs.periodEnd = cleanDate;
+    targetDs.periodStart = cleanDate.slice(0, 4) + "-01-01";
     targetDs.asOfDateConfirmation = {
       confirmedByUser: true,
       confirmedAt: (/* @__PURE__ */ new Date()).toISOString(),
@@ -5495,6 +5582,18 @@ code {
       DISB: session.dataBindings.DISB ? workspace.datasets.find((d) => d.id === session.dataBindings.DISB) : void 0,
       GPMB: session.dataBindings.GPMB ? workspace.datasets.find((d) => d.id === session.dataBindings.GPMB) : void 0
     };
+  }
+  function applyLatestSources(workspace, sessionId, preview) {
+    const session = workspace.sessions.find((s) => s.id === sessionId);
+    if (!session) throw new Error("Kh\xF4ng t\xECm th\u1EA5y phi\xEAn b\xE1o c\xE1o.");
+    const current = chooseLatestSources(workspace, session);
+    if (!preview.complete || !current.complete || SOURCE_TYPES.some((t) => current.bindings[t] !== preview.bindings[t])) {
+      throw new Error("B\u1ED9 ngu\u1ED3n ch\u01B0a \u0111\u1EE7 ho\u1EB7c \u0111\xE3 thay \u0111\u1ED5i; h\xE3y xem l\u1EA1i tr\u01B0\u1EDBc khi n\u1EA1p.");
+    }
+    for (const t of SOURCE_TYPES) {
+      if (session.dataBindings[t] !== current.bindings[t]) rebindSessionDataset(workspace, sessionId, t, current.bindings[t]);
+    }
+    return session;
   }
 
   // node_modules/fflate/esm/browser.js
@@ -9796,14 +9895,32 @@ code {
     }
     const profile = getDisbSchemaProfile(targetFp);
     const a1Text = getCellText(targetSheet, "A1");
-    const dateMatch = a1Text.match(/(\d{1,2})\/(\d{1,2})\/(\d{4})/);
-    const detectedDate = dateMatch ? `${dateMatch[3]}-${dateMatch[2].padStart(2, "0")}-${dateMatch[1].padStart(2, "0")}` : "2026-10-15";
-    const asOfDate = options.confirmedAsOfDate || detectedDate;
+    const detectedDate = dateFromReportTitle(a1Text);
+    const manualDate = options.confirmedAsOfDate?.trim();
+    if (manualDate && !isValidSourceDate(manualDate)) throw new Error("Ng\xE0y ch\u1ED1t kh\xF4ng h\u1EE3p l\u1EC7.");
+    const asOfDate = manualDate || detectedDate || "";
+    const asOfStatus = manualDate ? "MANUAL_CONFIRMED" : detectedDate ? "DETECTED_CONFIRMED" : "REQUIRES_USER_CONFIRMATION";
     const datasetId = `DISB_${wb.sha256.slice(0, 12)}`;
     const mappingVersion = profile.mappingVersion;
     const localities = [];
     const records = [];
     const issues = [];
+    if (!asOfDate) issues.push({
+      id: `${datasetId}_BLOCKER_AS_OF_DATE`,
+      ruleId: "MISSING_CONFIRMED_AS_OF_DATE",
+      severity: "BLOCKER",
+      status: "OPEN",
+      datasetId,
+      sourceType: "DISB",
+      rowId: "HEADER_A1",
+      sourceRow: 1,
+      localityId: "ALL",
+      localityName: "To\xE0n b\u1ED9 ngu\u1ED3n",
+      fieldId: "asOfDate",
+      sourceCell: "A1",
+      observed: null,
+      explanation: "Kh\xF4ng x\xE1c \u0111\u1ECBnh \u0111\u01B0\u1EE3c ng\xE0y ch\u1ED1t t\u1EEB ti\xEAu \u0111\u1EC1 b\xE1o c\xE1o. C\u1EA7n x\xE1c nh\u1EADn ng\xE0y ch\u1ED1t th\u1EF1c t\u1EBF; kh\xF4ng d\xF9ng t\xEAn file ho\u1EB7c ng\xE0y m\u1EB7c \u0111\u1ECBnh."
+    });
     const identityChecks = [];
     const parseDisbRow = (row, locId, locName) => {
       const metrics = {};
@@ -10050,16 +10167,16 @@ code {
       calculationPolicyVersion: "V2.2_R06",
       unitCount: records.length,
       asOfDate,
-      reportPeriodLabel: `\u0110\u1EBFn h\u1EBFt ng\xE0y ${asOfDate.split("-").reverse().join("/")}`,
-      periodLabel: `\u0110\u1EBFn h\u1EBFt ng\xE0y ${asOfDate.split("-").reverse().join("/")}`,
-      periodStart: "2026-01-01",
-      periodEnd: asOfDate,
-      asOfStatus: "DETECTED_CONFIRMED",
-      asOfDateEvidence: targetFp === "DISB_TOTAL_LOCALITY_V2" ? `Sheet ${targetSheet.name}!A1 ("${a1Text.trim()}"); ti\xEAu \u0111\u1EC1 t\u1ED5ng v\u1ED1n sau \u0111i\u1EC1u ch\u1EC9nh, gi\u1EA3i ng\xE2n t\u1ED5ng, t\u1EF7 l\u1EC7 sau \u0111i\u1EC1u ch\u1EC9nh v\xE0 ghi ch\xFA \u0111\u01B0\u1EE3c nh\u1EADn di\u1EC7n.` : targetFp === "DISB_PHAN_CAP_XA_V2" ? `Sheet ${targetSheet.name}!A1 ("${a1Text.trim()}"). B\xE1o c\xE1o ngu\u1ED3n v\u1ED1n ph\xE2n c\u1EA5p cho c\u1EA5p x\xE3 (g\u1ED3m KHV \u0111\u1EA7u n\u0103m C\u2013E, sau \u0111i\u1EC1u ch\u1EC9nh F\u2013I, gi\u1EA3i ng\xE2n J\u2013M, t\u1EF7 l\u1EC7 N, ghi ch\xFA O; kh\xF4ng g\u1ED3m d\u1EF1 \xE1n kh\u1ED1i TP).` : targetFp === "DISB_PHAN_CAP_XA_V1" ? `Sheet ${targetSheet.name}!A1 ("${a1Text.trim()}"). B\xE1o c\xE1o ngu\u1ED3n v\u1ED1n ph\xE2n c\u1EA5p cho c\u1EA5p x\xE3 (12 c\u1ED9t A\u2013L, kh\xF4ng bao g\u1ED3m d\u1EF1 \xE1n kh\u1ED1i TP v\xE0 kh\xF4ng c\xF3 c\u1ED9t KHV tr\u01B0\u1EDBc \u0111i\u1EC1u ch\u1EC9nh).` : `Sheet ${targetSheet.name}!A1 ("${a1Text.trim()}"). Kh\xF4ng d\xF9ng ng\xE0y 22/10 \u1EDF c\u1ED9t P hay 25/9 \u1EDF c\u1ED9t Q l\xE0m ng\xE0y ch\u1ED1t.`,
+      reportPeriodLabel: asOfDate ? `\u0110\u1EBFn h\u1EBFt ng\xE0y ${asOfDate.split("-").reverse().join("/")}` : "Ch\u01B0a x\xE1c nh\u1EADn ng\xE0y ch\u1ED1t",
+      periodLabel: asOfDate ? `\u0110\u1EBFn h\u1EBFt ng\xE0y ${asOfDate.split("-").reverse().join("/")}` : "Ch\u01B0a x\xE1c nh\u1EADn ng\xE0y ch\u1ED1t",
+      periodStart: asOfDate ? asOfDate.slice(0, 4) + "-01-01" : void 0,
+      periodEnd: asOfDate || void 0,
+      asOfStatus,
+      asOfDateEvidence: detectedDate ? `VERIFIED_TITLE_DATE:${detectedDate} Sheet ${targetSheet.name}!A1 ("${a1Text.trim()}")` : `Sheet ${targetSheet.name}!A1: ch\u01B0a x\xE1c \u0111\u1ECBnh ng\xE0y ch\u1ED1t`,
       asOfDateConfirmation: {
-        confirmedByUser: true,
-        confirmedAt: (/* @__PURE__ */ new Date()).toISOString(),
-        reason: options.asOfConfirmationReason || "Tr\xEDch xu\u1EA5t r\xF5 r\xE0ng t\u1EEB ti\xEAu \u0111\u1EC1 \xF4 A1"
+        confirmedByUser: !!manualDate,
+        confirmedAt: manualDate ? (/* @__PURE__ */ new Date()).toISOString() : null,
+        reason: options.asOfConfirmationReason
       },
       importedAt: (/* @__PURE__ */ new Date()).toISOString(),
       records,
@@ -10112,6 +10229,7 @@ code {
     );
     const title = getCellText(targetSheet, "A3");
     const titleDate = explicitTitleDate(title);
+    if (hasUserConfirmedDate && !isValidSourceDate(options.confirmedAsOfDate.trim())) throw new Error("Ng\xE0y ch\u1ED1t kh\xF4ng h\u1EE3p l\u1EC7.");
     const asOfDate = hasUserConfirmedDate ? options.confirmedAsOfDate.trim() : titleDate || "";
     const asOfStatus = hasUserConfirmedDate ? "MANUAL_CONFIRMED" : titleDate ? "DETECTED_CONFIRMED" : "REQUIRES_USER_CONFIRMATION";
     const datasetId = `REV_${wb.sha256.slice(0, 12)}`;
@@ -10270,22 +10388,31 @@ code {
     const sheetFp = detectSheetFingerprint(targetSheet);
     const isFlatTable = sheetFp === "GPMB_FLAT";
     const a1Text = getCellText(targetSheet, "A1");
-    let detectedDate = "2026-10-26";
-    const dateMatch = a1Text.match(/(\d{1,2})\/(\d{1,2})\/(\d{4})/);
-    if (dateMatch) {
-      detectedDate = `${dateMatch[3]}-${dateMatch[2].padStart(2, "0")}-${dateMatch[1].padStart(2, "0")}`;
-    } else {
-      const fnMatch = filename.match(/(\d{1,2})[\.\-](\d{1,2})[\.\-](\d{2,4})/);
-      if (fnMatch) {
-        const year = fnMatch[3].length === 2 ? `20${fnMatch[3]}` : fnMatch[3];
-        detectedDate = `${year}-${fnMatch[2].padStart(2, "0")}-${fnMatch[1].padStart(2, "0")}`;
-      }
-    }
-    const asOfDate = options.confirmedAsOfDate || detectedDate;
+    const detectedDate = isFlatTable ? void 0 : dateFromReportTitle(a1Text);
+    const manualDate = options.confirmedAsOfDate?.trim();
+    if (manualDate && !isValidSourceDate(manualDate)) throw new Error("Ng\xE0y ch\u1ED1t kh\xF4ng h\u1EE3p l\u1EC7.");
+    const asOfDate = manualDate || detectedDate || "";
+    const asOfStatus = manualDate ? "MANUAL_CONFIRMED" : detectedDate ? "DETECTED_CONFIRMED" : "REQUIRES_USER_CONFIRMATION";
     const datasetId = `GPMB_${wb.sha256.slice(0, 12)}`;
     const mappingVersion = isFlatTable ? "GPMB_FLAT_ADAPTER_V2.2" : "GPMB_ADAPTER_V2.2";
     const records = [];
     const issues = [];
+    if (!asOfDate) issues.push({
+      id: `${datasetId}_BLOCKER_AS_OF_DATE`,
+      ruleId: "MISSING_CONFIRMED_AS_OF_DATE",
+      severity: "BLOCKER",
+      status: "OPEN",
+      datasetId,
+      sourceType: "GPMB",
+      rowId: "HEADER_A1",
+      sourceRow: 1,
+      localityId: "ALL",
+      localityName: "To\xE0n b\u1ED9 ngu\u1ED3n",
+      fieldId: "asOfDate",
+      sourceCell: "A1",
+      observed: null,
+      explanation: "Kh\xF4ng x\xE1c \u0111\u1ECBnh \u0111\u01B0\u1EE3c ng\xE0y ch\u1ED1t t\u1EEB ti\xEAu \u0111\u1EC1 b\xE1o c\xE1o. C\u1EA7n x\xE1c nh\u1EADn ng\xE0y ch\u1ED1t th\u1EF1c t\u1EBF; kh\xF4ng d\xF9ng t\xEAn file ho\u1EB7c ng\xE0y m\u1EB7c \u0111\u1ECBnh."
+    });
     const localityGroupSummaries = {};
     if (isFlatTable) {
       let headerRow = 1;
@@ -10682,16 +10809,16 @@ code {
       unitCount: isFlatTable ? uniqueLocCount : Object.keys(localityGroupSummaries).length,
       projectRowCount: records.length,
       asOfDate,
-      reportPeriodLabel: `\u0110\u1EBFn ng\xE0y ${asOfDate.split("-").reverse().join("/")}`,
-      periodLabel: `\u0110\u1EBFn ng\xE0y ${asOfDate.split("-").reverse().join("/")}`,
-      periodStart: "2026-01-01",
-      periodEnd: asOfDate,
-      asOfStatus: "DETECTED_CONFIRMED",
-      asOfDateEvidence: isFlatTable ? `B\u1EA3ng ph\u1EB3ng CSDL (${records.length} d\u1EF1 \xE1n, ${uniqueLocCount} \u0111\u1ECBa b\xE0n, t\u1EC7p ${filename})` : `Sheet ${targetSheet.name}!A1 ("${a1Text.trim()}"). L\u01B0u \xFD t\xEAn t\u1EC7p c\xF3 chu\u1ED7i 26.12.26 nh\u01B0ng ti\xEAu \u0111\u1EC1 sheet ghi r\xF5 26/10/2026.`,
+      reportPeriodLabel: asOfDate ? `\u0110\u1EBFn ng\xE0y ${asOfDate.split("-").reverse().join("/")}` : "Ch\u01B0a x\xE1c nh\u1EADn ng\xE0y ch\u1ED1t",
+      periodLabel: asOfDate ? `\u0110\u1EBFn ng\xE0y ${asOfDate.split("-").reverse().join("/")}` : "Ch\u01B0a x\xE1c nh\u1EADn ng\xE0y ch\u1ED1t",
+      periodStart: asOfDate ? asOfDate.slice(0, 4) + "-01-01" : void 0,
+      periodEnd: asOfDate || void 0,
+      asOfStatus,
+      asOfDateEvidence: detectedDate ? `VERIFIED_TITLE_DATE:${detectedDate} Sheet ${targetSheet.name}!A1 ("${a1Text.trim()}")` : "Ch\u01B0a x\xE1c \u0111\u1ECBnh ng\xE0y ch\u1ED1t t\u1EEB ti\xEAu \u0111\u1EC1; c\u1EA7n x\xE1c nh\u1EADn th\u1EE7 c\xF4ng",
       asOfDateConfirmation: {
-        confirmedByUser: true,
-        confirmedAt: (/* @__PURE__ */ new Date()).toISOString(),
-        reason: options.asOfConfirmationReason || `X\xE1c nh\u1EADn ng\xE0y ch\u1ED1t ${asOfDate}`
+        confirmedByUser: !!manualDate,
+        confirmedAt: manualDate ? (/* @__PURE__ */ new Date()).toISOString() : null,
+        reason: options.asOfConfirmationReason
       },
       importedAt: (/* @__PURE__ */ new Date()).toISOString(),
       records,
@@ -16800,6 +16927,7 @@ ${page2}`;
     };
     // Modals
     showNewSessionModal = false;
+    latestSourcesPreview = null;
     newSessionNameDraft = "B\xE1o c\xE1o KTXH phi\xEAn m\u1EDBi";
     newSessionSourceMode = "CURRENT";
     showRenameSessionModal = false;
@@ -16859,11 +16987,12 @@ ${page2}`;
         this.render();
         return true;
       }
-      if (this.showNewSessionModal || this.showRenameSessionModal || this.showCoverageModal || this.showIndicatorsModal) {
+      if (this.showNewSessionModal || this.showRenameSessionModal || this.showCoverageModal || this.showIndicatorsModal || this.latestSourcesPreview) {
         this.showNewSessionModal = false;
         this.showRenameSessionModal = false;
         this.showCoverageModal = false;
         this.showIndicatorsModal = false;
+        this.latestSourcesPreview = null;
         this.render();
         return true;
       }
@@ -17123,7 +17252,7 @@ ${page2}`;
             this.triggerAutosave();
             this.setStatus(
               fp === "DISB_PHAN_CAP_XA_V2" ? `\u0110\xE3 c\u1EADp nh\u1EADt ngu\u1ED3n Gi\u1EA3i ng\xE2n (Ph\xE2n c\u1EA5p x\xE3 \xB7 15 c\u1ED9t) "${filename}" cho ri\xEAng phi\xEAn "${activeSession.name}" (${dataset.unitCount} \u0110P, ch\u1ED1t ${formatVnDate(dataset.asOfDate)}).` : fp === "DISB_PHAN_CAP_XA_V1" ? `\u0110\xE3 c\u1EADp nh\u1EADt ngu\u1ED3n Gi\u1EA3i ng\xE2n (Ph\xE2n c\u1EA5p x\xE3 \xB7 12 c\u1ED9t) "${filename}" cho ri\xEAng phi\xEAn "${activeSession.name}" (${dataset.unitCount} \u0110P, ch\u1ED1t ${formatVnDate(dataset.asOfDate)}).` : `\u0110\xE3 c\u1EADp nh\u1EADt ngu\u1ED3n Gi\u1EA3i ng\xE2n "${filename}" cho ri\xEAng phi\xEAn "${activeSession.name}" (${dataset.unitCount} \u0110P, ch\u1ED1t ${formatVnDate(dataset.asOfDate)}).`,
-              "success"
+              hasTrustedSourceDate(dataset) ? "success" : "warning"
             );
             return;
           }
@@ -17159,7 +17288,7 @@ ${page2}`;
             this.triggerAutosave();
             this.setStatus(
               `\u0110\xE3 c\u1EADp nh\u1EADt ngu\u1ED3n GPMB (${fp === "GPMB_FLAT" ? "b\u1EA3ng ph\u1EB3ng" : "ph\xE2n nh\xF3m"}) "${filename}" cho ri\xEAng phi\xEAn "${activeSession.name}" (${dataset.unitCount} \u0111\u1ECBa b\xE0n, ${dataset.projectRowCount} DA).`,
-              "success"
+              hasTrustedSourceDate(dataset) ? "success" : "warning"
             );
             return;
           }
@@ -17286,6 +17415,7 @@ ${page2}`;
       ${projectModalHtml}
       ${nq11ModalHtml}
       ${newSessionModalHtml}
+      ${this.renderLatestSourcesModal()}
       ${renameSessionModalHtml}
       ${coverageModalHtml}
       ${indicatorsModalHtml}
@@ -17549,15 +17679,13 @@ ${page2}`;
         let metaHtml = "";
         if (!ds) {
           metaHtml = `<div class="session-source-empty">Phi\xEAn n\xE0y ch\u01B0a g\u1EAFn t\u1EC7p ${type}. Ch\u1ECDn t\u1EC7p b\xEAn d\u01B0\u1EDBi \u0111\u1EC3 n\u1EA1p ri\xEAng cho phi\xEAn.</div>`;
-        } else if (ds.asOfStatus === "REQUIRES_USER_CONFIRMATION") {
+        } else if (!hasTrustedSourceDate(ds)) {
           metaHtml = `
             <div class="rev-date-warn-box">
               <span>C\u1EA7n x\xE1c nh\u1EADn ng\xE0y ch\u1ED1t:</span>
               <div class="rev-date-warn-controls">
-                <input type="date" id="input-confirm-rev-date" value="${formatIsoDate(ds.asOfDate) || "2026-10-19"}" class="input-dataset-asof-date"/>
-                <button type="button" class="btn btn-xs btn-primary" id="btn-confirm-rev-date" data-dataset-id="${escapeHtmlUi(
-            ds.id
-          )}">X\xE1c nh\u1EADn</button>
+                <input type="date" id="input-asof-date-${escapeHtmlUi(ds.id)}" value="" class="input-dataset-asof-date" aria-label="Ng\xE0y ch\u1ED1t ${type}"/>
+                <button type="button" class="btn btn-xs btn-primary btn-save-asof-date" data-dataset-id="${escapeHtmlUi(ds.id)}">X\xE1c nh\u1EADn</button>
               </div>
             </div>
           `;
@@ -17640,8 +17768,8 @@ ${page2}`;
               <button type="button" class="btn-link-subtle" id="btn-open-coverage-modal">
                 ${uiIcon("shield-check", 13)} Ki\u1EC3m to\xE1n ngu\u1ED3n thi\u1EBFu
               </button>
-              <button type="button" class="btn-link-subtle" id="btn-load-embedded-confirmed" title="G\u1EAFn 3 file Excel tham chi\u1EBFu m\u1EB7c \u0111\u1ECBnh v\xE0o phi\xEAn hi\u1EC7n t\u1EA1i">
-                ${uiIcon("undo", 13)} N\u1EA1p 3 file m\u1EABu
+              <button type="button" class="btn-link-subtle" id="btn-load-latest-sources" title="Ch\u1ECDn ngu\u1ED3n c\xF3 ng\xE0y ch\u1ED1t m\u1EDBi nh\u1EA5t trong kho d\u1EEF li\u1EC7u \u0111\xE3 nh\u1EADp">
+                ${uiIcon("undo", 13)} N\u1EA1p 3 file m\u1EDBi nh\u1EA5t
               </button>
             </div>
           </div>
@@ -17854,11 +17982,11 @@ ${page2}`;
             <div class="empty-studio-icon">${uiIcon("database", 32)}</div>
             <h3 class="empty-studio-title">Phi\xEAn "${escapeHtmlUi(activeSession.name)}" \u0111ang thi\u1EBFu ${missingList.length} ngu\u1ED3n: ${escapeHtmlUi(missingList.join(", "))}</h3>
             <p class="empty-studio-desc">
-              M\u1ED7i phi\xEAn l\u01B0u ngu\u1ED3n Excel \u0111\u1ED9c l\u1EADp. B\u1EA1n c\xF3 th\u1EC3 ch\u1ECDn/n\u1EA1p t\u1EEBng file Excel \u1EDF thanh b\xEAn tr\xE1i cho ri\xEAng phi\xEAn n\xE0y, ho\u1EB7c n\u1EA1p b\u1ED9 3 file tham chi\u1EBFu m\u1EB7c \u0111\u1ECBnh \u0111\u1EC3 xem ngay b\u1EA3ng b\xE1o c\xE1o.
+              M\u1ED7i phi\xEAn l\u01B0u ngu\u1ED3n Excel \u0111\u1ED9c l\u1EADp. B\u1EA1n c\xF3 th\u1EC3 ch\u1ECDn/n\u1EA1p t\u1EEBng file Excel \u1EDF thanh b\xEAn tr\xE1i cho ri\xEAng phi\xEAn n\xE0y, ho\u1EB7c n\u1EA1p 3 ngu\u1ED3n m\u1EDBi nh\u1EA5t t\u1EEB kho d\u1EEF li\u1EC7u \u0111\xE3 nh\u1EADp.
             </p>
             <div class="empty-studio-presets">
-              <button type="button" class="btn btn-primary" id="btn-center-load-embedded">
-                ${uiIcon("database", 14)} N\u1EA1p 3 file tham chi\u1EBFu cho phi\xEAn n\xE0y
+              <button type="button" class="btn btn-primary" id="btn-center-load-latest-sources">
+                ${uiIcon("database", 14)} N\u1EA1p 3 file m\u1EDBi nh\u1EA5t
               </button>
               <label class="btn btn-secondary">
                 ${uiIcon("upload", 14)} Ch\u1ECDn file Excel t\u1EEB m\xE1y t\xEDnh
@@ -18078,9 +18206,46 @@ ${page2}`;
         </div>`;
       }).join("");
     }
+    openLatestSourcesModal() {
+      const active = this.getActiveSession();
+      if (!active) return;
+      this.latestSourcesPreview = { sessionId: active.id, plan: chooseLatestSources(this.workspace, active) };
+      this.render();
+    }
+    latestSourceCards(plan) {
+      const titles = { DISB: "Gi\u1EA3i ng\xE2n \u0111\u1EA7u t\u01B0 c\xF4ng", REV: "Thu NSNN", GPMB: "Gi\u1EA3i ph\xF3ng m\u1EB7t b\u1EB1ng" };
+      return plan.choices.map((c) => {
+        const d = c.dataset;
+        const scope = d && c.type === "DISB" ? disbScope(d) === "ALLOCATED" ? " \xB7 V\u1ED1n ph\xE2n c\u1EA5p c\u1EA5p x\xE3" : " \xB7 T\u1ED5ng v\u1ED1n" : "";
+        const notes = [
+          c.referenceFallback ? "\u0110ang d\xF9ng ngu\u1ED3n m\u1EABu tham chi\u1EBFu (ch\u01B0a c\xF3 ngu\u1ED3n th\u1EF1c t\u1EBF t\u01B0\u01A1ng th\xEDch)." : "",
+          c.sameDateVersions > 1 ? "C\xF3 " + c.sameDateVersions + " b\u1EA3n kh\xE1c n\u1ED9i dung c\xF9ng ng\xE0y ch\u1ED1t; \u01B0u ti\xEAn b\u1EA3n \u0111\u01B0\u1EE3c nh\u1EADp l\u1EA7n \u0111\u1EA7u g\u1EA7n nh\u1EA5t. H\xE3y ki\u1EC3m tra t\xEAn file tr\u01B0\u1EDBc khi n\u1EA1p." : ""
+        ].filter(Boolean).map((x) => '<div class="latest-source-warning">' + escapeHtmlUi(x) + "</div>").join("");
+        const skipped = c.skipped.length ? '<details class="latest-source-skipped"><summary>' + c.skipped.length + " ngu\u1ED3n kh\xF4ng \u0111\u01B0\u1EE3c t\u1EF1 ch\u1ECDn</summary>" + c.skipped.map((x) => "<div>" + escapeHtmlUi(x.dataset.sourceFilename + " \u2014 " + x.reason) + "</div>").join("") + "</details>" : "";
+        return '<div class="latest-source-card"><strong>' + titles[c.type] + "</strong>" + (d ? '<div class="latest-source-name">' + escapeHtmlUi(d.sourceFilename) + "</div><div>Ch\u1ED1t " + escapeHtmlUi(formatVnDate(d.asOfDate)) + " \xB7 " + d.unitCount + " \u0111\u1ECBa ph\u01B0\u01A1ng" + escapeHtmlUi(scope) + "</div>" : '<div class="latest-source-warning">Ch\u01B0a c\xF3 ngu\u1ED3n \u0111\u1EE7 \u0111i\u1EC1u ki\u1EC7n. Ch\u1ECDn ho\u1EB7c nh\u1EADp file r\u1ED3i x\xE1c nh\u1EADn ng\xE0y ch\u1ED1t.</div>') + notes + skipped + "</div>";
+      }).join("");
+    }
+    renderLatestSourcesModal() {
+      const preview = this.latestSourcesPreview;
+      if (!preview) return "";
+      const active = this.workspace.sessions.find((s) => s.id === preview.sessionId);
+      if (!active) return "";
+      return `<div class="proj-modal-backdrop no-print" id="latest-sources-backdrop">
+      <div class="proj-modal-dialog" role="dialog" aria-modal="true" aria-labelledby="latest-sources-title">
+        <div class="proj-modal-header"><h3 class="proj-modal-title" id="latest-sources-title">N\u1EA1p 3 file m\u1EDBi nh\u1EA5t</h3><button type="button" class="proj-modal-close" id="btn-close-latest-sources" aria-label="\u0110\xF3ng">&times;</button></div>
+        <div class="proj-modal-body">
+          <p>Ch\u1ECDn theo ng\xE0y ch\u1ED1t \u0111\xE3 x\xE1c nh\u1EADn, kh\xF4ng theo ng\xE0y nh\u1EADp l\u1EA1i file. Ch\u1EC9 c\u1EADp nh\u1EADt phi\xEAn \u201C${escapeHtmlUi(active.name)}\u201D.</p>
+          ${this.latestSourceCards(preview.plan)}
+          <p class="muted-xs">C\xE1c ngu\u1ED3n c\xF3 th\u1EC3 c\xF3 ng\xE0y ch\u1ED1t kh\xE1c nhau. X\xE1c nh\u1EADn ng\xE0y ch\u01B0a r\xF5 \u1EDF Kh\u1ED1i 1; kh\xF4ng t\u1EF1 thay \u0111\u1ED5i ph\u1EA1m vi v\u1ED1n gi\u1EA3i ng\xE2n. C\xE1c phi\xEAn kh\xE1c gi\u1EEF nguy\xEAn.</p>
+        </div>
+        <div class="proj-modal-footer"><button type="button" class="btn btn-secondary" id="btn-cancel-latest-sources">H\u1EE7y</button><button type="button" class="btn btn-primary" id="btn-confirm-latest-sources" ${preview.plan.complete ? "" : "disabled"}>N\u1EA1p 3 ngu\u1ED3n</button></div>
+      </div>
+    </div>`;
+    }
     renderNewSessionModal(datasets) {
       if (!this.showNewSessionModal) return "";
       const active = this.getActiveSession();
+      const latestPlan = chooseLatestSources(this.workspace, active);
       const curNames = [
         datasets.DISB ? `DISB: ${datasets.DISB.sourceFilename}` : "DISB: (tr\u1ED1ng)",
         datasets.REV ? `REV: ${datasets.REV.sourceFilename}` : "REV: (tr\u1ED1ng)",
@@ -18123,10 +18288,11 @@ ${page2}`;
                 </label>
 
                 <label class="source-mode-radio-item">
-                  <input type="radio" name="new-session-source-mode" value="EMBEDDED" ${this.newSessionSourceMode === "EMBEDDED" ? "checked" : ""} />
+                  <input type="radio" name="new-session-source-mode" value="LATEST" ${this.newSessionSourceMode === "LATEST" ? "checked" : ""} ${latestPlan.complete ? "" : "disabled"} />
                   <div>
-                    <strong>G\u1EAFn 3 file Excel tham chi\u1EBFu m\u1EB7c \u0111\u1ECBnh (DISB/REV/GPMB)</strong>
-                    <div class="muted-xs">Kh\u1EDFi t\u1EA1o nhanh t\u1EEB 3 file tham chi\u1EBFu \u0111\xF3ng g\xF3i s\u1EB5n trong \u1EE9ng d\u1EE5ng.</div>
+                    <strong>G\u1EAFn 3 file m\u1EDBi nh\u1EA5t (DISB/REV/GPMB)</strong>
+                    <div class="muted-xs">Ch\u1ECDn theo ng\xE0y ch\u1ED1t \u0111\xE3 x\xE1c nh\u1EADn; c\xF9ng ph\u1EA1m vi gi\u1EA3i ng\xE2n c\u1EE7a phi\xEAn \u0111ang m\u1EDF.</div>
+                    ${this.latestSourceCards(latestPlan)}
                   </div>
                 </label>
               </div>
@@ -18509,8 +18675,8 @@ ${page2}`;
         this.showCoverageModal = true;
         this.render();
       });
-      document.getElementById("btn-center-load-embedded")?.addEventListener("click", () => {
-        this.loadEmbeddedReferenceWorkbooks("2026-10-19");
+      document.getElementById("btn-center-load-latest-sources")?.addEventListener("click", () => {
+        this.openLatestSourcesModal();
       });
       const centerUpload = document.getElementById("input-center-xlsx-upload");
       centerUpload?.addEventListener("change", () => {
@@ -18991,35 +19157,31 @@ ${page2}`;
           }
         });
       });
-      document.getElementById("btn-confirm-rev-date")?.addEventListener("click", (e) => {
-        const btn = e.currentTarget;
-        const dsId = btn.getAttribute("data-dataset-id") || "";
-        const activeSession2 = this.getActiveSession();
-        const dateEl = document.getElementById("input-confirm-rev-date");
-        if (!activeSession2) return;
-        try {
-          updateDatasetAsOfDateForSession(
-            this.workspace,
-            activeSession2.id,
-            dsId,
-            dateEl?.value || "2026-10-19",
-            "X\xE1c nh\u1EADn ng\xE0y ch\u1ED1t th\u1EF1c t\u1EBF"
-          );
-          this.triggerAutosave();
-          this.setStatus("\u0110\xE3 x\xE1c nh\u1EADn ng\xE0y ch\u1ED1t cho ngu\u1ED3n Thu NSNN c\u1EE7a phi\xEAn n\xE0y.", "success");
-        } catch (err2) {
-          confirmDatasetAsOfDate(
-            this.workspace,
-            dsId,
-            dateEl?.value || "2026-10-19",
-            "X\xE1c nh\u1EADn ng\xE0y ch\u1ED1t th\u1EF1c t\u1EBF"
-          );
-          this.triggerAutosave();
-          this.setStatus("\u0110\xE3 x\xE1c nh\u1EADn ng\xE0y ch\u1ED1t cho ngu\u1ED3n Thu NSNN.", "success");
-        }
+      document.getElementById("btn-load-latest-sources")?.addEventListener("click", () => {
+        this.openLatestSourcesModal();
       });
-      document.getElementById("btn-load-embedded-confirmed")?.addEventListener("click", () => {
-        this.loadEmbeddedReferenceWorkbooks("2026-10-19");
+      const closeLatest = () => {
+        this.latestSourcesPreview = null;
+        this.render();
+      };
+      document.getElementById("btn-close-latest-sources")?.addEventListener("click", closeLatest);
+      document.getElementById("btn-cancel-latest-sources")?.addEventListener("click", closeLatest);
+      document.getElementById("latest-sources-backdrop")?.addEventListener("click", (e) => {
+        if (e.target === document.getElementById("latest-sources-backdrop")) closeLatest();
+      });
+      document.getElementById("btn-confirm-latest-sources")?.addEventListener("click", () => {
+        const preview = this.latestSourcesPreview;
+        if (!preview || this.getActiveSession()?.id !== preview.sessionId) return closeLatest();
+        try {
+          const s = applyLatestSources(this.workspace, preview.sessionId, preview.plan);
+          this.latestSourcesPreview = null;
+          this.clearCellSelection(true);
+          this.triggerAutosave();
+          this.setStatus(`\u0110\xE3 n\u1EA1p 3 ngu\u1ED3n m\u1EDBi nh\u1EA5t cho ri\xEAng phi\xEAn "${s.name}". C\xE1c phi\xEAn kh\xE1c gi\u1EEF nguy\xEAn.`, "success");
+        } catch (err2) {
+          this.latestSourcesPreview = null;
+          this.setStatus(err2.message, "warning");
+        }
       });
       document.getElementById("btn-open-coverage-modal")?.addEventListener("click", () => {
         this.showCoverageModal = true;
@@ -19203,14 +19365,15 @@ ${page2}`;
             dataBindings: { ...prevSession.dataBindings },
             exactBindings: true
           });
-        } else {
-          newSess = createReportSession(this.workspace, { name: sessionName });
-          if (mode === "EMBEDDED" && window.__EMBEDDED_REFERENCE_FIXTURES__) {
-            this.showNewSessionModal = false;
-            this.clearCellSelection(true);
-            this.loadEmbeddedReferenceWorkbooks("2026-10-19");
+        } else if (mode === "LATEST") {
+          const latest = chooseLatestSources(this.workspace, prevSession);
+          if (!latest.complete) {
+            this.setStatus("Ch\u01B0a \u0111\u1EE7 3 ngu\u1ED3n h\u1EE3p l\u1EC7; h\xE3y ch\u1ECDn ngu\u1ED3n v\xE0 x\xE1c nh\u1EADn ng\xE0y ch\u1ED1t tr\u01B0\u1EDBc.", "warning");
             return;
           }
+          newSess = createReportSession(this.workspace, { name: sessionName, dataBindings: latest.bindings, exactBindings: true });
+        } else {
+          newSess = createReportSession(this.workspace, { name: sessionName });
         }
         this.workspace.activeSessionId = newSess.id;
         this.showNewSessionModal = false;
