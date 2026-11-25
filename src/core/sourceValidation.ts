@@ -1,4 +1,5 @@
-import type { Dataset, SourceRecord, SourceValidation, SourceValidationCheck, SourceMappingColumn, Workspace } from './types';
+import type { Dataset, SourceRecord, SourceValidation, SourceValidationCheck, SourceMappingColumn, Workspace, DisbResolvedLayout, DisbSchemaFingerprint } from './types';
+import { getDisbSchemaProfile } from './types';
 import type { ParsedWorkbookSheet } from './sourceReaders';
 import { Decimal, sha256Hex } from './decimal';
 
@@ -21,11 +22,6 @@ function rowCells(sheet: ParsedWorkbookSheet, row: number) {
 }
 function h(sheet: ParsedWorkbookSheet, col: string, row: number): string {return normalizedHeader(sheet.cells.get(col+row)?.value);}
 function fail(message: string): never {throw new Error('BLOCKER_MAPPING_REQUIRED: '+message);}
-type HeaderRule = [string, number, RegExp, string];
-function requireHeaders(sheet: ParsedWorkbookSheet, rules: HeaderRule[]): void {
-  const errors = rules.filter(([col,row,rx])=>!rx.test(h(sheet,col,row))).map(([col,row,,label])=>col+row+' cần là '+label+' (đọc được: '+String(sheet.cells.get(col+row)?.value ?? 'trống')+')');
-  if (errors.length) fail(errors.slice(0,12).join('; ') + (errors.length>12?'…':'') + '. Giữ nguyên nguồn cũ; không suy đoán vị trí cột.');
-}
 const stt=/^(stt|so thu tu)$/;
 const locality=/^(chu dau tu|don vi|dia phuong|xa phuong|xa\/phuong)(\b|$)/;
 const plan=/^ke hoach von/;
@@ -35,53 +31,134 @@ const total=/^tong so$/;
 const city=/^du an khoi (tp|thanh pho)$/;
 const allocated=/^phan cap (cho )?cap xa$/;
 const rate=/^ty le/;
-const note=/^ghi chu/;
+const note=/^ghi chu(?:\s*\([^)]*\))?$/;
 const land=/^(nguon )?thu tien su dung dat/;
 const support=/^bo sung co muc tieu/;
 const increase=/^nguon tang thu/;
-
-/** Fixed-format DISB profiles are accepted only when every mapped header role
- * matches, not merely because a few cells contain numbers. Arbitrary shifted
- * group layouts deliberately fail closed until a profile can be verified. */
-export function validateDisbHeaders(sheet: ParsedWorkbookSheet, fp: string): number[] {
-  const R=(c:string,r:number,rx:RegExp,label:string):HeaderRule=>[c,r,rx,label];
-  if(fp==='DISB_TOTAL_LOCALITY_V2'){
-    const candidates=Array.from({length:11},(_,i)=>i+2).filter(r=>plan.test(h(sheet,'C',r))&&adjusted.test(h(sheet,'F',r))&&actual.test(h(sheet,'I',r)));
-    if(candidates.length!==1) fail('Không nhận diện duy nhất nhóm kế hoạch/điều chỉnh/giải ngân của mẫu tổng hợp.');
-    const r=candidates[0];
-    requireHeaders(sheet,[R('A',r,stt,'STT'),R('B',r,locality,'địa phương'),R('C',r,plan,'kế hoạch vốn'),R('F',r,adjusted,'kế hoạch sau điều chỉnh'),R('I',r,actual,'giải ngân'),R('L',r,/^ty le.*(?:dau nam|giao dau)/,'tỷ lệ vốn đầu năm'),R('M',r,/^ty le.*sau.*dieu chinh/,'tỷ lệ sau điều chỉnh'),R('N',r,note,'ghi chú'),...['C','F','I'].map(c=>R(c,r+1,total,'tổng số')),...['D','G','J'].map(c=>R(c,r+1,city,'dự án khối TP')),...['E','H','K'].map(c=>R(c,r+1,allocated,'phân cấp cấp xã'))]);
-    checkUniqueAnchors(sheet,r,[['C',x=>plan.test(x)&&!adjusted.test(x)],['F',x=>adjusted.test(x)],['I',x=>actual.test(x)]]);
-    return [r,r+1];
-  }
-  if(fp==='DISB_V1'){
-    requireHeaders(sheet,[R('A',3,stt,'STT'),R('B',3,locality,'chủ đầu tư'),R('C',3,plan,'kế hoạch đầu năm'),R('F',3,adjusted,'kế hoạch sau điều chỉnh'),R('I',3,actual,'giải ngân'),R('O',3,rate,'tỷ lệ'),R('Q',3,note,'ghi chú'),...['C','F','I'].map(c=>R(c,4,total,'tổng số')),...['D','G'].map(c=>R(c,4,city,'dự án khối TP')),...['E','H'].map(c=>R(c,4,allocated,'phân cấp cấp xã')),R('J',5,city,'giải ngân khối TP'),R('K',5,allocated,'giải ngân cấp xã'),R('L',5,/^giai ngan xay lap/,'giải ngân xây lắp'),R('M',5,/^giai ngan.*(?:boi thuong|gpmb)/,'giải ngân GPMB'),R('N',5,/^giai ngan.*nhiem vu khac/,'giải ngân khác')]);
-    checkUniqueAnchors(sheet,3,[['C',x=>plan.test(x)&&!adjusted.test(x)],['F',x=>adjusted.test(x)],['I',x=>actual.test(x)]]);
-    // The legacy summary/row-145 semantics are pinned to the established layout.
-    const localRows=[...sheet.cells.values()].filter(c=>c.col==='B'&&/^(xa|phuong|dac khu)\s+/.test(normalizedHeader(c.value))).map(c=>c.row);
-    if(localRows.some(r=>r<13||r>126)) fail('Dòng địa phương của mẫu tổng hợp cũ nằm ngoài 13–126; không được bỏ sót dòng hoặc đọc nhầm phạm vi.');
-    if(!/^tong/.test(h(sheet,'B',7)) || !/dia phuong/.test(h(sheet,'B',12))) fail('Dòng tổng thành phố/khối địa phương đã thay đổi vị trí.');
-    return [3,4,5];
-  }
-  if(fp==='DISB_PHAN_CAP_XA_V1'||fp==='DISB_PHAN_CAP_XA_V2'){
-    const v2=fp==='DISB_PHAN_CAP_XA_V2';
-    const pc=v2?'F':'C', dc=v2?'J':'G', rc=v2?'N':'K', nc=v2?'O':'L';
-    const rules:HeaderRule[]=[R('A',3,stt,'STT'),R('B',3,locality,'chủ đầu tư'),R(pc,3,v2?adjusted:plan,'kế hoạch vốn'),R(dc,3,actual,'giải ngân'),R(rc,3,rate,'tỷ lệ'),R(nc,3,note,'ghi chú'),R(pc,4,total,'tổng số'),R(dc,4,total,'tổng số')];
-    const groups=v2?[['D','E'],['G','H','I'],['K','L','M']]:[['D','E','F'],['H','I','J']];
-    if(v2)rules.push(R('C',3,/^ke hoach von.*dau nam/,'kế hoạch đầu năm'),R('C',4,total,'tổng số đầu năm'));
-    for(const group of groups){rules.push(R(group[0],5,land,'tiền sử dụng đất'),R(group[1],5,support,'bổ sung có mục tiêu'));if(group[2])rules.push(R(group[2],5,increase,'nguồn tăng thu'));}
-    requireHeaders(sheet,rules);
-    checkUniqueAnchors(sheet,3,v2?[['C',x=>plan.test(x)&&!adjusted.test(x)],['F',x=>adjusted.test(x)],['J',x=>actual.test(x)]]:[['C',x=>plan.test(x)],['G',x=>actual.test(x)]]);
-    if(!/^tong/.test(h(sheet,'B',7))) fail('Không xác minh được dòng tổng vốn phân cấp tại B7.');
-    if([...sheet.cells.values()].some(c=>c.col==='B'&&c.row<8&&/^(xa|phuong|dac khu)\s+/.test(normalizedHeader(c.value)))) fail('Dòng địa phương nằm ngoài vùng dữ liệu của mẫu phân cấp.');
-    return [3,4,5];
-  }
-  return fail('Mẫu giải ngân không được hỗ trợ.');
+const isLocality=(s:string)=>/^(xa|phuong|dac khu)\s+\S/.test(s);
+type HeaderCell=ReturnType<typeof rowCells>[number];
+function exactlyOne(rows:HeaderCell[],rx:RegExp,label:string):HeaderCell {
+  const matches=rows.filter(c=>rx.test(normalizedHeader(c.value)));
+  if(matches.length!==1)fail(label+' phải có đúng một cột (tìm thấy '+matches.map(c=>c.address).join(', ')+').');
+  return matches[0];
 }
-function checkUniqueAnchors(sheet:ParsedWorkbookSheet,row:number,roles:Array<[string,(s:string)=>boolean]>) {
-  for(const [expected,match] of roles){
-    const cols=rowCells(sheet,row).filter(c=>match(normalizedHeader(c.value))).map(c=>c.col);
-    if(cols.length!==1||cols[0]!==expected) fail('Nhóm tiêu đề tại '+expected+row+' không duy nhất: '+cols.join(', '));
+
+/** Resolve existing DISB business scopes by unique top-level group anchors
+ * and unique child roles within those groups. Never match a numeric value.
+ * Unrecognized/ambiguous layouts are rejected, not guessed. */
+export function resolveDisbLayout(sheet:ParsedWorkbookSheet):DisbResolvedLayout|null {
+  const candidates:DisbResolvedLayout[]=[];
+  let error:Error|undefined;
+  for(let r=2;r<=Math.min(20,sheet.maxRow-1);r++){
+    const top=rowCells(sheet,r);
+    const heads=top.filter(c=>plan.test(normalizedHeader(c.value)));
+    const paid=top.filter(c=>actual.test(normalizedHeader(c.value)));
+    if(!heads.length||!paid.length)continue;
+    // Avoid mistaking a narrative header or data row for a DISB table.
+    if(!top.some(c=>stt.test(normalizedHeader(c.value)))||!top.some(c=>locality.test(normalizedHeader(c.value))))continue;
+    try{
+      const sttCell=exactlyOne(top,stt,'STT'),locCell=exactlyOne(top,locality,'Địa phương/chủ đầu tư');
+      const initial=heads.filter(c=>!adjusted.test(normalizedHeader(c.value)));
+      const revised=heads.filter(c=>adjusted.test(normalizedHeader(c.value)));
+      if(initial.length!==1||revised.length>1||paid.length!==1)fail('Nhóm kế hoạch/giải ngân không duy nhất.');
+      const pay=paid[0],rateCells=top.filter(c=>rate.test(normalizedHeader(c.value)));
+      const notes=exactlyOne(top,note,'Ghi chú');
+      if(rateCells.length<1||rateCells.length>2)fail('Không xác định duy nhất nhóm tỷ lệ giải ngân.');
+      const ordered=[initial[0],...revised,pay,...rateCells,notes];
+      if(ordered.some((c,i)=>i>0&&colNumber(c.col)<=colNumber(ordered[i-1].col)))fail('Thứ tự nhóm tiêu đề giải ngân chưa được hỗ trợ.');
+      if(Math.max(colNumber(sttCell.col),colNumber(locCell.col))>=colNumber(initial[0].col))fail('Cột định danh nằm trong nhóm số liệu.');
+      const m:Record<string,string>={A:sttCell.col,B:locCell.col};
+      const within=(anchor:HeaderCell,rows:number[])=>{
+        const ix=ordered.findIndex(c=>c.col===anchor.col);
+        const lo=colNumber(anchor.col),hi=ix+1<ordered.length?colNumber(ordered[ix+1].col):16385;
+        return rows.flatMap(rr=>rowCells(sheet,rr).filter(c=>colNumber(c.col)>=lo&&colNumber(c.col)<hi));
+      };
+      const assign=(role:string,c:HeaderCell)=>{if(Object.values(m).includes(c.col))fail('Cột '+c.col+' bị gán hai vai trò.');m[role]=c.col;};
+      const child=(role:string,anchor:HeaderCell,rr:number,rx:RegExp,label:string)=>assign(role,exactlyOne(within(anchor,[rr]),rx,label));
+      const firstChildren=within(initial[0],[r+1,r+2]);
+      const totalScope=firstChildren.some(c=>city.test(normalizedHeader(c.value)))&&firstChildren.some(c=>allocated.test(normalizedHeader(c.value)));
+      const localScope=firstChildren.some(c=>land.test(normalizedHeader(c.value)))&&firstChildren.some(c=>support.test(normalizedHeader(c.value)));
+      if(totalScope===localScope)fail('Không phân biệt được tổng vốn và vốn phân cấp cấp xã.');
+      const scopeChildren=within(pay,[r+1,r+2]);
+      if(totalScope&&scopeChildren.some(c=>land.test(normalizedHeader(c.value))))fail('Nhóm nguồn vốn không cùng phạm vi.');
+      if(localScope&&scopeChildren.some(c=>city.test(normalizedHeader(c.value))||allocated.test(normalizedHeader(c.value))))fail('Nhóm giải ngân không cùng phạm vi vốn phân cấp.');
+      let fp:DisbSchemaFingerprint;
+      const planTotal=(roles:string[],anchor:HeaderCell,scope:'total'|'allocated',withIncrease=false)=>{
+        child(roles[0],anchor,r+1,total,'Tổng số của '+anchor.address);
+        child(roles[1],anchor,scope==='total'?r+1:r+2,scope==='total'?city:land,'Thành phần thứ nhất của '+anchor.address);
+        child(roles[2],anchor,scope==='total'?r+1:r+2,scope==='total'?allocated:support,'Thành phần thứ hai của '+anchor.address);
+        if(withIncrease)child(roles[3],anchor,r+2,increase,'Nguồn tăng thu của '+anchor.address);
+      };
+      let headerRows:number[], summaryRow=0, citySummaryRow:number|undefined, unplannedRow:number|undefined;
+      if(totalScope){
+        if(revised.length!==1)fail('Tổng vốn cần phân biệt kế hoạch ban đầu và sau điều chỉnh.');
+        planTotal(['C','D','E'],initial[0],'total');
+        planTotal(['F','G','H'],revised[0],'total');
+        if(rateCells.length===2){
+          fp='DISB_TOTAL_LOCALITY_V2';
+          planTotal(['I','J','K'],pay,'total');
+          assign('L',exactlyOne(rateCells,/^ty le.*(?:dau nam|giao dau)/,'Tỷ lệ vốn đầu năm'));
+          assign('M',exactlyOne(rateCells,/^ty le.*sau.*dieu chinh/,'Tỷ lệ vốn sau điều chỉnh'));
+          assign('N',notes);headerRows=[r,r+1];
+        }else{
+          fp='DISB_V1';
+          child('I',pay,r+1,total,'Tổng số giải ngân');
+          child('J',pay,r+2,city,'Giải ngân khối TP');
+          child('K',pay,r+2,allocated,'Giải ngân cấp xã');
+          child('L',pay,r+2,/^giai ngan xay lap/,'Giải ngân xây lắp');
+          child('M',pay,r+2,/^giai ngan.*(?:boi thuong|gpmb)/,'Giải ngân GPMB');
+          child('N',pay,r+2,/^giai ngan.*nhiem vu khac/,'Giải ngân khác');
+          assign('O',rateCells[0]);assign('Q',notes);
+          const markers=within(rateCells[0],[r+1,r+2]).filter(c=>/^chu tich di\b/.test(normalizedHeader(c.value)));
+          if(markers.length>1)fail('Trùng cột đánh dấu kiểm tra.');
+          if(markers[0])assign('P',markers[0]);
+          headerRows=[r,r+1,r+2];
+          citySummaryRow=r+4;summaryRow=r+9;unplannedRow=r+142;
+          if(!/^tong/.test(h(sheet,m.B,citySummaryRow))||!/dia phuong/.test(h(sheet,m.B,summaryRow)))fail('Dòng tổng thành phố/khối địa phương không đúng phạm vi mẫu.');
+        }
+      }else{
+        if(rateCells.length!==1)fail('Mẫu vốn phân cấp chỉ có một tỷ lệ sau điều chỉnh.');
+        if(revised.length===1){
+          fp='DISB_PHAN_CAP_XA_V2';
+          if(!/dau nam/.test(normalizedHeader(initial[0].value)))fail('Không xác minh được nhóm vốn đầu năm.');
+          planTotal(['C','D','E'],initial[0],'allocated');
+          planTotal(['F','G','H','I'],revised[0],'allocated',true);
+          planTotal(['J','K','L','M'],pay,'allocated',true);
+          assign('N',rateCells[0]);assign('O',notes);
+        }else{
+          fp='DISB_PHAN_CAP_XA_V1';
+          planTotal(['C','D','E','F'],initial[0],'allocated',true);
+          planTotal(['G','H','I','J'],pay,'allocated',true);
+          assign('K',rateCells[0]);assign('L',notes);
+        }
+        headerRows=[r,r+1,r+2];summaryRow=r+4;
+        if(!/^tong/.test(h(sheet,m.B,summaryRow)))fail('Không xác minh được dòng tổng vốn phân cấp.');
+      }
+      const profile=getDisbSchemaProfile(fp);
+      if(Object.keys(profile.colMap).some(k=>!m[k]))fail('Thiếu cột bắt buộc của '+fp+'.');
+      const dataRows=[...sheet.cells.values()].filter(c=>c.col===m.B&&isLocality(normalizedHeader(c.value))).map(c=>c.row).sort((a,b)=>a-b);
+      if(!dataRows.length||dataRows.some(row=>row<=Math.max(...headerRows)||row<=summaryRow))fail('Không xác minh được dòng địa phương dưới tiêu đề/tổng.');
+      if(fp==='DISB_V1'&&dataRows.some(row=>row<r+10||row>r+123))fail('Dòng địa phương nằm ngoài khối tổng hợp cũ; cần xác minh phạm vi.');
+      if(fp==='DISB_V1'){
+        // Do not assume a row at a fixed offset is an out-of-plan total if
+        // it is absent or not explicitly named as such.
+        if(!/ngoai.*ke hoach|khong.*ke hoach/.test(h(sheet,m.B,unplannedRow!)))unplannedRow=undefined;
+      }
+      const titles=[...sheet.cells.values()].filter(c=>c.row<r&&c.cellType!=='n'&&/giai ngan/.test(normalizedHeader(c.value))&&/ke hoach von|bao cao tinh hinh giai ngan/.test(normalizedHeader(c.value)));
+      if(titles.length>1)fail('Có nhiều tiêu đề báo cáo giải ngân.');
+      const titleCell=titles[0]?.address||'A1';
+      candidates.push({fingerprint:fp,columns:m,headerRows,dataRows,summaryRow,citySummaryRow,unplannedRow,titleCell});
+    }catch(e){error=e as Error;}
   }
+  if(candidates.length>1)fail('Có nhiều bảng giải ngân cùng sheet; không tự chọn.');
+  if(candidates.length===1)return candidates[0];
+  if(error)throw error;
+  return null;
+}
+export function validateDisbHeaders(sheet:ParsedWorkbookSheet,fp:string):number[]{
+  const layout=resolveDisbLayout(sheet);
+  if(!layout||layout.fingerprint!==fp)fail('Cấu trúc giải ngân không xác minh được.');
+  return layout.headerRows;
 }
 
 const areaDeclared=/^(?:tong )?(?:dt|dien tich) (?:phai )?gpmb(?:\s*\([^)]*\))?$/;
@@ -166,7 +243,7 @@ function unitCheck(ds:Dataset,sheet:ParsedWorkbookSheet,rows:number[],columns:So
   if(ds.sourceType==='REV'||ds.sourceType==='DISB'){
     const globalUnits=declarations.map(money).filter(Boolean);
     if(globalUnits.some(u=>u!=='million_vnd'))fail('Đơn vị tiền không phải triệu đồng theo mẫu: '+declarations.join('; ')+'. Cần xác minh/quy đổi trước khi nạp.');
-    const core=columns.filter(c=>CORE[ds.sourceType]?.includes(c.field));
+    const core=columns.filter(c=>CORE[ds.sourceType]?.includes(c.field)||c.unit==='million_vnd');
     for(const c of core){
       const unit=money(normalizedHeader(c.header).match(/\([^)]*\b(?:dong|vnd)\b[^)]*\)/)?.[0]||'');
       if(unit&&unit!=='million_vnd')fail('Đơn vị của '+c.column+' ('+c.header+') không khớp triệu đồng.');
@@ -253,7 +330,7 @@ export function attachSourceValidation(ds:Dataset,sheet:ParsedWorkbookSheet,head
   if(new Set(cols.map(c=>c.column)).size!==cols.length)fail('Một cột được gán đồng thời cho nhiều chỉ tiêu.');
   const meaningful=[...sheet.cells.values()].filter(c=>c.value!==null&&String(c.value).trim()!=='');
   const headerCells=headerRows.flatMap(r=>rowCells(sheet,r));
-  const checks:SourceValidationCheck[]=[{code:'MAPPING',label:'Ánh xạ cột',checked:cols.length,failed:0,severity:'INFO',detail:'Vai trò cột được xác minh theo tiêu đề/profile; số cột chỉ là metadata.'},unitCheck(ds,sheet,headerRows,cols),coreValueCheck(ds)];
+  const checks:SourceValidationCheck[]=[{code:'MAPPING',label:'Ánh xạ cột',checked:cols.length,failed:0,severity:'INFO',detail:'Vai trò cột được xác minh theo tiêu đề và nhóm; số cột chỉ là metadata.'},unitCheck(ds,sheet,headerRows,cols),coreValueCheck(ds)];
   if(ds.sourceType==='REV'){
     for(const [prefix,total,land,nonland] of [['ANNUAL','annual_total_budget','annual_land_budget','annual_nonland_budget'],['PERIOD','period_total_plan','period_land_plan','period_nonland_plan'],['ACTUAL','actual_total_revenue','actual_land_revenue','actual_nonland_revenue']]) checks.push(checkRelation(ds,'REV_'+prefix,'Cân đối '+sourceFieldLabel(total),total,[land,nonland]));
     for(const period of ['y','p'])for(const part of ['total','land','nonland']){
@@ -267,6 +344,7 @@ export function attachSourceValidation(ds:Dataset,sheet:ParsedWorkbookSheet,head
       checks.push(checkResult('DISB_IDENTITY_'+eq,'Cân đối '+eq,rows.length,bad.length,bad.map(i=>i.localityName+' dòng '+i.row)));
     }
     checks.push(checkRelation(ds,'DISB_RATE','Tỷ lệ giải ngân ghi nguồn','source_disbursed_rate',['disbursed_total','adjusted_total_plan'],true));
+    if(ds.records.some(r=>r.metrics.source_disbursed_rate_initial))checks.push(checkRelation(ds,'DISB_RATE_INITIAL','Tỷ lệ giải ngân so vốn đầu năm','source_disbursed_rate_initial',['disbursed_total','initial_total_plan'],true));
     checks.push(checkTotals(ds,core));
   }else if(ds.sourceType==='GPMB'){
     checks.push(checkRelation(ds,'GPMB_RATE','Tỷ lệ GPMB ghi nguồn','gpmb_source_reported_rate',['gpmb_recorded_area','gpmb_declared_area'],true,100));
@@ -288,7 +366,7 @@ export function attachSourceValidation(ds:Dataset,sheet:ParsedWorkbookSheet,head
   const status=!original&&checks.some(c=>c.severity==='REVIEW')?'NEEDS_REVIEW':'VERIFIED';
   ds.sourceValidation={
     version:'SCHEMA_GUARD_V1',workbookSha256:ds.workbookSha256,sheet:ds.sourceSheet,
-    schemaSignature:sha256Hex(JSON.stringify({profile:ds.schemaFingerprint,headers:headerCells.map(c=>[c.col,c.row-headerRows[0],normalizedStructure(String(c.value))]),map:cols.map(c=>[c.field,c.column,c.unit])})),
+    schemaSignature:sha256Hex(JSON.stringify({profile:ds.schemaFingerprint,headers:headerCells.map(c=>[c.col,c.row-headerRows[0],normalizedStructure(String(c.value))]),map:cols.map(c=>[c.field,c.column,c.unit]),disbRoles:ds.disbLayout?.columns})),
     headerRows,columnCount:new Set(meaningful.map(c=>c.col)).size,headerColumnCount:new Set(headerCells.map(c=>c.col)).size,
     columns:cols,status,checks,checkedAt:new Date().toISOString(),
     ...(original?{reviewReason:'Workbook tham chiếu byte-identical, kiểm thử nghiệp vụ đã xác minh; giữ cảnh báo nguồn gốc.'}:{}),
@@ -299,6 +377,7 @@ export function sourceMappingProblem(ds:Dataset):string|undefined{
   if(!v)return isOriginalReferenceLayout(ds)?undefined:'Cần nhập lại file Excel gốc để xác minh cấu trúc và đơn vị.';
   if(v.version!=='SCHEMA_GUARD_V1'||v.workbookSha256!==ds.workbookSha256||v.sheet!==ds.sourceSheet||!v.schemaSignature)return 'Thông tin xác minh cấu trúc không khớp file; cần nhập lại.';
   if(v.status!=='VERIFIED')return 'Nguồn cần đối chiếu, chưa được xác minh để sử dụng.';
+  if(ds.disbLayout&&ds.disbLayout.fingerprint!==ds.schemaFingerprint)return 'Phạm vi giải ngân không khớp cấu trúc đã xác minh.';
   return undefined;
 }
 function scope(ds:Dataset):string{return ds.sourceType==='DISB'?(ds.schemaFingerprint.startsWith('DISB_PHAN_CAP_XA')?'ALLOCATED':'TOTAL'):ds.sourceType;}

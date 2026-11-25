@@ -538,9 +538,9 @@ export class KtxhOfflineApp {
           this.triggerAutosave();
           this.setStatus(
             fp === 'DISB_PHAN_CAP_XA_V2'
-              ? `Đã cập nhật nguồn Giải ngân (Phân cấp xã · 15 cột) "${filename}" cho riêng phiên "${activeSession.name}" (${dataset.unitCount} ĐP, chốt ${formatVnDate(dataset.asOfDate)}).`
+              ? `Đã cập nhật nguồn Giải ngân (Phân cấp xã · có vốn đầu năm) "${filename}" cho riêng phiên "${activeSession.name}" (${dataset.unitCount} ĐP, chốt ${formatVnDate(dataset.asOfDate)}).`
               : fp === 'DISB_PHAN_CAP_XA_V1'
-              ? `Đã cập nhật nguồn Giải ngân (Phân cấp xã · 12 cột) "${filename}" cho riêng phiên "${activeSession.name}" (${dataset.unitCount} ĐP, chốt ${formatVnDate(dataset.asOfDate)}).`
+              ? `Đã cập nhật nguồn Giải ngân (Phân cấp xã) "${filename}" cho riêng phiên "${activeSession.name}" (${dataset.unitCount} ĐP, chốt ${formatVnDate(dataset.asOfDate)}).`
               : `Đã cập nhật nguồn Giải ngân "${filename}" cho riêng phiên "${activeSession.name}" (${dataset.unitCount} ĐP, chốt ${formatVnDate(dataset.asOfDate)}).`,
             hasTrustedSourceDate(dataset) ? 'success' : 'warning'
           );

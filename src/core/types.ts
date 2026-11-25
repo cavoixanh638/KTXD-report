@@ -321,6 +321,8 @@ export interface Dataset {
   mappingVersion: string;
   calculationPolicyVersion: string;
   sourceValidation?: SourceValidation;
+  /** Real workbook addresses for an independently resolved DISB layout. */
+  disbLayout?: DisbResolvedLayout;
   unitCount: number;
   projectRowCount?: number;
   asOfDate: string; // YYYY-MM-DD
@@ -527,6 +529,18 @@ export type DisbSchemaFingerprint =
   | 'DISB_PHAN_CAP_XA_V1'
   | 'DISB_PHAN_CAP_XA_V2'
   | 'DISB_TOTAL_LOCALITY_V2';
+
+export interface DisbResolvedLayout {
+  fingerprint: DisbSchemaFingerprint;
+  /** Canonical profile role (A, B, C...) -> actual workbook column. */
+  columns: Record<string,string>;
+  headerRows: number[];
+  dataRows: number[];
+  summaryRow: number;
+  citySummaryRow?: number;
+  unplannedRow?: number;
+  titleCell: string;
+}
 
 export interface DisbIdentityEqDef {
   eq: IdentityCheckResult['equation'];
@@ -820,4 +834,38 @@ export function getDisbSchemaProfile(schemaFingerprint?: string): DisbSchemaProf
 export function formatDisbRange(col: string, profile: DisbSchemaProfile, count = 114): string {
   const endRow = profile.rowStart + Math.max(count, 1) - 1;
   return `${col}${profile.rowStart}:${col}${endRow}`;
+}
+
+/** Keep field IDs and equation IDs stable, but expose actual source addresses. */
+export function remapDisbProfile(layout:DisbResolvedLayout):DisbSchemaProfile {
+  const base=getDisbSchemaProfile(layout.fingerprint);
+  const col=(c:string)=>layout.columns[c]||c;
+  return {
+    ...base,
+    rowStart:layout.dataRows[0]??base.rowStart,
+    defaultRowEnd:layout.dataRows[layout.dataRows.length-1]??base.defaultRowEnd,
+    summaryRow:layout.summaryRow,
+    hasCitySummary:layout.citySummaryRow!==undefined,
+    hasUnplannedRow:layout.unplannedRow!==undefined,
+    planCol:col(base.planCol),disbCol:col(base.disbCol),rateCol:col(base.rateCol),
+    noteCol:col(base.noteCol),markerCol:base.markerCol?layout.columns[base.markerCol]||null:null,
+    colMap:Object.fromEntries(Object.entries(base.colMap).map(([c,field])=>[col(c),field])),
+    componentCols:base.componentCols.map(c=>({...c,col:col(c.col)})),
+    eqDefs:base.eqDefs.map(e=>({...e,totalCol:col(e.totalCol),compCols:e.compCols.map(c=>({...c,col:col(c.col)}))})),
+  };
+}
+export function getDisbDatasetProfile(ds:Dataset):DisbSchemaProfile {
+  return ds.disbLayout?remapDisbProfile(ds.disbLayout):getDisbSchemaProfile(ds.schemaFingerprint);
+}
+/** Use exact records, not an invented continuous range when rows are sparse. */
+export function formatDisbDatasetRange(ds:Dataset,field:string):string {
+  const refs=ds.records.map(r=>r.metrics[field]).filter((m):m is MetricCellValue=>!!m);
+  if(!refs.length)return '(không có dòng nguồn)';
+  const col=refs[0].sourceColumn;
+  const rows=[...new Set(refs.map(m=>m.sourceRow))].sort((a,b)=>a-b);
+  if(refs.some(m=>m.sourceColumn!==col))return refs.map(m=>m.provenance.cell).join(', ');
+  const ranges:string[]=[];
+  for(let i=0;i<rows.length;){let j=i;while(j+1<rows.length&&rows[j+1]===rows[j]+1)j++;
+    ranges.push(col+rows[i]+(j===i?'':':'+col+rows[j]));i=j+1;}
+  return ranges.join(', ');
 }

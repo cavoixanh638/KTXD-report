@@ -1,13 +1,13 @@
 import { unzipSync } from 'fflate';
 import { Decimal, sha256Hex } from './decimal';
 import { dateFromReportTitle, isValidSourceDate } from './latestSources';
-import { validateDisbHeaders, resolveGroupedGpmbHeaders, resolveFlatGpmbHeaders, attachSourceValidation } from './sourceValidation';
+import { resolveDisbLayout, resolveGroupedGpmbHeaders, resolveFlatGpmbHeaders, attachSourceValidation } from './sourceValidation';
 import {
   AdjustedScenarioCandidate,
   CalculationTrace,
   Dataset,
   DisbSchemaFingerprint,
-  getDisbSchemaProfile,
+  remapDisbProfile,
   IdentityCheckResult,
   Locality,
   MetricCellValue,
@@ -486,18 +486,6 @@ function explicitTitleDate(title: string): string | undefined {
   const d = new Date(iso+'T00:00:00Z');
   return Number.isFinite(d.getTime()) && d.toISOString().slice(0,10)===iso ? iso : undefined;
 }
-function isCompactTotalDisb(sheet: ParsedWorkbookSheet): boolean {
-  if (!headerKey(getCellText(sheet,'A1')).includes('giai ngan')) return false;
-  for (let r=2;r<=Math.min(12,sheet.maxRow-1);r++) {
-    const h = (col:string,delta=0) => headerKey(getCellText(sheet,col+(r+delta)));
-    if (h('C').includes('ke hoach von') && h('F').includes('ke hoach von') &&
-        /dieu chinh/.test(h('F')) && h('I').includes('giai ngan') &&
-        /ty le.*sau dieu chinh/.test(h('M')) && /ghi chu/.test(h('N')) &&
-        ['C','F','I'].every(c=>h(c,1)==='tong so') &&
-        /du an khoi tp/.test(h('D',1)) && /phan cap.*cap xa/.test(h('E',1))) return true;
-  }
-  return false;
-}
 interface RevenueHeaderMapping {
   colMap: Record<string,string>;
   row: number;
@@ -590,124 +578,15 @@ export function detectSheetFingerprint(
     return 'RESULT_TEMPLATE_V1';
   }
 
-  // Check GPMB_FLAT (flat table in CSV or XLSX)
-  for (let r = 1; r <= Math.min(12, sheet.maxRow); r++) {
-    const rowTexts: string[] = [];
-    for (let c = 1; c <= 40; c++) {
-      const col = colIndexToLetter(c);
-      const txt = getCellText(sheet, `${col}${r}`).toLowerCase().trim();
-      if (txt) rowTexts.push(txt);
-    }
-    const hasLocality = rowTexts.some((t) =>
-      /phường\s*xã|xã\s*phường|địa\s*bàn|địa\s*phương|phường\/xã/.test(t)
-    );
-    const hasDeclaredArea = rowTexts.some((t) =>
-      /tổng\s*dt\s*gpmb|tổng\s*diện\s*tích\s*phải\s*gpmb|dt\s*gpmb|diện\s*tích\s*phải\s*gpmb/.test(t)
-    );
-    const hasRecordedArea = rowTexts.some((t) =>
-      /dt\s*đã\s*thu\s*hồi|diện\s*tích\s*đã\s*gpmb|dt\s*đã\s*gpmb|đã\s*thu\s*hồi/.test(t)
-    );
-    if (hasLocality && hasDeclaredArea && hasRecordedArea) {
-      return 'GPMB_FLAT';
-    }
-  }
+  // Resolve semantic roles across all populated columns (not a fixed 40-column window).
+  try { if(resolveFlatGpmbHeaders(sheet))return 'GPMB_FLAT'; }
+  catch { return 'SCHEMA_MODIFIED_NEEDS_MAPPING'; }
 
-  if (isCompactTotalDisb(sheet)) return 'DISB_TOTAL_LOCALITY_V2';
-
-  // Check commune-allocated disbursement layouts (DISB_PHAN_CAP_XA_V2: 15 cols A..O; DISB_PHAN_CAP_XA_V1: 12 cols A..L)
-  const c3 = getCellText(sheet, 'C3').toLowerCase();
-  const f3 = getCellText(sheet, 'F3').toLowerCase();
-  const g3 = getCellText(sheet, 'G3').toLowerCase();
-  const j3 = getCellText(sheet, 'J3').toLowerCase();
-  const k3 = getCellText(sheet, 'K3').toLowerCase();
-  const n3 = getCellText(sheet, 'N3').toLowerCase();
-  const d5 = getCellText(sheet, 'D5').toLowerCase();
-  const e5 = getCellText(sheet, 'E5').toLowerCase();
-  const g5 = getCellText(sheet, 'G5').toLowerCase();
-  const h5 = getCellText(sheet, 'H5').toLowerCase();
-
-  const isPhanCapXaSheet =
-    !b12.toLowerCase().includes('địa phương') &&
-    (b7.toUpperCase().includes('TỔNG SỐ') || a1.toLowerCase().includes('giải ngân'));
-
-  // 15-col layout MUST be checked before 12-col V1 because both share D5/E5 source headers
-  const isPhanCapXaV2Header =
-    isPhanCapXaSheet &&
-    (f3.includes('sau điều chỉnh') ||
-      (c3.includes('đầu năm') && f3.includes('kế hoạch vốn') && j3.includes('giải ngân')) ||
-      (d5.includes('sử dụng đất') &&
-        e5.includes('mục tiêu') &&
-        (g5.includes('sử dụng đất') || h5.includes('mục tiêu') || j3.includes('giải ngân') || n3.includes('tỷ lệ'))));
-
-  if (isPhanCapXaV2Header) {
-    const b8 = getCellText(sheet, 'B8');
-    const c8 = sheet.cells.get('C8');
-    const f8 = sheet.cells.get('F8');
-    const j8 = sheet.cells.get('J8');
-    if (
-      !b8 ||
-      typeof sheet.cells.get('B8')?.value !== 'string' ||
-      !c8 ||
-      c8.cellType !== 'n' ||
-      !f8 ||
-      f8.cellType !== 'n' ||
-      !j8 ||
-      j8.cellType !== 'n'
-    ) {
-      return 'SCHEMA_MODIFIED_NEEDS_MAPPING';
-    }
-    return 'DISB_PHAN_CAP_XA_V2';
-  }
-
-  const isPhanCapXaV1Header =
-    isPhanCapXaSheet &&
-    !c3.includes('đầu năm') &&
-    !f3.includes('sau điều chỉnh') &&
-    ((c3.includes('kế hoạch vốn') && g3.includes('giải ngân') && k3.includes('tỷ lệ')) ||
-      (d5.includes('sử dụng đất') &&
-        e5.includes('mục tiêu') &&
-        !g5.includes('sử dụng đất') &&
-        !j3.includes('giải ngân')));
-
-  if (isPhanCapXaV1Header) {
-    const b8 = getCellText(sheet, 'B8');
-    const c8 = sheet.cells.get('C8');
-    const g8 = sheet.cells.get('G8');
-    if (
-      !b8 ||
-      typeof sheet.cells.get('B8')?.value !== 'string' ||
-      !c8 ||
-      c8.cellType !== 'n' ||
-      !g8 ||
-      g8.cellType !== 'n'
-    ) {
-      return 'SCHEMA_MODIFIED_NEEDS_MAPPING';
-    }
-    return 'DISB_PHAN_CAP_XA_V1';
-  }
-
-  // Check DISB_V1
-  if (
-    a1.toLowerCase().includes('giải ngân') ||
-    (b7.toUpperCase().includes('TỔNG SỐ') && b12.toLowerCase().includes('địa phương'))
-  ) {
-    // Never classify an unfamiliar 8-row layout as the legacy row-13 profile.
-    if (isLocalityName(b12)) return 'SCHEMA_MODIFIED_NEEDS_MAPPING';
-    // Verify column positions B (locality name), F (adjusted plan numeric), I (disbursed numeric)
-    const f13 = sheet.cells.get('F13');
-    const i13 = sheet.cells.get('I13');
-    if (
-      !b13 ||
-      typeof sheet.cells.get('B13')?.value !== 'string' ||
-      !f13 ||
-      f13.cellType !== 'n' ||
-      !i13 ||
-      i13.cellType !== 'n'
-    ) {
-      return 'SCHEMA_MODIFIED_NEEDS_MAPPING';
-    }
-    return 'DISB_V1';
-  }
+  try {
+    const disb=resolveDisbLayout(sheet);
+    if(disb)return disb.fingerprint;
+  } catch { return 'SCHEMA_MODIFIED_NEEDS_MAPPING'; }
+  if(a1.toLowerCase().includes('giải ngân')||(b7.toUpperCase().includes('TỔNG SỐ')&&b12.toLowerCase().includes('địa phương')))return 'SCHEMA_MODIFIED_NEEDS_MAPPING';
 
   // Check header-based REV first; retain recognition of the hash-verified reference for compatibility.
   if (resolveRevenueHeader(sheet)) return 'REV_V1';
@@ -945,7 +824,7 @@ export function importDisbursementWorkbook(
       );
       if (modified) {
         throw new Error(
-          'BLOCKER_MAPPING_REQUIRED: Cấu trúc cột file Giải ngân thay đổi, yêu cầu mở Mapping Wizard (PH2-01).'
+          'BLOCKER_MAPPING_REQUIRED: Chưa xác minh được nhóm tiêu đề, phạm vi hoặc vị trí cột giải ngân. Không nạp file để tránh sai số liệu.'
         );
       }
       throw new Error(
@@ -958,9 +837,12 @@ export function importDisbursementWorkbook(
     throw new Error('Sheet not found in DISB workbook.');
   }
 
-  const profile = getDisbSchemaProfile(targetFp);
-  const headerRows = validateDisbHeaders(targetSheet,targetFp);
-  const a1Text = getCellText(targetSheet, 'A1');
+  const layout=resolveDisbLayout(targetSheet);
+  if(!layout||layout.fingerprint!==targetFp)throw new Error('BLOCKER_MAPPING_REQUIRED: Không xác minh được nhóm cột giải ngân.');
+  const profile=remapDisbProfile(layout);
+  if(targetFp==='DISB_TOTAL_LOCALITY_V2'&&layout.columns.L)profile.colMap[layout.columns.L]='source_disbursed_rate_initial';
+  const headerRows=layout.headerRows;
+  const a1Text = getCellText(targetSheet,layout.titleCell);
   const detectedDate = dateFromReportTitle(a1Text);
   const manualDate = options.confirmedAsOfDate?.trim();
   if (manualDate && !isValidSourceDate(manualDate)) throw new Error('Ngày chốt không hợp lệ.');
@@ -974,16 +856,16 @@ export function importDisbursementWorkbook(
   const issues: QualityIssue[] = [];
   if (!asOfDate) issues.push({
     id: `${datasetId}_BLOCKER_AS_OF_DATE`, ruleId: 'MISSING_CONFIRMED_AS_OF_DATE',
-    severity: 'BLOCKER', status: 'OPEN', datasetId, sourceType: 'DISB', rowId: 'HEADER_A1',
-    sourceRow: 1, localityId: 'ALL', localityName: 'Toàn bộ nguồn', fieldId: 'asOfDate',
-    sourceCell: 'A1', observed: null, explanation: 'Không xác định được ngày chốt từ tiêu đề báo cáo. Cần xác nhận ngày chốt thực tế; không dùng tên file hoặc ngày mặc định.',
+    severity: 'BLOCKER', status: 'OPEN', datasetId, sourceType: 'DISB', rowId: 'HEADER_'+layout.titleCell,
+    sourceRow: Number(layout.titleCell.match(/\d+$/)?.[0]||1), localityId: 'ALL', localityName: 'Toàn bộ nguồn', fieldId: 'asOfDate',
+    sourceCell: layout.titleCell, observed: null, explanation: 'Không xác định được ngày chốt từ tiêu đề báo cáo. Cần xác nhận ngày chốt thực tế; không dùng tên file hoặc ngày mặc định.',
   });
   const identityChecks: IdentityCheckResult[] = [];
 
   const parseDisbRow = (row: number, locId: string, locName: string): SourceRecord => {
     const metrics: Record<string, MetricCellValue> = {};
     for (const [col, fieldId] of Object.entries(profile.colMap)) {
-      const unit = col === profile.rateCol ? 'ratio' : 'million_vnd';
+      const unit = fieldId.startsWith('source_disbursed_rate') ? 'ratio' : 'million_vnd';
       const mCell = buildMetricCell(
         targetSheet,
         col,
@@ -1042,48 +924,27 @@ export function importDisbursementWorkbook(
     };
   };
 
-  const citySummaryRecord = profile.hasCitySummary
-    ? parseDisbRow(7, 'CITY_TOTAL', 'TỔNG SỐ TOÀN THÀNH PHỐ')
+  const citySummaryRecord = layout.citySummaryRow!==undefined
+    ? parseDisbRow(layout.citySummaryRow, 'CITY_TOTAL', 'TỔNG SỐ TOÀN THÀNH PHỐ')
     : undefined;
   const summaryRecord = profile.summaryRow > 0 ? parseDisbRow(
     profile.summaryRow,
     'LOCALITIES_BLOCK_114',
     profile.isPhanCapXa
-      ? 'Khối 114 địa phương (vốn phân cấp cấp xã, dòng 7)'
-      : 'Khối địa phương (dòng 12)'
+      ? 'Khối địa phương (vốn phân cấp cấp xã, dòng '+profile.summaryRow+')'
+      : 'Khối địa phương (dòng '+profile.summaryRow+')'
   ) : undefined;
-  const unplannedDisbursementRecord = profile.hasUnplannedRow
-    ? parseDisbRow(145, 'UNPLANNED_ROW_145', 'Giải ngân ngoài kế hoạch (dòng 145)')
+  const unplannedDisbursementRecord = layout.unplannedRow!==undefined
+    ? parseDisbRow(layout.unplannedRow, 'UNPLANNED_ROW_'+layout.unplannedRow, 'Giải ngân ngoài kế hoạch (dòng '+layout.unplannedRow+')')
     : undefined;
 
   const eqDefs = profile.eqDefs;
-  const rowStart = profile.rowStart;
-  const rowEnd = profile.isPhanCapXa
-    ? Math.max(profile.defaultRowEnd, targetSheet.maxRow)
-    : profile.defaultRowEnd;
-  const candidateRows = targetFp === 'DISB_TOTAL_LOCALITY_V2'
-    ? localityRows(targetSheet)
-    : Array.from({length:rowEnd-rowStart+1},(_,i)=>rowStart+i);
+  const candidateRows = layout.dataRows;
   const seenLocalities = new Set<string>();
 
   for (const row of candidateRows) {
-    const rawName = getCellText(targetSheet, `B${row}`).trim();
-    if (!rawName) continue;
-    if (profile.isPhanCapXa) {
-      const lowerName = rawName.toLowerCase();
-      if (lowerName.startsWith('tổng') || lowerName.startsWith('ghi chú')) {
-        continue;
-      }
-      const aCell = targetSheet.cells.get(`A${row}`);
-      const planCell = targetSheet.cells.get(`${profile.planCol}${row}`);
-      const disbCell = targetSheet.cells.get(`${profile.disbCol}${row}`);
-      const looksLikeLocalityRow =
-        aCell?.cellType === 'n' ||
-        (planCell?.cellType === 'n' && disbCell?.cellType === 'n');
-      if (!looksLikeLocalityRow) continue;
-    }
-
-    const loc = createLocalityFromName(rawName, `${wb.filename}!${targetSheet.name}!B${row}`);
+    const rawName = getCellText(targetSheet, layout.columns.B+row).trim();
+    const loc = createLocalityFromName(rawName, wb.filename+'!'+targetSheet.name+'!'+layout.columns.B+row);
     if (seenLocalities.has(loc.id)) throw new Error('BLOCKER_DUPLICATE_LOCALITY: '+loc.canonicalNameNFC+' tại dòng '+row);
     seenLocalities.add(loc.id);
     localities.push(loc);
@@ -1272,6 +1133,7 @@ export function importDisbursementWorkbook(
     sheetIndex: targetSheet.index,
     sheetVisibility: targetSheet.state,
     schemaFingerprint: targetFp,
+    disbLayout:layout,
     importSelectionMode,
     manualSelectionReason: options.manualSelectionReason,
     mappingVersion,
@@ -1283,7 +1145,7 @@ export function importDisbursementWorkbook(
     periodStart: asOfDate ? asOfDate.slice(0,4)+'-01-01' : undefined,
     periodEnd: asOfDate || undefined,
     asOfStatus,
-    asOfDateEvidence: detectedDate ? `VERIFIED_TITLE_DATE:${detectedDate} Sheet ${targetSheet.name}!A1 ("${a1Text.trim()}")` : `Sheet ${targetSheet.name}!A1: chưa xác định ngày chốt`,
+    asOfDateEvidence: detectedDate ? `VERIFIED_TITLE_DATE:${detectedDate} Sheet ${targetSheet.name}!${layout.titleCell} ("${a1Text.trim()}")` : `Sheet ${targetSheet.name}!${layout.titleCell}: chưa xác định ngày chốt`,
     asOfDateConfirmation: {
       confirmedByUser: !!manualDate,
       confirmedAt: manualDate ? new Date().toISOString() : null,

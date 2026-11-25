@@ -162,6 +162,15 @@ describe('KTXH Offline – A4 Report Studio & WYSIWYG Architecture Suite', () =>
     expect(dataset.summaryRecord).toBeUndefined();
     expect(dataset.asOfDate).toBe('2026-11-22');
     expect(dataset.identityChecks?.every(x=>x.status==='PASS_COMPLETE')).toBe(true);
+    expect(dataset.sourceValidation?.checks.find(c=>c.code==='DISB_RATE_INITIAL')?.failed).toBe(0);
+    const shifted=data.map(([r,cols])=>[r,cols.map(([c,v])=>[String.fromCharCode(c.charCodeAt(0)+1),v])] as [number,Array<[string,string|number]>]);
+    const adapted=importDisbursementWorkbook(buildSingleSheetXlsx('Chèn trước cột A',shifted),'shift-compact.xlsx').dataset;
+    expect(adapted.unitCount).toBe(114);
+    expect(adapted.records[0].metrics.adjusted_total_plan.provenance.cell).toBe('G8');
+    expect(adapted.records[0].metrics.disbursed_total.provenance.cell).toBe('J8');
+    expect(adapted.records[0].officialNote).toBe('Ghi chú thử');
+    expect(adapted.asOfDate).toBe('2026-11-22');
+    expect(adapted.records.map(r=>r.metrics.disbursed_total.normalizedDecimal)).toEqual(dataset.records.map(r=>r.metrics.disbursed_total.normalizedDecimal));
   });
 
   it('NOV_FIX_02: semantic REV header mapping follows an inserted column; refuses duplicate actual headers',()=>{
@@ -463,7 +472,7 @@ describe('KTXH Offline – A4 Report Studio & WYSIWYG Architecture Suite', () =>
     expect(confirmed.periodEnd).toBe('2026-11-24');
   });
 
-  it('NOV_FIX_06: verifies headers and units; rejects ambiguous layouts and remaps GPMB with 423+ projects',()=>{
+  it('NOV_FIX_06: verifies headers and units; remaps DISB/GPMB, rejects ambiguity, includes GPMB 423+',()=>{
     const makeRows=(id:string,rename:(col:string)=>string=(c)=>c,modify?:(r:number,c:string,v:string|number)=>string|number|undefined)=>{
       const wb=parseWorkbookBytes(new Uint8Array(fs.readFileSync(filePaths[id])),id+'.xlsx');
       const sh=wb.sheets.find(s=>s.state==='visible')!;
@@ -487,8 +496,19 @@ describe('KTXH Offline – A4 Report Studio & WYSIWYG Architecture Suite', () =>
       const added=makeRows(id,shift(7));for(const [row,cells] of added)if(row>3)cells.push(['G',88888]);
       const swapped=makeRows(id,c=>c==='D'?'I':c==='I'?'D':c);
       if(id==='DISB_20261015'){
-        expect(()=>parser(buildSingleSheetXlsx('Sheet đã chèn cột',added),'shifted.xlsx')).toThrow(/BLOCKER_MAPPING_REQUIRED|BLOCKER_SHEET_SELECTION/);
+        const moved=parser(buildSingleSheetXlsx('Sheet đã chèn cột',added),'shifted.xlsx').dataset;
+        expect(moved.unitCount).toBe(ok.unitCount);
+        for(const field of ['initial_total_plan','adjusted_total_plan','disbursed_total','source_disbursed_rate']){
+          expect(moved.records.map(r=>r.metrics[field].normalizedDecimal)).toEqual(ok.records.map(r=>r.metrics[field].normalizedDecimal));
+        }
+        expect(moved.records[0].metrics.disbursed_total.provenance.cell).toBe('J13');
+        // Swapping the parent anchor across groups destroys the header meaning.
         expect(()=>parser(buildSingleSheetXlsx('Sheet đã đảo cột',swapped),'swapped.xlsx')).toThrow();
+        // Swapping two explicitly labeled child columns within a group is safe.
+        const children=makeRows(id,c=>c==='G'?'H':c==='H'?'G':c);
+        const remapped=parser(buildSingleSheetXlsx('Đổi cột thành phần',children),'children.xlsx').dataset;
+        expect(remapped.records.map(r=>r.metrics.adjusted_city_component.normalizedDecimal)).toEqual(ok.records.map(r=>r.metrics.adjusted_city_component.normalizedDecimal));
+        expect(remapped.records[0].metrics.adjusted_city_component.sourceColumn).toBe('H');
       }else{
         const shifted=parser(buildSingleSheetXlsx('Sheet đã chèn cột',added),'shifted.xlsx').dataset;
         const moved=parser(buildSingleSheetXlsx('Sheet đã đảo cột',swapped),'swapped.xlsx').dataset;
@@ -1663,6 +1683,19 @@ describe('KTXH Offline – A4 Report Studio & WYSIWYG Architecture Suite', () =>
 
     const imported = importDisbursementWorkbook(bytes, 'Von_phan_cap_xa_08.11.xlsx');
     expect(imported.dataset.schemaFingerprint).toBe('DISB_PHAN_CAP_XA_V1');
+    const source=parsedWb.sheets[0];
+    const shiftedRows=new Map<number,Array<[string,string|number]>>();
+    for(const cell of source.cells.values()){
+      if(typeof cell.value!=='number'&&typeof cell.value!=='string')continue;
+      const cols=shiftedRows.get(cell.row)||[];
+      cols.push([String.fromCharCode(cell.col.charCodeAt(0)+1),cell.value]);
+      shiftedRows.set(cell.row,cols);
+    }
+    const shiftedDs=importDisbursementWorkbook(buildSingleSheetXlsx('Phân cấp dịch cột',[...shiftedRows]),'shifted-allocated.xlsx').dataset;
+    expect(shiftedDs.schemaFingerprint).toBe('DISB_PHAN_CAP_XA_V1');
+    expect(shiftedDs.unitCount).toBe(imported.dataset.unitCount);
+    expect(shiftedDs.records[0].metrics.disbursed_total.sourceColumn).toBe('H');
+    expect(shiftedDs.records.map(r=>r.metrics.disbursed_total.normalizedDecimal)).toEqual(imported.dataset.records.map(r=>r.metrics.disbursed_total.normalizedDecimal));
     expect(imported.dataset.asOfDate).toBe('2026-11-08');
     expect(imported.dataset.unitCount).toBe(3);
     expect(imported.dataset.citySummaryRecord).toBeUndefined();
@@ -1934,6 +1967,19 @@ describe('KTXH Offline – A4 Report Studio & WYSIWYG Architecture Suite', () =>
 
     const imported = importDisbursementWorkbook(bytes, 'Vốn_phân_cấp_xã_08.11..xlsx');
     expect(imported.dataset.schemaFingerprint).toBe('DISB_PHAN_CAP_XA_V2');
+    const source=parsedWb.sheets[0];
+    const shiftedRows=new Map<number,Array<[string,string|number]>>();
+    for(const cell of source.cells.values()){
+      if(typeof cell.value!=='number'&&typeof cell.value!=='string')continue;
+      const cols=shiftedRows.get(cell.row)||[];
+      cols.push([String.fromCharCode(cell.col.charCodeAt(0)+1),cell.value]);
+      shiftedRows.set(cell.row,cols);
+    }
+    const shiftedDs=importDisbursementWorkbook(buildSingleSheetXlsx('Phân cấp dịch cột',[...shiftedRows]),'shifted-allocated.xlsx').dataset;
+    expect(shiftedDs.schemaFingerprint).toBe('DISB_PHAN_CAP_XA_V2');
+    expect(shiftedDs.unitCount).toBe(imported.dataset.unitCount);
+    expect(shiftedDs.records[0].metrics.disbursed_total.sourceColumn).toBe('K');
+    expect(shiftedDs.records.map(r=>r.metrics.disbursed_total.normalizedDecimal)).toEqual(imported.dataset.records.map(r=>r.metrics.disbursed_total.normalizedDecimal));
     expect(imported.dataset.mappingVersion).toBe('DISB_PHAN_CAP_XA_V2');
     expect(imported.dataset.asOfDate).toBe('2026-11-08');
     expect(imported.dataset.unitCount).toBe(2);

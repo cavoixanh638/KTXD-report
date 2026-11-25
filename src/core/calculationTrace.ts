@@ -12,8 +12,8 @@ import {
   CalculationTrace,
   CoverageDetail,
   Dataset,
-  formatDisbRange,
-  getDisbSchemaProfile,
+  formatDisbDatasetRange,
+  getDisbDatasetProfile,
   Locality,
   MetricCellValue,
   QualityIssue,
@@ -755,9 +755,9 @@ export function computeDisbPlanPerUnitBenchmark(
     moneyUnit === 'billion' ? millionToBillion(avgMillion) : avgMillion;
   const unitText = moneyUnit === 'billion' ? 'tỷ đồng' : 'triệu đồng';
   const displayedText = `${formatVnNumber(avgDisplay, decimals)} ${unitText}`;
-  const disbProfile = getDisbSchemaProfile(disbDataset.schemaFingerprint);
+  const disbProfile = getDisbDatasetProfile(disbDataset);
   const planCol = disbProfile.planCol;
-  const planRange = formatDisbRange(planCol, disbProfile, count);
+  const planRange = formatDisbDatasetRange(disbDataset,'adjusted_total_plan');
 
   const trace: CalculationTrace = {
     traceId: `TRACE_BM_DISB_PLAN_PER_UNIT_${disbDataset.id}`,
@@ -1685,11 +1685,7 @@ export function evaluateLocalityIndicator(params: {
           expressionTree: {
             op: 'COMPARE',
             lhs: fRef.address,
-            rhs: `SUM(${formatDisbRange(
-              getDisbSchemaProfile(disb.schemaFingerprint).planCol,
-              getDisbSchemaProfile(disb.schemaFingerprint),
-              114
-            )})/114`,
+            rhs: `SUM(${formatDisbDatasetRange(disb,'adjusted_total_plan')})/114`,
           },
           method: 'COMPARISON_RULE',
           roundingPolicy: 'EXACT_DECIMAL_BEFORE_COMPARE',
@@ -1783,7 +1779,7 @@ export function evaluateLocalityIndicator(params: {
       const pct = ratio.mul(100);
       const displayedText = formatVnPercent(pct, decPct);
       const traceId = `TRACE_DISB_RATE_${locality.id}_${disb.id}`;
-      const disbProfile = getDisbSchemaProfile(disb.schemaFingerprint);
+      const disbProfile = getDisbDatasetProfile(disb);
       const ratioSymbol = `${disbProfile.disbCol}/${disbProfile.planCol}`;
 
       const trace: CalculationTrace = {
@@ -1868,7 +1864,7 @@ export function evaluateLocalityIndicator(params: {
         quality: {
           status: 'COMPLETE',
           warningIds: rec.officialNote
-            ? [`NOTE_${getDisbSchemaProfile(disb.schemaFingerprint).noteCol}${rec.sourceRow}`]
+            ? [`NOTE_${getDisbDatasetProfile(disb).noteCol}${rec.sourceRow}`]
             : [],
         },
         sourceRefs: [iRef, fRef],
