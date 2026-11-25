@@ -158,3 +158,8 @@
 
 - SHA runtime: `c29a056c815421cd02a56a2e5e3cebcc25e586c8`, nhánh `ai/november-source-report-fix-20261124`. Ba nhãn benchmark mặc định cố định 114 địa phương, ngày chốt động; migration tự sửa nhãn cũ theo độ phủ. Độ phủ thực tế vẫn lưu ở trace/nguồn/audit, không đổi công thức. Tăng cỡ chữ giá trị benchmark 10% (web, PDF), 11 pt (XLSX). Giữ nguyên ô gộp REV/GPMB và tiêu đề/cỡ chữ khác.
 - CI [45442571960](https://github.com/cavoixanh638/KTXD-report/actions/runs/45442571960): 47/47 tests PASS; 3/3 suites, typecheck/build PASS, 4/4 source workbooks PASS. Job 138617443634. Artifact 14943004728. NOV_FIX_04 đã được mở rộng để kiểm tra nhãn cố định, độ phủ audit, style font, các đầu ra. In thực tế Windows: NOT_RUN; workbook tháng 11 thực tế chưa nghiệm thu trong CI. Không merge main.
+
+### Bổ sung gộp DISB và bản phân phối chạy sẵn
+
+- Bổ sung `DISB_BENCHMARK_RATE` vào `isSharedReportIndicator` để cả ba tỷ lệ trung bình dùng ô gộp trên Studio/grid, bản in, XLSX; cập nhật NOV_FIX_03/04 cho 1/9/11/12 địa phương, dọc/ngang, giá trị và trace chung, font, audit.
+- Theo dõi duy nhất `dist/index.html` trong Git. CI hiện tại publish HTML sau kiểm thử; không tự tạo vòng lặp hoặc force-push. Chờ kết quả CI và xác minh commit HTML trên nhánh trước khi công bố sẵn sàng. Windows thực tế NOT_RUN; không merge main.

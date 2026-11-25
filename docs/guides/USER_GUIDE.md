@@ -105,7 +105,7 @@ Mỗi phiên làm việc có thể sử dụng các file Excel hoàn toàn riên
 ### 6.2. Bật / Tắt các dòng chỉ tiêu linh hoạt
 Để tờ báo cáo ngắn gọn, vừa vặn với mục đích cuộc họp, bạn có thể tích chọn bật hoặc tắt các dòng:
 - **Kết quả thu NSNN (đến ngày …)**: mặc định ẩn; bật để hiện sau dự toán, STT 2, các STT tiếp theo tự dịch.
-- **Tỷ lệ thu NSNN trung bình**: bật nếu cần; hai tỷ lệ chung REV/GPMB gộp ô toàn bộ địa phương và hiển thị một lần mỗi nhóm.
+- **Tỷ lệ thu NSNN trung bình**: bật nếu cần; ba tỷ lệ chung REV/DISB/GPMB gộp ô toàn bộ địa phương và hiển thị một lần mỗi nhóm.
 - **Số dự án chưa hoàn thành GPMB** và **Dự án NQ 11**: có thể ẩn/hiện; STT phụ thuộc dòng thu thực hiện.
 
 ### 6.3. Căn chỉnh thẩm mỹ trang in
@@ -144,7 +144,7 @@ Mỗi phiên làm việc có thể sử dụng các file Excel hoàn toàn riên
 ### 8.2. Xuất bảng tính Excel (.xlsx) 5 Sheet Kiểm toán
 1. Nhấn nút **`Xuất Excel`** trên Topbar.
 2. Hệ thống sẽ tự động tạo và tải về file `.xlsx` gồm **5 sheet chuyên biệt**:
-   - **Sheet 1 (`Báo cáo`)**: Bảng chính theo tùy chọn hiển thị, gộp hai tỷ lệ chung, không có ghi chú nguồn cuối bảng.
+   - **Sheet 1 (`Báo cáo`)**: Bảng chính theo tùy chọn hiển thị, gộp ba tỷ lệ chung, không có ghi chú nguồn cuối bảng.
    - **Sheet 2 (`Nguồn thiếu & lý do`)**: Phạm vi nguồn, kỳ chốt, tên file, danh sách thiếu và lý do.
    - **Sheet 3 (`Danh mục công thức`)**: Công thức, đơn vị, quy tắc tính.
    - **Sheet 4 (`Nhật ký phép tính`)**: Trace và giá trị trước/sau tính, tử/mẫu, nguồn ô, kỳ.
@@ -181,4 +181,10 @@ Ngày chốt là dữ liệu động theo nguồn của phiên, không cố đ�
 
 Sau khi pull và build, mở lại phiên cũ để tên mặc định tự chuyển sang mẫu mới; không cần tạo phiên lại. Nếu đã tự đặt tên khác, tên riêng vẫn được giữ.
 
-Chỉ tăng cỡ chữ giá trị của ba tỷ lệ trung bình REV/DISB/GPMB: Studio/grid và bản in/PDF dùng `1.1em` (tăng 10% so với số liệu thông thường), Excel dùng 11 pt thay vì 10 pt, định dạng phần trăm và căn giữa giữ nguyên. Không tăng cỡ chữ nhãn chỉ tiêu hoặc giá trị của từng địa phương; tiếp tục gộp REV/GPMB, không thay đổi chính sách gộp DISB. Nhãn mặc định cũ theo độ phủ được tự chuyển sang mẫu 114; giữ tên riêng của người dùng.
+Chỉ tăng cỡ chữ giá trị của ba tỷ lệ trung bình REV/DISB/GPMB: Studio/grid và bản in/PDF dùng `1.1em` (tăng 10% so với số liệu thông thường), Excel dùng 11 pt thay vì 10 pt, định dạng phần trăm và căn giữa giữ nguyên. Không tăng cỡ chữ nhãn chỉ tiêu hoặc giá trị của từng địa phương; gộp cả ba benchmark REV/DISB/GPMB. Nhãn mặc định cũ theo độ phủ được tự chuyển sang mẫu 114; giữ tên riêng của người dùng.
+
+## Cập nhật ứng dụng không cần npm
+
+Trong GitHub Desktop chọn nhánh phân phối `ai/november-source-report-fix-20261124`, chọn Fetch origin → Pull origin sau khi CI hoàn tất, sau đó mở lại `dist/index.html` trong đúng thư mục cũ. Clone mới cũng đã có file này; không cần cài Node.js hoặc chạy lệnh. Nếu chưa thấy file, kiểm tra commit build mới nhất trên GitHub. Không đổi đường dẫn thư mục đang sử dụng nếu muốn giữ phiên cũ trong bộ nhớ trình duyệt.
+
+Ba chỉ tiêu tỷ lệ trung bình REV/DISB/GPMB đều gộp toàn bộ cột địa phương trong mỗi nhóm/trang ngang, gộp hàng trong Studio dọc và merge ô giá trị trong Excel. Mỗi nhóm/trang chỉ hiển thị một kết quả, căn giữa; giữ cỡ chữ lớn hơn 10% (Excel 11 pt), trace chung, công thức và phạm vi nguồn. Không gộp chỉ tiêu riêng từng địa phương.

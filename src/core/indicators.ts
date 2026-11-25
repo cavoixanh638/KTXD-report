@@ -645,13 +645,13 @@ export function formatRevRealizedRowLabel(params: {customLabel?:string; asOfDate
   return label+(date?' (đến ngày '+date+')':' (chưa xác nhận ngày chốt)');
 }
 
-/** These two benchmark indicators are scope-level values, not locality values.
+/** All three benchmark indicators are scope-level values, not locality values.
  * Use their shared trace but present only one value per page/table group. */
 export function isSharedReportIndicator(indicatorId: string): boolean {
-  return indicatorId === 'REV_BENCHMARK_RATE' || indicatorId === 'GPMB_BENCHMARK_AREA_RATE';
+  return indicatorId === 'REV_BENCHMARK_RATE' || indicatorId === 'DISB_BENCHMARK_RATE' || indicatorId === 'GPMB_BENCHMARK_AREA_RATE';
 }
 
 /** Emphasize the three common benchmark percentages, independently of merging. */
 export function isReportBenchmarkRate(indicatorId: string): boolean {
-  return isSharedReportIndicator(indicatorId) || indicatorId === 'DISB_BENCHMARK_RATE';
+  return isSharedReportIndicator(indicatorId);
 }

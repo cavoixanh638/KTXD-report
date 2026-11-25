@@ -1,17 +1,33 @@
 name: November source and report fixes
 on:
   push:
-    branches: ["ai/november-source-report-fix-20261124"]
-    paths: ["src/**", "tests/**", "tools/**", ".github/workflows/november-source-fix.yml"]
+    branches: ["ai/november-source-report-fix-20261124", "main"]
+    paths:
+      - "src/**"
+      - "tests/**"
+      - "tools/**"
+      - "data/reference/**"
+      - "package.json"
+      - "package-lock.json"
+      - ".gitignore"
+      - "dist/index.html"
+      - ".github/workflows/november-source-fix.yml"
   workflow_dispatch:
 permissions:
   contents: read
+concurrency:
+  group: offline-bundle-${{ github.ref }}
+  cancel-in-progress: true
 jobs:
   qa:
     runs-on: ubuntu-latest
     timeout-minutes: 15
+    permissions:
+      contents: write
     steps:
       - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
       - uses: actions/setup-node@v4
         with:
           node-version: "22"
@@ -24,8 +40,32 @@ jobs:
         run: python -m pip install openpyxl
       - run: npm run build
       - run: npm test
+      - name: Verify standalone distribution
+        run: |
+          test -s dist/index.html
+          sha256sum dist/index.html
       - uses: actions/upload-artifact@v4
         with:
           name: KTXH-offline-November-fix
           path: dist/index.html
           retention-days: 30
+      - name: Publish tested standalone HTML to current branch
+        if: github.ref == 'refs/heads/ai/november-source-report-fix-20261124' || github.ref == 'refs/heads/main'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          git add -- dist/index.html
+          if git diff --cached --quiet; then
+            echo "Standalone HTML already matches the tested build."
+            exit 0
+          fi
+          test "$(git diff --cached --name-only)" = "dist/index.html"
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git commit -m "build(offline): publish verified standalone HTML"
+          # Normal push: refuses stale/non-fast-forward updates. The GITHUB_TOKEN
+          # push does not trigger another workflow, preventing a build loop.
+          git push "https://x-access-token:${GH_TOKEN}@github.com/${GITHUB_REPOSITORY}.git" "HEAD:refs/heads/${GITHUB_REF_NAME}"
+          git rev-parse HEAD

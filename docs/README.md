@@ -87,3 +87,5 @@ docs/
 Bảy nhãn chỉ tiêu chốt cuối ngày 24/11/2026: xem mục 3 trong phần cập nhật PH1 của MASTER, hướng dẫn người dùng và NOV_FIX_04. Các mục checkpoint/bằng chứng trước đó là lịch sử, không phải tên hiện hành.
 
 Quy ước mới nhất: nhãn benchmark cố định 114 địa phương trên bảng chính, số liệu trung bình tăng cỡ chữ 10% (Excel 11 pt); ngày chốt, công thức và độ phủ kiểm toán không đổi. Xem MASTER mục 3 và UI Design System.
+
+Bản phân phối: `dist/index.html` được Git theo dõi và CI cập nhật tự động khi kiểm thử đạt; người dùng chỉ Pull origin rồi mở file. Cả ba tỷ lệ trung bình REV/DISB/GPMB gộp ô.

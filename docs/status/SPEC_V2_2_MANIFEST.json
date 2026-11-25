@@ -3,14 +3,14 @@
   "repository": "cavoixanh638/KTXD-report",
   "specVersion": "2.2 CURRENT",
   "masterSpec": "docs/specs/KTXH_OFFLINE_MASTER_SPEC_V2_2_CURRENT.md",
-  "masterSha256": "327e75b1f2cae2830b3a20a6c01f04b689bca341fc89cfb744ed96d8482b3df9",
-  "masterLines": 851,
+  "masterSha256": "4c5b8d769f993d46e9c9e6ffee8f8fbe01f5e3c2ba4b9295c1e871df5ea1d863",
+  "masterLines": 857,
   "subplans": [
     {
       "phase": "PH1",
       "path": "docs/plans/PHASE_1_RESULT_TEMPLATE.md",
-      "sha256": "b44db152a772adc2f9d1e989852b1337456d504870cc8de9580bcedf7156c175",
-      "status": "NOVEMBER_UPDATE_CI_VERIFIED_USER_ACCEPTANCE_PENDING"
+      "sha256": "32836c4e9b34334eca8315322fde64e12e38ac2e672a8ecfc5c58d6fca576c21",
+      "status": "MERGE_DISB_AND_BUNDLE_CI_PENDING"
     },
     {
       "phase": "PH2",
@@ -88,7 +88,7 @@
     "T66"
   ],
   "testCount": 66,
-  "runtimeTestStatus": "BASELINE_PH1_PASS_64_DEFERRED_2; NOVEMBER_CI_47_OF_47_PASS",
+  "runtimeTestStatus": "LATEST_MERGE_DISB_AND_BUNDLE_CI_PENDING",
   "runtimeEvidence": "docs/data_checks/PH1_ACCEPTANCE_EVIDENCE_20261109.json",
   "originalWorkbooks": "data/reference/MANIFEST.json",
   "originalWorkbooksCommitted": true,
@@ -112,7 +112,7 @@
       "NOV_FIX_04"
     ],
     "ciRun": "https://github.com/cavoixanh638/KTXD-report/actions/runs/45442571960",
-    "status": "CI_PASS_WINDOWS_PRINT_NOT_RUN",
+    "status": "NEW_UPDATE_PENDING_CI_AND_PUBLISH",
     "results": {
       "workbooks": "4/4 PASS",
       "typecheck": "PASS",
@@ -123,6 +123,11 @@
       "userAcceptance": "PENDING",
       "jobId": 138617443634,
       "artifactId": "14943004728"
+    },
+    "distribution": {
+      "path": "dist/index.html",
+      "policy": "COMMIT_ONLY_AFTER_TESTS_PASS",
+      "status": "PENDING"
     }
   }
 }

@@ -233,7 +233,7 @@ describe('KTXH Offline – A4 Report Studio & WYSIWYG Architecture Suite', () =>
     expect(()=>importRevenueWorkbook(buildSingleSheetXlsx('Sheet đổi tên',rows),'ambiguous.xlsx')).toThrow();
   });
 
-  it('NOV_FIX_03: merges only the shared REV/GPMB benchmark rows and keeps source audit off the report body', () => {
+  it('NOV_FIX_03: merges all three shared REV/DISB/GPMB benchmark rows and keeps source audit off the report body', () => {
     const ws = createEmptyWorkspace();
     registerDatasetInWorkspace(ws, disbDataset, baselineLocalities);
     registerDatasetInWorkspace(ws, revDataset);
@@ -244,7 +244,7 @@ describe('KTXH Offline – A4 Report Studio & WYSIWYG Architecture Suite', () =>
     session.settings.showBenchmarkRows = true;
     session.settings.tableLayoutMode = 'HORIZONTAL';
     const evaluate = () => evaluateSessionReport({ session, baselineLocalities, datasets });
-    const targets = ['REV_BENCHMARK_RATE', 'GPMB_BENCHMARK_AREA_RATE'];
+    const targets = ['REV_BENCHMARK_RATE', 'DISB_BENCHMARK_RATE', 'GPMB_BENCHMARK_AREA_RATE'];
     for (const n of [1, 9, 11, 12]) {
       session.selectedLocalityIds = baselineLocalities.slice(0, n).map(l => l.id);
       const evaluated = evaluate();
@@ -254,8 +254,8 @@ describe('KTXH Offline – A4 Report Studio & WYSIWYG Architecture Suite', () =>
       const count = (s: string, token: string) => s.split(token).length - 1;
       const firstGroup = Math.min(11, n);
       if (n > 1) {
-        expect(count(html, 'colspan="' + firstGroup + '"')).toBe(2);
-        expect(count(printed, 'colspan="' + firstGroup + '"')).toBe(2);
+        expect(count(html, 'colspan="' + firstGroup + '"')).toBe(3);
+        expect(count(printed, 'colspan="' + firstGroup + '"')).toBe(3);
       } else {
         expect(html).not.toContain('colspan="1"');
         expect(printed).not.toContain('colspan="1"');
@@ -273,6 +273,10 @@ describe('KTXH Offline – A4 Report Studio & WYSIWYG Architecture Suite', () =>
         if (n > 1) expect(reportXml).toContain('<mergeCell ref="C' + rowNum + ':' + lastColumn + rowNum + '"/>');
         const rowXml = reportXml.split('<row r="' + rowNum + '"')[1].split('</row>')[0];
         expect(count(rowXml, '<v>')).toBe(1);
+        const cells = Object.values(displayRows[idx].cellsByLocalityId);
+        expect(cells).toHaveLength(n);
+        expect(new Set(cells.map(c => c.exactDecimal)).size).toBe(1);
+        expect(new Set(cells.map(c => c.traceId)).size).toBe(1);
         expect(traceXml).toContain(id === 'REV_BENCHMARK_RATE' ? 'REV_RATE_Y' : id);
       }
       expect(reportXml).not.toContain('Ghi chú nguồn:');
@@ -281,7 +285,7 @@ describe('KTXH Offline – A4 Report Studio & WYSIWYG Architecture Suite', () =>
     session.selectedLocalityIds = baselineLocalities.slice(0, 9).map(l => l.id);
     session.settings.tableLayoutMode = 'VERTICAL';
     const vertical = renderA4DocumentStudioHtml({ evaluated: evaluate(), baselineLocalities, datasets });
-    expect((vertical.match(/rowspan="9"/g) || [])).toHaveLength(2);
+    expect((vertical.match(/rowspan="9"/g) || [])).toHaveLength(3);
     session.settings.showBenchmarkRows = false;
     const hidden = renderA4DocumentStudioHtml({ evaluated: evaluate(), baselineLocalities, datasets });
     expect(hidden).not.toContain('rowspan="9"');
@@ -356,14 +360,14 @@ describe('KTXH Offline – A4 Report Studio & WYSIWYG Architecture Suite', () =>
     const auditSheet = strFromU8(partialArchive['xl/worksheets/sheet2.xml']);
     const styles = strFromU8(partialArchive['xl/styles.xml']);
     for (const html of [partialStudio, partialPrint]) {
-      // 2 shared benchmark cells + 9 individual DISB benchmark cells.
-      expect((html.match(/report-benchmark-value/g) || []).length).toBe(11);
+      // All three shared benchmark rows show exactly one numeric cell.
+      expect((html.match(/report-benchmark-value/g) || []).length).toBe(3);
       expect(html).not.toContain('địa phương có dữ liệu (đến ngày');
     }
     expect(partialSheet).not.toContain('địa phương có dữ liệu (đến ngày');
     expect(auditSheet).toContain('Phạm vi 113/114 địa phương');
     expect(auditSheet).toContain('Phạm vi 108/114 địa phương');
-    expect((partialSheet.match(/s="34"><v>/g) || []).length).toBe(11);
+    expect((partialSheet.match(/s="34"><v>/g) || []).length).toBe(3);
     expect(styles).toContain('<font><sz val="11"/>');
     expect(styles).toContain('numFmtId="166" fontId="7"');
     const plan = session.templateRows.find(r => r.indicatorId === 'DISB_PLAN')!;
