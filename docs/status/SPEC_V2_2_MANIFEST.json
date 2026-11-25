@@ -3,14 +3,14 @@
   "repository": "cavoixanh638/KTXD-report",
   "specVersion": "2.2 CURRENT",
   "masterSpec": "docs/specs/KTXH_OFFLINE_MASTER_SPEC_V2_2_CURRENT.md",
-  "masterSha256": "e63337c46cd150510c39f773302055a054ed7bcb6abe5d335c3367c52451ead4",
-  "masterLines": 866,
+  "masterSha256": "1129b755a53bbcc373377394f93080390561c6bf21e59a6ef9d555d698229882",
+  "masterLines": 879,
   "subplans": [
     {
       "phase": "PH1",
       "path": "docs/plans/PHASE_1_RESULT_TEMPLATE.md",
-      "sha256": "f4c0f3063df2daca047ba82695a084940fbb63818db0a08538f368d77d1f7987",
-      "status": "SCHEMA_GUARD_CORPUS_CI_PENDING"
+      "sha256": "e8a713b3266c06e1a3272b4271c787dd90890dba7a5a6864ed357946cb038e00",
+      "status": "CI_VERIFIED_OFFLINE_BUNDLE_PUBLISHED_USER_ACCEPTANCE_PENDING"
     },
     {
       "phase": "PH2",
@@ -88,7 +88,7 @@
     "T66"
   ],
   "testCount": 66,
-  "runtimeTestStatus": "SCHEMA_GUARD_CORPUS_CI_PENDING",
+  "runtimeTestStatus": "BASELINE_PH1_PASS_64_DEFERRED_2; NOVEMBER_CI_53_OF_53_PASS; OFFLINE_BUNDLE_PUBLISHED",
   "runtimeEvidence": "docs/data_checks/PH1_ACCEPTANCE_EVIDENCE_20261109.json",
   "originalWorkbooks": "data/reference/MANIFEST.json",
   "originalWorkbooksCommitted": true,
@@ -104,35 +104,47 @@
   "novemberUpdate": {
     "date": "2026-11-25",
     "branch": "ai/november-source-report-fix-20261124",
-    "implementationSha": "0fc745421ed72bb592094759308b28358dee2586",
+    "implementationSha": "c50d1f947dc6d8a617edd62aa1d65c0de7733fc4",
     "tests": [
       "NOV_FIX_01",
       "NOV_FIX_02",
       "NOV_FIX_03",
       "NOV_FIX_04",
-      "NOV_FIX_05"
+      "NOV_FIX_05",
+      "NOV_FIX_06",
+      "NOV_FIX_07",
+      "source-corpus.spec.ts"
     ],
-    "ciRun": "https://github.com/cavoixanh638/KTXD-report/actions/runs/45595464837",
-    "status": "SCHEMA_GUARD_CORPUS_CI_PENDING",
+    "ciRun": "https://github.com/cavoixanh638/KTXD-report/actions/runs/45643547137",
+    "status": "CI_PASS_OFFLINE_BUNDLE_PUBLISHED_WINDOWS_PRINT_NOT_RUN",
     "results": {
       "workbooks": "4/4 PASS",
+      "corpus": "3/3 PASS",
       "typecheck": "PASS",
       "build": "PASS",
-      "testSuites": "3/3 PASS",
-      "tests": "48/48 PASS",
+      "testSuites": "4/4 PASS",
+      "tests": "53/53 PASS",
       "windowsPrint": "NOT_RUN",
       "userAcceptance": "PENDING",
-      "jobId": 139140244021,
-      "artifactId": "15012891402"
+      "jobId": 139308315813,
+      "artifactId": "15037135540"
     },
     "distribution": {
       "path": "dist/index.html",
       "policy": "COMMIT_ONLY_AFTER_TESTS_PASS",
       "status": "PUBLISHED_VERIFIED",
-      "commit": "25234ec65f98f93f72e5c62ddbc4f7950b9f2be2",
-      "blobSha": "a5b9e522200a7b355f901be724f51526c7253508",
-      "sha256": "91ed08fddd008e9a9727bd5c6ac2ae2e3b50be6e248fbd80394211319f7419ae",
-      "bytes": 2307605
+      "commit": "c52f0274016880fa09563a2afe7dee46e40c21b5",
+      "blobSha": "a8946ff07af4003163174c20ed40cc7c89af02f2",
+      "sha256": "be9a588d5d42f977aa80e1701d84af6833c35a5e8a0fdd732753c46e3370e7e1",
+      "bytes": 2348897
+    },
+    "sourceCorpus": {
+      "manifest": "data/reference/SOURCE_CORPUS.json",
+      "existingOriginalWorkbooks": 4,
+      "registeredSourceSamples": 3,
+      "additionalOriginals": 0,
+      "repositoryVisibilityAtVerification": "public",
+      "additionalRealFiles": "BLOCKED_UNTIL_PRIVATE_AND_ORIGINALS_ACCESSIBLE"
     }
   }
 }

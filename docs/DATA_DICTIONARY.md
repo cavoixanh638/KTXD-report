@@ -160,3 +160,7 @@ Chỉ tăng cỡ chữ giá trị của ba tỷ lệ trung bình REV/DISB/GPMB: 
 ### Metadata bộ chọn nguồn mới nhất
 
 `Dataset.asOfDate`, `asOfStatus`, `asOfDateEvidence`, `workbookSha256`, `importedAt`, `schemaFingerprint`, `mappingVersion`, `issues`, `unitCount` là đầu vào chọn latest. `importedAt` giữ lần đầu của cùng ID/SHA khi nhập lại; `VERIFIED_TITLE_DATE:YYYY-MM-DD` là bằng chứng mới từ tiêu đề DISB/GPMB, không phải tên file. `LatestSourcePlan`/`LatestSourceChoice` là preview tạm thời gồm bindings, complete, skipped/reason, sameDateVersions, referenceFallback; không lưu đè bộ nguồn trước khi xác nhận.
+
+### SourceValidation (SCHEMA_GUARD_V1)
+
+Metadata kiểm tra của Dataset: workbookSha256, sheet, schemaSignature, headerRows, columnCount/headerColumnCount, columns[field,column,header,unit], status VERIFIED/NEEDS_REVIEW, checks[code,label,checked,failed,severity,detail,examples], checkedAt/reviewedAt/reviewReason, historicalDatasetId/historicalDate/previousColumnCount/changedColumns. Được lưu cùng dataset và backup. Signature khác SHA file: kiểm tra cấu trúc đã chuẩn hóa, không coi thay đổi nội dung là sai. ID bản nhập mới có hậu tố GUARD1. GPMB localityGroupSummaries.columnM lưu cột tỷ lệ nguồn thực tế (legacy mặc định M). Không lưu raw Excel mới trong browser hay gửi repo.

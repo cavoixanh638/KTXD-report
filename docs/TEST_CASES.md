@@ -244,3 +244,7 @@ T01–T66 là baseline lịch sử, không dùng kết quả cũ để kết lu�
 - NOV_FIX_05: chọn cutoff mới nhất thay vì nhập cuối; giữ phạm vi DISB; loại mapping sai/ngày chưa xác nhận; xử lý bản sửa cùng ngày, nhập lại SHA, ngày mâu thuẫn; fallback mẫu có điều kiện; preview đủ ba nguồn; chỉ đổi phiên mục tiêu; CSV GPMB thiếu ngày phải xác nhận.
 
 - NOV_FIX_05 bổ sung: nhập lại cùng nội dung đã xác nhận với parser không biết ngày phải giữ dataset/ngày/first-import; ngày 30/02 bị từ chối và xác nhận ngày hợp lệ đồng bộ periodEnd/periodLabel.
+
+- NOV_FIX_06: biến thể từ workbook DISB/GPMB gốc: thêm cột giữa có số, đảo cột, thêm cột không liên quan, GPMB thiếu/trùng tiêu đề, dịch dòng tiêu đề, tăng STT 423; DISB chưa có profile đúng phải reject, GPMB remap giá trị và provenance đúng, GPMB phẳng chèn/trùng/thiếu cột, đơn vị ha hoặc tỷ đồng không khớp chặn.
+- NOV_FIX_07: lịch sử cùng năm/phạm vi, thay đổi lớn nhưng giữ thứ hạng không báo sai chỉ vì giá trị tăng, đảo phân bố được phát hiện, tái kiểm tra khi xác nhận ngày, nguồn chưa guard hoặc NEEDS_REVIEW không chọn latest cho đến khi xác minh.
+- tests/source-corpus.spec.ts: chạy 3 mẫu nguồn gốc, SHA, sheet, độ phủ, ngày chốt (REV là giả định test được ghi), expectedColumns và goldenSums đối chiếu độc lập; verify_reference_files.py kiểm chứng 4 workbook và mọi corpus bổ sung. Không coi workbook tháng 11 chưa cung cấp là đã chạy test.

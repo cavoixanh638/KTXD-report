@@ -186,3 +186,7 @@ Nút Nạp 3 file mới nhất chọn độc lập DISB/REV/GPMB trong kho datas
 `src/core/latestSources.ts` chứa selector thuần `chooseLatestSources`, `hasTrustedSourceDate`, `dateFromReportTitle`; `applyLatestSources` trong sessions kiểm tra lại preview trước khi rebind. NOV_FIX_05 kiểm thử ngày, phạm vi, SHA, nguồn mẫu, nguồn không hợp lệ và cô lập phiên.
 
 `registerDatasetInWorkspace` giữ bản đã xác nhận với cùng SHA/profile/mapping/sheet, giữ thời điểm nhập đầu; UI import dùng dataset trả về. Xác nhận ngày cập nhật kỳ dạng ngày và provenance, kể cả summary records. Không xem đổi ngày thủ công là file mới.
+
+### Source Schema Guard và corpus
+
+`src/core/sourceValidation.ts`: validateDisbHeaders, resolveGroupedGpmbHeaders, resolveFlatGpmbHeaders, attachSourceValidation, sourceMappingProblem, assessSourceHistory, confirmSourceValidation. Importer REV dùng semantic headers; GPMB group remap toàn bộ provenance; DISB fixed profiles full header check. `latestSources` và `evaluateActiveContext` chặn nguồn chưa guard/xác minh. `sessions` tái đánh giá lịch sử khi ngày chốt đổi. Corpus test chạy theo SOURCE_CORPUS.json và verify_reference_files.py. Không đưa sample mới vào tools/build.mjs; không thêm file thật khi visibility public. Chi tiết MASTER mục 6–7.

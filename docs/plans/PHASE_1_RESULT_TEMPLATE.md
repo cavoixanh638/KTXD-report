@@ -115,3 +115,7 @@ Bản chạy duy nhất `dist/index.html` được theo dõi trực tiếp trong
 ### Bổ sung 25/11/2026: Nạp 3 file mới nhất
 
 Tuân thủ mục 5 MASTER: bộ chọn latest theo ngày chốt đáng tin, phạm vi DISB, SHA/thời điểm nhập lần đầu để phân định cùng ngày, fallback mẫu có điều kiện và preview xác nhận đủ ba nguồn. Không tự cập nhật các phiên khác; giữ ngày xác nhận khi nhập lại cùng nội dung/mapping. Bổ sung NOV_FIX_05.
+
+### Bổ sung PH1 — Source Schema Guard V1 và corpus nguồn
+
+Áp dụng MASTER mục 6–7. Đây là gate tính đúng dữ liệu của PH1, không chờ PH2; DISB profile nghiêm ngặt, REV/GPMB remap tiêu đề, nguồn chưa xác minh không được lập/xuất báo cáo. NOV_FIX_06/07 + source-corpus.spec.ts. Lưu nguồn được cung cấp theo manifest khi repo private; không tự upload từ webapp offline.

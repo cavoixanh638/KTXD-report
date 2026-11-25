@@ -122,3 +122,7 @@ Tuân thủ bảng bảy nhãn mới trong MASTER. Dùng `từng địa phương
 ### Nạp 3 file mới nhất
 
 Nút liên kết Khối 1 và empty state mở modal cùng style `proj-modal-dialog`. Mỗi nhóm nguồn có card tên file/ngày chốt/độ phủ, DISB có phạm vi, mẫu và nhiều phiên bản cùng ngày có cảnh báo; nguồn loại nằm trong details. Nút Nạp 3 nguồn vô hiệu khi thiếu ứng viên; Cancel/Escape/đóng nền không thay phiên. Tạo phiên mới hiện lựa chọn LATEST kèm preview; ô xác nhận ngày dùng chung cho cả DISB/REV/GPMB, không điền ngày mẫu khi chưa xác minh.
+
+### Xác minh nguồn
+
+Khối 1 có details Kiểm tra cột hiển thị số cột có nội dung, ngày lịch sử, kết quả QA, mapping. Với NEEDS_REVIEW dùng hộp xác nhận native của trình duyệt chứa lý do và danh sách cột; không hiển thị mỗi lần nhập bình thường. Nguồn chưa xác minh/ngày chưa chốt không lập/xuất báo cáo; khi cần có nút Đối chiếu & xác nhận nguồn. Không tự gán cột theo số lượng hoặc tương quan. Wizard ánh xạ tùy ý vẫn PH2.

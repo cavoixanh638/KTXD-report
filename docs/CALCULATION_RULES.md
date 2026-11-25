@@ -264,3 +264,7 @@ Công thức tiền đất và không đất phải dùng trường `actual_land
 ### Tên chỉ tiêu cập nhật cuối ngày 24/11/2026
 
 Theo bảng bảy nhãn chuẩn tại MASTER mục cập nhật PH1. Từ `trung bình` trong tiêu đề REV/DISB/GPMB chỉ là tên trình bày, không đổi công thức tổng/tổng; ngày chốt lấy đúng nguồn của phiên, nhãn bảng chính ghi 114 địa phương theo quy ước; phạm vi phép tính và độ phủ thực tiếp tục lấy từ dữ liệu. Ba benchmark REV/DISB/GPMB vẫn gộp ô; không đổi CalculationTrace hay số liệu.
+
+### Kiểm tra đối chiếu, không sửa công thức nghiệp vụ
+
+Source schema guard kiểm tra REV cân đối tổng/tiền đất/trừ tiền đất, sáu tỷ lệ nguồn nếu có; DISB identity và tỷ lệ; GPMB tỷ lệ và tổng theo địa bàn; tổng chi tiết khi cùng phạm vi/đủ toán hạng. Chỉ là QA, không ghi đè số nguồn hoặc thay đổi SUM/SUM. Lịch sử không dùng % biến động cố định; chọn kỳ trước đã xác minh, cùng năm/phạm vi và đối tượng, kiểm tra neo, dấu giảm lũy kế, Spearman. Độ phủ thực vẫn được lưu như cũ.

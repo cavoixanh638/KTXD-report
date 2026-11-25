@@ -275,3 +275,7 @@ DISB_TOTAL_LOCALITY_V2 chỉ có tổng C/F/I và hai thành phần tương ứn
 ### Ngày chốt và chọn nguồn mới nhất
 
 DISB/GPMB chỉ nhận ngày hợp lệ duy nhất trong tiêu đề A1 hoặc ngày người dùng xác nhận; CSV/bảng phẳng GPMB không dùng deadline hay tên file. Không tự gán ngày mẫu cho nguồn thiếu ngày. REV dùng tiêu đề A3 theo quy tắc cũ. Legacy DISB/GPMB thiếu chứng cứ A1 đáng tin cần xác nhận lại. Scope DISB TOTAL và ALLOCATED không thay thế nhau tự động. Xem MASTER mục 5.
+
+### Schema guard hiện hành (thay cho nhận diện chỉ dựa vào ô số)
+
+REV nhận diện tiêu đề vai trò duy nhất; chỉ file REV gốc SHA/sheet chính xác dùng map cố định. GPMB phẳng và phân nhóm đọc theo tiêu đề duy nhất; nhóm có thể dịch cột và dòng tiêu đề, tất cả metric/provenance dùng cột thật. STT dự án là số nguyên dương (không giới hạn 422); 422 chỉ là số dự án fixture gốc. DISB bốn profile kiểm tra đầy đủ tiêu đề nhóm, thành phần và vai trò bắt buộc tại vị trí profile; không tự dùng profile cũ nếu thêm/đổi cột chính. Đơn vị xung đột chặn; thiếu bằng chứng cần xác nhận. Xem MASTER mục 6; corpus giữ nguyên workbook gốc.

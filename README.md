@@ -95,3 +95,7 @@ Sau khi CI hoàn tất, chỉ cần **Fetch origin → Pull origin**, sau đó m
 ## Nạp 3 file mới nhất
 
 Chọn ba nguồn đã nhập theo ngày chốt xác nhận, giữ phạm vi giải ngân; xem trước và xác nhận chỉ cho phiên đang mở. Khi cùng ngày mà chưa xác định bản chính thức, ưu tiên nội dung được nhập lần đầu gần nhất và cảnh báo. Nguồn thiếu ngày phải xác nhận, không lấy ngày theo tên file. Không quét thư mục máy tính.
+
+## Kiểm tra cấu trúc và chất lượng nguồn
+
+Trước khi lập báo cáo, app xác minh tiêu đề/đơn vị/ánh xạ, kiểm tra chéo và đối chiếu lịch sử đã xác minh; không dùng % chênh lệch giữa kỳ. Mở chi tiết Kiểm tra cột ở Khối 1. Nếu nguồn cũ thiếu xác minh, nhập lại đúng file gốc một lần. Cấu trúc DISB chưa hỗ trợ bị từ chối an toàn. Xem SOURCE_CORPUS.json và corpus/README.md để lưu mẫu thực tế trong repo private; không tự upload từ app.
