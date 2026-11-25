@@ -6695,13 +6695,21 @@ code {
     L: doneHouseholds,
     M: gpmbRate
   };
-  function validateGroupedGpmbHeaders(sheet) {
-    requireHeaders(sheet, Object.entries(GROUPED_GPMB_ROLES).map(([c, rx]) => [c, 2, rx, "tr\u01B0\u1EDDng GPMB " + c]));
-    for (const [c, rx] of Object.entries(GROUPED_GPMB_ROLES)) {
-      const matches = rowCells(sheet, 2).filter((x) => rx.test(normalizedHeader(x.value))).map((x) => x.col);
-      if (matches.length !== 1 || matches[0] !== c) fail("Ti\xEAu \u0111\u1EC1 GPMB t\u1EA1i " + c + "2 kh\xF4ng duy nh\u1EA5t: " + matches.join(", "));
+  function resolveGroupedGpmbHeaders(sheet) {
+    const candidates = [];
+    for (let r = 1; r <= Math.min(12, sheet.maxRow); r++) {
+      const cells = rowCells(sheet, r);
+      const roles = Object.entries(GROUPED_GPMB_ROLES).map(([role, rx]) => [role, cells.filter((c) => rx.test(normalizedHeader(c.value))).map((c) => c.col)]);
+      if (!roles.some(([k, v]) => k === "B" && v.length) || !roles.some(([k, v]) => (k === "D" || k === "I") && v.length)) continue;
+      if (cells.some((c) => /^(phuong\s*\/?\s*xa|xa\s*\/?\s*phuong|dia ban|dia phuong)$/.test(normalizedHeader(c.value)))) continue;
+      const bad = roles.filter(([, cols]) => cols.length !== 1);
+      if (bad.length) fail("Ti\xEAu \u0111\u1EC1 GPMB ph\xE2n nh\xF3m thi\u1EBFu ho\u1EB7c tr\xF9ng vai tr\xF2: " + bad.map(([role, cols]) => role + ": " + (cols.join("/") || "thi\u1EBFu")).join("; "));
+      const columns = Object.fromEntries(roles.map(([role, cols]) => [role, cols[0]]));
+      if (new Set(Object.values(columns)).size !== Object.keys(columns).length) fail("M\u1ED9t c\u1ED9t GPMB c\xF3 nhi\u1EC1u vai tr\xF2.");
+      candidates.push({ row: r, columns });
     }
-    return [2];
+    if (candidates.length > 1) fail("C\xF3 nhi\u1EC1u d\xF2ng ti\xEAu \u0111\u1EC1 GPMB ph\xE2n nh\xF3m; kh\xF4ng t\u1EF1 ch\u1ECDn.");
+    return candidates[0] ?? null;
   }
   var flatRoles = {
     sttCol: stt,
@@ -6865,7 +6873,7 @@ code {
   function normalizedStructure(s) {
     return normalizedHeader(s).replace(/\b\d{1,2}[./-]\d{1,2}[./-]\d{4}\b/g, "<date>").replace(/\b20\d{2}\b/g, "<year>").replace(/\b\d{1,2}\s+thang\b/g, "<month> thang");
   }
-  function attachSourceValidation(ds, sheet, headerRows) {
+  function attachSourceValidation(ds, sheet, headerRows, groupTotals = []) {
     if (!ds.records.length || !ds.unitCount) fail("Kh\xF4ng c\xF3 d\u1EEF li\u1EC7u \u0111\u1ECBa ph\u01B0\u01A1ng/d\u1EF1 \xE1n h\u1EE3p l\u1EC7.");
     const byField = /* @__PURE__ */ new Map();
     for (const rec of ds.records) for (const [field, m] of Object.entries(rec.metrics)) {
@@ -6897,6 +6905,29 @@ code {
       checks.push(checkTotals(ds, core));
     } else if (ds.sourceType === "GPMB") {
       checks.push(checkRelation(ds, "GPMB_RATE", "T\u1EF7 l\u1EC7 GPMB ghi ngu\u1ED3n", "gpmb_source_reported_rate", ["gpmb_recorded_area", "gpmb_declared_area"], true, 100));
+      let n = 0, bad = 0;
+      const examples = [];
+      const groups = /* @__PURE__ */ new Map();
+      for (const rec of ds.records) {
+        const rows = groups.get(rec.localityId) || [];
+        rows.push(rec);
+        groups.set(rec.localityId, rows);
+      }
+      for (const total2 of groupTotals) {
+        const rows = groups.get(total2.localityId) || [];
+        if (!rows.length) continue;
+        for (const field of CORE.GPMB) {
+          const expected = val(total2, field), values = rows.map((r) => val(r, field));
+          if (expected === void 0 || values.some((v) => v === void 0)) continue;
+          n++;
+          const sum2 = values.reduce((s, v) => s.plus(v), new decimal_default(0));
+          if (sum2.minus(expected).abs().gt("0.01")) {
+            bad++;
+            examples.push(total2.localityName + " " + total2.metrics[field].provenance.cell + " kh\xE1c t\u1ED5ng d\u1EF1 \xE1n");
+          }
+        }
+      }
+      checks.push(checkResult("GPMB_GROUP_TOTAL", "T\u1ED5ng \u0111\u1ECBa b\xE0n so v\u1EDBi t\u1ED5ng d\u1EF1 \xE1n", n, bad, examples));
     }
     const original = isOriginalReferenceLayout(ds);
     const status = !original && checks.some((c) => c.severity === "REVIEW") ? "NEEDS_REVIEW" : "VERIFIED";
@@ -6926,15 +6957,16 @@ code {
     return ds.sourceType === "DISB" ? ds.schemaFingerprint.startsWith("DISB_PHAN_CAP_XA") ? "ALLOCATED" : "TOTAL" : ds.sourceType;
   }
   function numericRows(ds, field) {
-    const values = /* @__PURE__ */ new Map(), duplicate = /* @__PURE__ */ new Set();
+    const values = /* @__PURE__ */ new Map(), duplicate = /* @__PURE__ */ new Set(), seen = /* @__PURE__ */ new Set();
     for (const r of ds.records) {
       if (!r.localityId) continue;
       if (ds.sourceType === "GPMB" && !r.projectName?.trim()) continue;
       const key = ds.sourceType === "GPMB" ? r.localityId + "\0" + r.projectName.normalize("NFC").trim().toLowerCase() : r.localityId;
-      if (values.has(key)) {
+      if (seen.has(key)) {
         duplicate.add(key);
         continue;
       }
+      seen.add(key);
       const n = val(r, field)?.toNumber();
       if (n !== void 0 && Number.isFinite(n)) values.set(key, n);
     }
@@ -6970,7 +7002,13 @@ code {
   };
   function assessSourceHistory(ds, workspace) {
     const v = ds.sourceValidation;
-    if (!v || !ds.asOfDate || ds.asOfStatus === "REQUIRES_USER_CONFIRMATION") return;
+    if (!v) return;
+    v.checks = v.checks.filter((c) => !c.code.startsWith("HISTORY_") && c.code !== "STRUCTURE_CHANGE");
+    delete v.historicalDatasetId;
+    delete v.historicalDate;
+    delete v.previousColumnCount;
+    delete v.changedColumns;
+    if (!ds.asOfDate || ds.asOfStatus === "REQUIRES_USER_CONFIRMATION") return;
     const baseline = workspace.datasets.filter((d) => d.sourceType === ds.sourceType && scope(d) === scope(ds) && d.workbookSha256 !== ds.workbookSha256 && d.asOfStatus !== "REQUIRES_USER_CONFIRMATION" && d.asOfDate?.slice(0, 4) === ds.asOfDate.slice(0, 4) && d.asOfDate < ds.asOfDate && !sourceMappingProblem(d)).sort((a, b) => b.asOfDate.localeCompare(a.asOfDate) || a.id.localeCompare(b.id))[0];
     if (!baseline) return;
     v.historicalDatasetId = baseline.id;
@@ -6996,7 +7034,11 @@ code {
       const severe = rankAnomaly && widespread;
       if (rankAnomaly || widespread) v.checks.push({ code: "HISTORY_" + field, label: "L\u1ECBch s\u1EED: " + sourceFieldLabel(field), checked: keys.length, failed: kind === "stable" ? changedCount : decreased, severity: severe ? "REVIEW" : "WARNING", detail: "So v\u1EDBi " + baseline.asOfDate + ": " + changedCount + " thay \u0111\u1ED5i, " + decreased + " gi\u1EA3m tr\xEAn " + keys.length + " \u0111\u1ED1i t\u01B0\u1EE3ng kh\u1EDBp; Spearman " + (rho === void 0 ? "kh\xF4ng x\xE1c \u0111\u1ECBnh" : rho.toFixed(2)) + ". Ch\u1EC9 l\xE0 d\u1EA5u hi\u1EC7u b\u1ED5 tr\u1EE3, c\xF3 th\u1EC3 do nghi\u1EC7p v\u1EE5/\u0111i\u1EC1u ch\u1EC9nh; kh\xF4ng d\xF9ng % ch\xEAnh l\u1EC7ch gi\u1EEFa hai k\u1EF3." });
     }
-    if (v.checks.some((c) => c.severity === "REVIEW") && !isOriginalReferenceLayout(ds)) v.status = "NEEDS_REVIEW";
+    if (v.checks.some((c) => c.code.startsWith("HISTORY_") && c.severity === "REVIEW") && !isOriginalReferenceLayout(ds)) {
+      v.status = "NEEDS_REVIEW";
+      delete v.reviewedAt;
+      delete v.reviewReason;
+    }
   }
   function confirmSourceValidation(ds, reason) {
     const v = ds.sourceValidation;
@@ -8287,6 +8329,7 @@ code {
     };
     targetDs.issues = targetDs.issues.filter((i) => i.ruleId !== "MISSING_CONFIRMED_AS_OF_DATE");
     updateConfirmedPeriodMetadata(targetDs);
+    assessSourceHistory(targetDs, workspace);
     syncSessionBenchmarkBindingForDataset(workspace, session, targetDs);
     session.sessionRevision += 1;
     session.updatedAt = (/* @__PURE__ */ new Date()).toISOString();
@@ -10140,13 +10183,12 @@ code {
       }
       return "REV_V1";
     }
-    if (a1.toUpperCase().includes("GI\u1EA2I PH\xD3NG M\u1EB6T B\u1EB0NG") || getCellText(sheet, "D2").toLowerCase().includes("di\u1EC7n t\xEDch")) {
-      const d4 = sheet.cells.get("D4");
-      if (!d4 || d4.cellType !== "n") {
-        return "SCHEMA_MODIFIED_NEEDS_MAPPING";
-      }
-      return "GPMB_V1";
+    try {
+      if (resolveGroupedGpmbHeaders(sheet)) return "GPMB_V1";
+    } catch {
+      return "SCHEMA_MODIFIED_NEEDS_MAPPING";
     }
+    if (a1.toUpperCase().includes("GI\u1EA2I PH\xD3NG M\u1EB6T B\u1EB0NG")) return "SCHEMA_MODIFIED_NEEDS_MAPPING";
     return "UNKNOWN";
   }
   function buildMetricCell(sheet, col, row, unit, wb, asOfDate, mappingVersion) {
@@ -10824,7 +10866,10 @@ code {
     const flatMapping = sheetFp === "GPMB_FLAT" ? resolveFlatGpmbHeaders(targetSheet) : null;
     if (sheetFp === "GPMB_FLAT" && !flatMapping) throw new Error("BLOCKER_MAPPING_REQUIRED: Kh\xF4ng x\xE1c minh \u0111\u01B0\u1EE3c ti\xEAu \u0111\u1EC1 GPMB b\u1EA3ng ph\u1EB3ng.");
     const isFlatTable = !!flatMapping;
-    const headerRows = flatMapping ? [flatMapping.row] : validateGroupedGpmbHeaders(targetSheet);
+    const groupedMapping = isFlatTable ? null : resolveGroupedGpmbHeaders(targetSheet);
+    if (!flatMapping && !groupedMapping) throw new Error("BLOCKER_MAPPING_REQUIRED: Kh\xF4ng x\xE1c minh \u0111\u01B0\u1EE3c nh\xF3m ti\xEAu \u0111\u1EC1 GPMB.");
+    const headerRows = flatMapping ? [flatMapping.row] : [groupedMapping.row];
+    const groupTotals = [];
     const a1Text = getCellText(targetSheet, "A1");
     const detectedDate = isFlatTable ? void 0 : dateFromReportTitle(a1Text);
     const manualDate = options.confirmedAsOfDate?.trim();
@@ -11017,7 +11062,8 @@ code {
         }
       }
     } else {
-      const colMap = {
+      const g = groupedMapping.columns;
+      const canonicalMap = {
         D: { fieldId: "gpmb_declared_area", unit: "m2" },
         E: { fieldId: "gpmb_declared_orgs", unit: "org_count" },
         F: { fieldId: "gpmb_declared_households", unit: "household_count" },
@@ -11029,27 +11075,35 @@ code {
         L: { fieldId: "gpmb_done_households", unit: "household_count" },
         M: { fieldId: "gpmb_source_reported_rate", unit: "percent_100" }
       };
+      const colMap = Object.fromEntries(Object.entries(canonicalMap).map(([role, def]) => [g[role], def]));
       let currentLocalityName = "";
       let currentLocalityId = "";
       const seenProjects = /* @__PURE__ */ new Set();
-      for (let row = 3; row <= targetSheet.maxRow; row++) {
-        const cellA = targetSheet.cells.get(`A${row}`);
-        const textB = getCellText(targetSheet, `B${row}`);
+      for (let row = groupedMapping.row + 1; row <= targetSheet.maxRow; row++) {
+        const cellA = targetSheet.cells.get(`${g.A}${row}`);
+        const textB = getCellText(targetSheet, `${g.B}${row}`);
         const normB = canonicalizeLocalityName(textB);
         const isGroupHeader = (!cellA || cellA.value === null || cellA.value === "") && (normB.startsWith("X\xE3 ") || normB.startsWith("Ph\u01B0\u1EDDng ") || normB.startsWith("\u0110\u1EB7c khu "));
         if (isGroupHeader) {
           currentLocalityName = normB;
           currentLocalityId = makeLocalityId(normB);
-          const cellM = targetSheet.cells.get(`M${row}`);
+          if (localityGroupSummaries[currentLocalityId]) throw new Error("BLOCKER_MAPPING_REQUIRED: Tr\xF9ng nh\xF3m \u0111\u1ECBa b\xE0n " + normB + " d\xF2ng " + row + ".");
+          const cellM = targetSheet.cells.get(`${g.M}${row}`);
           localityGroupSummaries[currentLocalityId] = {
             row,
             rawM: cellM?.value ?? null,
-            formulaM: cellM?.formula
+            formulaM: cellM?.formula,
+            columnM: g.M
           };
+          const metrics = {};
+          for (const [col, def] of Object.entries(colMap)) metrics[def.fieldId] = buildMetricCell(targetSheet, col, row, def.unit, wb, asOfDate, mappingVersion);
+          groupTotals.push({ id: datasetId + "_GROUP_" + row, datasetId, localityId: currentLocalityId, localityName: currentLocalityName, sourceRow: row, metrics });
           continue;
         }
-        if (cellA && cellA.cellType === "n" && typeof cellA.value === "number" && Number.isInteger(cellA.value) && cellA.value >= 1) {
-          const stt2 = cellA.value;
+        const rawStt = cellA?.value;
+        const numericStt = typeof rawStt === "number" ? rawStt : typeof rawStt === "string" && /^\d+$/.test(rawStt.trim()) ? Number(rawStt) : NaN;
+        if (Number.isSafeInteger(numericStt) && numericStt >= 1) {
+          const stt2 = numericStt;
           if (!currentLocalityId || !normB) throw new Error("BLOCKER_MAPPING_REQUIRED: D\u1EF1 \xE1n d\xF2ng " + row + " ch\u01B0a c\xF3 \u0111\u1ECBa b\xE0n/t\xEAn d\u1EF1 \xE1n r\xF5 r\xE0ng.");
           const projectKey = currentLocalityId + "|" + stt2;
           if (seenProjects.has(projectKey)) throw new Error("BLOCKER_MAPPING_REQUIRED: Tr\xF9ng STT d\u1EF1 \xE1n trong \u0111\u1ECBa b\xE0n t\u1EA1i d\xF2ng " + row + ".");
@@ -11076,54 +11130,54 @@ code {
             projectRowId: projectRecordId,
             projectStt: stt2,
             projectName: normB,
-            capitalType: getCellText(targetSheet, `C${row}`).trim(),
+            capitalType: getCellText(targetSheet, `${g.C}${row}`).trim(),
             metrics
           });
-          const dVal = getCellNumber(targetSheet, `D${row}`);
-          const eVal = getCellNumber(targetSheet, `E${row}`);
-          const fVal = getCellNumber(targetSheet, `F${row}`);
-          const gVal = getCellNumber(targetSheet, `G${row}`);
-          const iVal = getCellNumber(targetSheet, `I${row}`);
-          const jVal = getCellNumber(targetSheet, `J${row}`);
-          const kVal = getCellNumber(targetSheet, `K${row}`);
-          const lVal = getCellNumber(targetSheet, `L${row}`);
-          const mVal = getCellNumber(targetSheet, `M${row}`);
+          const dVal = getCellNumber(targetSheet, `${g.D}${row}`);
+          const eVal = getCellNumber(targetSheet, `${g.E}${row}`);
+          const fVal = getCellNumber(targetSheet, `${g.F}${row}`);
+          const gVal = getCellNumber(targetSheet, `${g.G}${row}`);
+          const iVal = getCellNumber(targetSheet, `${g.I}${row}`);
+          const jVal = getCellNumber(targetSheet, `${g.J}${row}`);
+          const kVal = getCellNumber(targetSheet, `${g.K}${row}`);
+          const lVal = getCellNumber(targetSheet, `${g.L}${row}`);
+          const mVal = getCellNumber(targetSheet, `${g.M}${row}`);
           const overChecks = [
             {
               ruleId: "GPMB_I_GT_D",
-              numCol: "I",
-              denCol: "D",
+              numCol: g.I,
+              denCol: g.D,
               numV: iVal,
               denV: dVal,
               fieldId: "gpmb_recorded_area",
-              desc: "Di\u1EC7n t\xEDch \u0111\xE3 GPMB (I) l\u1EDBn h\u01A1n di\u1EC7n t\xEDch ph\u1EA3i GPMB (D)"
+              desc: "Di\u1EC7n t\xEDch \u0111\xE3 GPMB l\u1EDBn h\u01A1n di\u1EC7n t\xEDch ph\u1EA3i GPMB"
             },
             {
               ruleId: "GPMB_J_GT_G",
-              numCol: "J",
-              denCol: "G",
+              numCol: g.J,
+              denCol: g.G,
               numV: jVal,
               denV: gVal,
               fieldId: "gpmb_paid_amount",
-              desc: "Kinh ph\xED \u0111\xE3 chi GPMB (J) l\u1EDBn h\u01A1n kinh ph\xED ph\xE2n b\u1ED5 (G)"
+              desc: "Kinh ph\xED \u0111\xE3 chi GPMB l\u1EDBn h\u01A1n kinh ph\xED ph\xE2n b\u1ED5"
             },
             {
               ruleId: "GPMB_K_GT_E",
-              numCol: "K",
-              denCol: "E",
+              numCol: g.K,
+              denCol: g.E,
               numV: kVal,
               denV: eVal,
               fieldId: "gpmb_done_orgs",
-              desc: "S\u1ED1 t\u1ED5 ch\u1EE9c \u0111\xE3 GPMB (K) l\u1EDBn h\u01A1n s\u1ED1 t\u1ED5 ch\u1EE9c ph\u1EA3i thu h\u1ED3i (E)"
+              desc: "S\u1ED1 t\u1ED5 ch\u1EE9c \u0111\xE3 GPMB l\u1EDBn h\u01A1n s\u1ED1 t\u1ED5 ch\u1EE9c ph\u1EA3i thu h\u1ED3i"
             },
             {
               ruleId: "GPMB_L_GT_F",
-              numCol: "L",
-              denCol: "F",
+              numCol: g.L,
+              denCol: g.F,
               numV: lVal,
               denV: fVal,
               fieldId: "gpmb_done_households",
-              desc: "S\u1ED1 h\u1ED9 \u0111\xE3 GPMB (L) l\u1EDBn h\u01A1n s\u1ED1 h\u1ED9 ph\u1EA3i thu h\u1ED3i (F)"
+              desc: "S\u1ED1 h\u1ED9 \u0111\xE3 GPMB l\u1EDBn h\u01A1n s\u1ED1 h\u1ED9 ph\u1EA3i thu h\u1ED3i"
             }
           ];
           for (const chk of overChecks) {
@@ -11167,11 +11221,11 @@ code {
               localityId: currentLocalityId,
               localityName: currentLocalityName,
               fieldId: "gpmb_recorded_area",
-              sourceCell: `I${row}`,
-              sourceCells: { declared: `D${row}`, recorded: `I${row}`, reportedM: `M${row}` },
+              sourceCell: `${g.I}${row}`,
+              sourceCells: { declared: `${g.D}${row}`, recorded: `${g.I}${row}`, reportedM: `${g.M}${row}` },
               observed: iVal,
               expected: dVal,
-              explanation: `D\u1EF1 \xE1n STT ${stt2} (d\xF2ng ${row}, ${currentLocalityName}) c\xF3 D${row}=${dVal} m\xB2 nh\u01B0ng thi\u1EBFu k\u1EBFt qu\u1EA3 I${row}/M${row} (MISSING). Gi\u1EEF D trong m\u1EABu s\u1ED1 v\xE0 g\u1EAFn c\u1EDD PARTIAL_AGGREGATE, kh\xF4ng g\xE1n I=0.`
+              explanation: `D\u1EF1 \xE1n STT ${stt2} (d\xF2ng ${row}, ${currentLocalityName}) c\xF3 ${g.D}${row}=${dVal} m\xB2 nh\u01B0ng thi\u1EBFu k\u1EBFt qu\u1EA3 ${g.I}${row}/${g.M}${row} (MISSING). Gi\u1EEF di\u1EC7n t\xEDch ph\u1EA3i GPMB trong m\u1EABu s\u1ED1 v\xE0 g\u1EAFn c\u1EDD PARTIAL_AGGREGATE, kh\xF4ng g\xE1n s\u1ED1 \u0111\xE3 GPMB=0.`
             });
           }
           if (dVal !== null && dVal > 0 && iVal !== null && mVal !== null) {
@@ -11191,20 +11245,25 @@ code {
                 localityId: currentLocalityId,
                 localityName: currentLocalityName,
                 fieldId: "gpmb_source_reported_rate",
-                sourceCell: `M${row}`,
+                sourceCell: `${g.M}${row}`,
                 sourceCells: {
-                  declared: `D${row}`,
-                  recorded: `I${row}`,
-                  reportedPercent: `M${row}`
+                  declared: `${g.D}${row}`,
+                  recorded: `${g.I}${row}`,
+                  reportedPercent: `${g.M}${row}`
                 },
                 observed: mVal,
                 expected: recomputedPct,
                 delta: deltaPp,
                 threshold: 0.1,
-                explanation: `C\u1ED9t M d\xF2ng d\u1EF1 \xE1n ${row} (STT ${stt2}, ${currentLocalityName}) ghi ${mVal}%, l\u1EC7ch ${deltaPp.toFixed(2)} \u0111i\u1EC3m % so v\u1EDBi 100*I${row}/D${row} (${recomputedPct.toFixed(2)}%). B\xE1o c\xE1o ch\u1EC9 t\xEDnh theo SUM(I)/SUM(D), kh\xF4ng d\xF9ng c\u1ED9t M \u0111\u1EC3 t\xEDnh trung b\xECnh.`
+                explanation: `C\u1ED9t ${g.M} d\xF2ng d\u1EF1 \xE1n ${row} (STT ${stt2}, ${currentLocalityName}) ghi ${mVal}%, l\u1EC7ch ${deltaPp.toFixed(2)} \u0111i\u1EC3m % so v\u1EDBi 100*${g.I}${row}/${g.D}${row} (${recomputedPct.toFixed(2)}%). B\xE1o c\xE1o ch\u1EC9 t\xEDnh theo SUM(${g.I})/SUM(${g.D}), kh\xF4ng d\xF9ng c\u1ED9t ${g.M} \u0111\u1EC3 t\xEDnh trung b\xECnh.`
               });
             }
           }
+        } else if (textB.trim() && !/^(tong so|tong cong|tong hop|ghi chu)(\b|$)/.test(headerKey(textB)) && [g.D, g.G, g.I, g.J].some((c) => {
+          const cell = targetSheet.cells.get(c + row);
+          return cell && cell.value !== null && String(cell.value).trim() !== "";
+        })) {
+          throw new Error("BLOCKER_MAPPING_REQUIRED: D\xF2ng GPMB " + row + " c\xF3 s\u1ED1 li\u1EC7u nh\u01B0ng kh\xF4ng x\xE1c \u0111\u1ECBnh \u0111\u01B0\u1EE3c STT/nh\xF3m \u0111\u1ECBa b\xE0n; kh\xF4ng b\u1ECF qua.");
         }
       }
     }
@@ -11243,7 +11302,7 @@ code {
       issues,
       allSheetsMeta
     };
-    attachSourceValidation(dataset, targetSheet, headerRows);
+    attachSourceValidation(dataset, targetSheet, headerRows, groupTotals);
     return { dataset };
   }
 
@@ -13511,7 +13570,7 @@ code {
         const qualityStatus = missingAreaD.gt(0) ? "PARTIAL_AGGREGATE" : sumDen.isZero() ? "DENOMINATOR_ZERO" : "COMPLETE";
         const displayedText = pct ? formatVnPercent(pct, decPct) : sumDen.isZero() ? "Kh\xF4ng c\xF3 nhi\u1EC7m v\u1EE5 GPMB" : "Kh\xF4ng c\xF3 c\u01A1 s\u1EDF t\xEDnh t\u1EF7 l\u1EC7";
         const groupSummaryProvenance = gpmb.localityGroupSummaries?.[locality2.id];
-        const provenanceNote = groupSummaryProvenance ? ` (L\u01B0u \xFD provenance ngu\u1ED3n: d\xF2ng t\u1ED5ng \u0111\u1ECBa b\xE0n M${groupSummaryProvenance.row} trong Excel g\u1ED1c ghi ${groupSummaryProvenance.rawM}% theo c\xF4ng th\u1EE9c ${groupSummaryProvenance.formulaM || "c\u0169"}, KH\xD4NG d\xF9ng \u0111\u1EC3 t\xEDnh hay hi\u1EC3n th\u1ECB b\xE1o c\xE1o theo R06)` : "";
+        const provenanceNote = groupSummaryProvenance ? ` (L\u01B0u \xFD provenance ngu\u1ED3n: d\xF2ng t\u1ED5ng \u0111\u1ECBa b\xE0n ${groupSummaryProvenance.columnM || "M"}${groupSummaryProvenance.row} trong Excel g\u1ED1c ghi ${groupSummaryProvenance.rawM}% theo c\xF4ng th\u1EE9c ${groupSummaryProvenance.formulaM || "c\u0169"}, KH\xD4NG d\xF9ng \u0111\u1EC3 t\xEDnh hay hi\u1EC3n th\u1ECB b\xE1o c\xE1o theo R06)` : "";
         const traceId = `TRACE_${indicator.id}_${locality2.id}_${gpmb.id}`;
         const trace = {
           traceId,
@@ -17649,13 +17708,16 @@ ${page2}`;
       const existing = this.workspace.datasets.find((d) => d.id === dataset.id && !sourceMappingProblem(d) && d.sourceValidation?.schemaSignature === dataset.sourceValidation?.schemaSignature);
       if (existing) return true;
       assessSourceHistory(dataset, this.workspace);
+      return this.confirmPendingSource(dataset);
+    }
+    confirmPendingSource(dataset) {
       const v = dataset.sourceValidation;
       if (!v) return false;
       if (v.status === "VERIFIED") return true;
       const review = v.checks.filter((c) => c.severity === "REVIEW");
       const prior = new Map((v.changedColumns || []).map((c) => [c.field, c.before]));
       const fields = v.columns.map((c) => sourceFieldLabel(c.field) + ": " + (prior.has(c.field) ? prior.get(c.field) + " \u2192 " : "") + c.column + " | " + c.header + " | " + c.unit);
-      const message = ["C\u1EA6N X\xC1C MINH NGU\u1ED2N: " + dataset.sourceFilename, "\u0110\xE3 ki\u1EC3m tra ti\xEAu \u0111\u1EC1; c\xF3 b\u1EA5t th\u01B0\u1EDDng c\u1EA7n \u0111\u1ED1i chi\u1EBFu Excel g\u1ED1c.", ...review.map((c) => c.label + ": " + c.detail + (c.examples?.length ? "\n" + c.examples.slice(0, 3).join("\n") : "")), "\xC1nh x\u1EA1 c\u1ED9t (c\u1ED9t tr\u01B0\u1EDBc \u2192 c\u1ED9t m\u1EDBi n\u1EBFu \u0111\u1ED5i):", ...fields, "Ch\u1EC9 ch\u1ECDn OK n\u1EBFu \u0111\xE3 ki\u1EC3m tra \u0111\xFAng c\u1ED9t, \u0111\u01A1n v\u1ECB v\xE0 s\u1ED1 li\u1EC7u. H\u1EE7y s\u1EBD gi\u1EEF nguy\xEAn ngu\u1ED3n phi\xEAn \u0111ang m\u1EDF."].join("\n");
+      const message = ["C\u1EA6N X\xC1C MINH NGU\u1ED2N: " + dataset.sourceFilename, "\u0110\xE3 ki\u1EC3m tra ti\xEAu \u0111\u1EC1; c\xF3 b\u1EA5t th\u01B0\u1EDDng c\u1EA7n \u0111\u1ED1i chi\u1EBFu Excel g\u1ED1c.", ...review.map((c) => c.label + ": " + c.detail + (c.examples?.length ? "\n" + c.examples.slice(0, 3).join("\n") : "")), "\xC1nh x\u1EA1 c\u1ED9t (c\u1ED9t tr\u01B0\u1EDBc \u2192 c\u1ED9t m\u1EDBi n\u1EBFu \u0111\u1ED5i):", ...fields, "Ch\u1EC9 ch\u1ECDn OK n\u1EBFu \u0111\xE3 ki\u1EC3m tra \u0111\xFAng c\u1ED9t, \u0111\u01A1n v\u1ECB v\xE0 s\u1ED1 li\u1EC7u. H\u1EE7y s\u1EBD kh\xF4ng ph\xEA duy\u1EC7t ngu\u1ED3n."].join("\n");
       if (typeof window === "undefined" || !window.confirm(message)) return false;
       confirmSourceValidation(dataset, "Ng\u01B0\u1EDDi d\xF9ng \u0111\xE3 \u0111\u1ED1i chi\u1EBFu Excel g\u1ED1c v\xE0 x\xE1c nh\u1EADn c\u1EA3nh b\xE1o khi nh\u1EADp.");
       return true;
@@ -18161,7 +18223,8 @@ ${page2}`;
         const validation = ds?.sourceValidation;
         if (ds) {
           const problem = sourceMappingProblem(ds);
-          metaHtml += problem ? '<div class="latest-source-warning">' + escapeHtmlUi(problem) + "</div>" : validation ? '<details class="source-validation-details"><summary>Ki\u1EC3m tra c\u1ED9t: ' + (validation.reviewedAt ? "\u0110\xE3 \u0111\u1ED1i chi\u1EBFu" : "\u0110\xE3 ki\u1EC3m tra") + " \xB7 " + validation.columnCount + " c\u1ED9t c\xF3 n\u1ED9i dung</summary>" + (validation.historicalDate ? "<div>\u0110\u1ED1i chi\u1EBFu l\u1ECBch s\u1EED " + escapeHtmlUi(validation.historicalDate) + "</div>" : "") + validation.checks.map((c) => '<div class="source-validation-check ' + (c.severity === "INFO" ? "" : "latest-source-warning") + '"><strong>' + escapeHtmlUi(c.label) + "</strong>: " + escapeHtmlUi(c.detail) + "</div>").join("") + '<div class="source-validation-columns">' + validation.columns.map((c) => "<div>" + escapeHtmlUi(c.column + " \xB7 " + sourceFieldLabel(c.field) + " \xB7 " + c.unit) + "</div>").join("") + "</div></details>" : '<div class="muted-xs">Workbook tham chi\u1EBFu \u0111\xE3 ki\u1EC3m tra SHA g\u1ED1c.</div>';
+          metaHtml += problem ? '<div class="latest-source-warning">' + escapeHtmlUi(problem) + "</div>" + (validation?.status === "NEEDS_REVIEW" ? '<button type="button" class="btn btn-xs btn-primary btn-review-pending-source" data-dataset-id="' + escapeHtmlUi(ds.id) + '">\u0110\u1ED1i chi\u1EBFu &amp; x\xE1c nh\u1EADn ngu\u1ED3n</button>' : "") : "";
+          metaHtml += validation ? '<details class="source-validation-details"><summary>Ki\u1EC3m tra c\u1ED9t: ' + (validation.status === "NEEDS_REVIEW" ? "C\u1EA7n \u0111\u1ED1i chi\u1EBFu" : validation.reviewedAt ? "\u0110\xE3 \u0111\u1ED1i chi\u1EBFu" : "\u0110\xE3 ki\u1EC3m tra") + " \xB7 " + validation.columnCount + " c\u1ED9t c\xF3 n\u1ED9i dung</summary>" + (validation.historicalDate ? "<div>\u0110\u1ED1i chi\u1EBFu l\u1ECBch s\u1EED " + escapeHtmlUi(validation.historicalDate) + "</div>" : "") + validation.checks.map((c) => '<div class="source-validation-check ' + (c.severity === "INFO" ? "" : "latest-source-warning") + '"><strong>' + escapeHtmlUi(c.label) + "</strong>: " + escapeHtmlUi(c.detail) + "</div>").join("") + '<div class="source-validation-columns">' + validation.columns.map((c) => "<div>" + escapeHtmlUi(c.column + " \xB7 " + sourceFieldLabel(c.field) + " \xB7 " + c.unit) + "</div>").join("") + "</div></details>" : !problem ? '<div class="muted-xs">Workbook tham chi\u1EBFu \u0111\xE3 ki\u1EC3m tra SHA g\u1ED1c.</div>' : "";
         }
         const cardTitleTip = ds ? `${ds.sourceFilename} \xB7 Sheet: ${ds.sourceSheet} \xB7 SHA: ${ds.workbookSha256}` : `Ch\u01B0a g\u1EAFn ngu\u1ED3n ${type}`;
         return `<div class="session-source-card ${ds ? "is-ready" : "is-missing"}" title="${escapeHtmlUi(cardTitleTip)}">
@@ -19588,6 +19651,15 @@ ${page2}`;
           void this.importSelectedFiles(inputFiles.files);
         }
       });
+      document.querySelectorAll(".btn-review-pending-source").forEach((el) => el.addEventListener("click", () => {
+        const id = el.getAttribute("data-dataset-id");
+        const ds = this.workspace.datasets.find((d) => d.id === id);
+        if (!ds || !ds.sourceValidation || ds.sourceValidation.status !== "NEEDS_REVIEW") return;
+        if (this.confirmPendingSource(ds)) {
+          this.triggerAutosave();
+          this.setStatus("\u0110\xE3 x\xE1c nh\u1EADn ngu\u1ED3n sau khi \u0111\u1ED1i chi\u1EBFu.", "success");
+        }
+      }));
       document.querySelectorAll(".btn-save-asof-date").forEach((btnEl) => {
         btnEl.addEventListener("click", () => {
           const activeSession2 = this.getActiveSession();
@@ -19605,6 +19677,10 @@ ${page2}`;
               inputEl.value
             );
             this.triggerAutosave();
+            if (updated.sourceValidation?.status === "NEEDS_REVIEW") {
+              this.setStatus("\u0110\xE3 l\u01B0u ng\xE0y ch\u1ED1t. Ki\u1EC3m tra l\u1ECBch s\u1EED ph\xE1t hi\u1EC7n b\u1EA5t th\u01B0\u1EDDng; h\xE3y \u0111\u1ED1i chi\u1EBFu ngu\u1ED3n t\u1EA1i Kh\u1ED1i 1 tr\u01B0\u1EDBc khi l\u1EADp b\xE1o c\xE1o.", "warning");
+              return;
+            }
             this.setStatus(
               `\u0110\xE3 c\u1EADp nh\u1EADt ng\xE0y ch\u1ED1t ngu\u1ED3n ${updated.sourceType} th\xE0nh ${formatVnDate(
                 updated.asOfDate
