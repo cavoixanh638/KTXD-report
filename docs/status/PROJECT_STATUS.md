@@ -173,4 +173,4 @@
 ### Chuẩn hóa nhãn kinh phí GPMB của phiên cũ
 
 - Nhãn chuẩn đã có trong MASTER và template. Bổ sung alias chính xác `Kinh phí phân bổ GPMB cho từng phường` trong `normalizeLocalityReportLabel` cho GPMB_BUDGET, không thay đổi phép tính hoặc dữ liệu. Kiểm thử NOV_FIX_04 mở rộng kiểm tra nhãn phiên cũ và ba đầu ra; giữ nhãn tùy chỉnh khác.
-- Chờ CI và tự publish HTML; kết quả sẽ được ghi nhận theo SHA mới.
+- CI [45586482726](https://github.com/cavoixanh638/KTXD-report/actions/runs/45586482726), SHA `c1ad458304c4ab167fc86663b786cc29ed8afc31`: SUCCESS; 47/47 test PASS, 4/4 workbook PASS, typecheck/build PASS. HTML tự publish tại `0339b9fdcd8203bf3fdb4afc7243543f3bfd8f3a`, SHA-256 `cccb9be41332273a0de0ac8bcb200cf28f72811dde563a2dcfec60f25014b702`. Đã kiểm tra tree có file `dist/index.html` (2.295.223 byte). Windows in trực tiếp: NOT_RUN. Chỉ cần Pull origin, không chạy npm.
