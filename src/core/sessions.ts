@@ -9,6 +9,7 @@ import {
 } from './types';
 import { createLocalityFromName } from './localities';
 import { chooseLatestSources, hasTrustedSourceDate, isValidSourceDate, SOURCE_TYPES, LatestSourcePlan } from './latestSources';
+import { sourceMappingProblem } from './sourceValidation';
 import {
   formatVnDateText,
   replaceDateInLabel,
@@ -61,7 +62,7 @@ export function registerDatasetInWorkspace(
       // Reuse a confirmed dataset with identical content/mapping, especially a
       // manually dated CSV. Never erase its date merely because it is reimported.
       // A genuinely different mapping still follows the existing reparse path.
-      if (sameMapping && hasTrustedSourceDate(previous) &&
+      if (sameMapping && !sourceMappingProblem(previous) && hasTrustedSourceDate(previous) &&
           (previous.asOfStatus === 'MANUAL_CONFIRMED' ||
            !hasTrustedSourceDate(dataset) || previous.asOfDate === dataset.asOfDate)) {
         dataset = previous;

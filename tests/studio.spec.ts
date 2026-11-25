@@ -30,6 +30,7 @@ import {
 } from '../src/core/sessions';
 import { evaluateSessionReport } from '../src/core/calculationTrace';
 import { chooseLatestSources, hasTrustedSourceDate, dateFromReportTitle, isValidSourceDate } from '../src/core/latestSources';
+import { sourceMappingProblem, assessSourceHistory, confirmSourceValidation, spearman } from '../src/core/sourceValidation';
 import { saveWorkspacePersistent, loadWorkspacePersistent } from '../src/core/storage';
 import { searchLocalities } from '../src/core/localities';
 import { generatePrintableReportHtml } from '../src/export/print';
@@ -403,7 +404,7 @@ describe('KTXH Offline – A4 Report Studio & WYSIWYG Architecture Suite', () =>
     const ws = createEmptyWorkspace();
     const copy = (d: Dataset, id: string, date: string, imported: string, extra: Partial<Dataset> = {}): Dataset => ({
       ...d, id, workbookSha256: id, sourceHash:id, sourceFilename:id+'.xlsx', asOfDate:date,
-      importedAt:imported, asOfStatus:'MANUAL_CONFIRMED', issues:[], ...extra,
+      importedAt:imported, asOfStatus:'MANUAL_CONFIRMED', issues:[], sourceValidation:{...d.sourceValidation!,workbookSha256:id,status:'VERIFIED'}, ...extra,
     });
     const d = copy(disbDataset,'total-new','2026-11-22','2026-11-23T00:00:00Z',{schemaFingerprint:'DISB_TOTAL_LOCALITY_V2'});
     const r = copy(revDataset,'rev-new','2026-11-23','2026-11-23T00:00:00Z',{mappingVersion:'REV_HEADER_SEMANTIC_V3'});
@@ -460,6 +461,83 @@ describe('KTXH Offline – A4 Report Studio & WYSIWYG Architecture Suite', () =>
     expect(confirmed.asOfStatus).toBe('MANUAL_CONFIRMED');
     expect(confirmed.periodLabel).toBe('Đến ngày 24/11/2026');
     expect(confirmed.periodEnd).toBe('2026-11-24');
+  });
+
+  it('NOV_FIX_06: verifies mapped headers and units; refuses changed fixed layout, ambiguous flat headers, and includes project 423+',()=>{
+    const makeRows=(id:string,rename:(col:string)=>string=(c)=>c,modify?:(r:number,c:string,v:string|number)=>string|number|undefined)=>{
+      const wb=parseWorkbookBytes(new Uint8Array(fs.readFileSync(filePaths[id])),id+'.xlsx');
+      const sh=wb.sheets.find(s=>s.state==='visible')!;
+      const rows=new Map<number,Array<[string,string|number]>>();
+      for(const cell of sh.cells.values()){
+        if(typeof cell.value!=='string'&&typeof cell.value!=='number')continue;
+        const v=modify?modify(cell.row,cell.col,cell.value):cell.value;
+        if(v===undefined)continue;
+        const row=rows.get(cell.row)||[];row.push([rename(cell.col),v]);rows.set(cell.row,row);
+      }
+      return [...rows.entries()] as Array<[number,Array<[string,string|number]>]>;
+    };
+    const shift=(from:number)=> (col:string)=>{
+      let n=[...col].reduce((v,c)=>v*26+c.charCodeAt(0)-64,0);
+      if(n<from)return col;n++;let s='';while(n){n--;s=String.fromCharCode(65+n%26)+s;n=Math.floor(n/26);}return s;
+    };
+    for(const [id,parser] of [['DISB_20261015',importDisbursementWorkbook],['GPMB_20261026',importGpmbWorkbook]] as const){
+      const unchanged=makeRows(id);
+      const ok=parser(buildSingleSheetXlsx('Sheet chuẩn mới',unchanged),id+'-copy.xlsx').dataset;
+      expect(ok.sourceValidation?.schemaSignature).toMatch(/^[a-f0-9]{64}$/);
+      const added=makeRows(id,shift(7));for(const [row,cells] of added)if(row>3)cells.push(['G',88888]);
+      expect(()=>parser(buildSingleSheetXlsx('Sheet đã chèn cột',added),'shifted.xlsx')).toThrow(/BLOCKER_MAPPING_REQUIRED|BLOCKER_SHEET_SELECTION/);
+      const swapped=makeRows(id,c=>c==='D'?'I':c==='I'?'D':c);
+      expect(()=>parser(buildSingleSheetXlsx('Sheet đã đảo cột',swapped),'swapped.xlsx')).toThrow();
+      const extra=makeRows(id);extra.find(([r])=>r=== (id==='DISB_20261015'?3:2))![1].push(['AZ','Ghi chú ngoài vùng']);
+      const ex=parser(buildSingleSheetXlsx('Thêm ghi chú cuối bảng',extra),'extra.xlsx').dataset;
+      expect(ex.records.length).toBe(ok.records.length);
+      expect(ex.sourceValidation?.columnCount).toBeGreaterThan(ok.sourceValidation!.columnCount);
+    }
+    const more=makeRows('GPMB_20261026');
+    const last=more.find(([r,cols])=>r>2&&cols.some(([c,v])=>c==='A'&&v===422))!;
+    more.push([Math.max(...more.map(([r])=>r))+1,last[1].map(([c,v])=>[c,c==='A'?423:c==='B'?'Dự án bổ sung thử nghiệm':v])]);
+    const grown=importGpmbWorkbook(buildSingleSheetXlsx('GPMB tăng dự án',more),'more.xlsx').dataset;
+    expect(grown.projectRowCount).toBe(423);
+    expect(grown.records.some(r=>r.projectStt===423)).toBe(true);
+    const flat='STT,Dự án,Phường xã,Tổng DT GPMB (m2),DT đã thu hồi (m2),Tiền phân bổ (đồng),Đã chi GPMB (đồng),Tỷ lệ GPMB\n1,Dự án thử,Xã Nam Sách,1000,400,900000,100000,40';
+    const readFlat=(s:string)=>importGpmbWorkbook(new TextEncoder().encode(s),'flat.csv',{confirmedAsOfDate:'2026-11-24'}).dataset;
+    const good=readFlat(flat);expect(good.records[0].metrics.gpmb_declared_area.normalizedDecimal).toBe('1000');
+    const inserted=readFlat(flat.replace('Tổng DT GPMB','Ghi chú thêm,Tổng DT GPMB').replace('Nam Sách,1000','Nam Sách,9999,1000'));
+    expect(inserted.records[0].metrics.gpmb_declared_area.provenance.cell).toBe('E2');
+    expect(inserted.records[0].metrics.gpmb_declared_area.normalizedDecimal).toBe('1000');
+    expect(()=>readFlat(flat.replace('DT đã thu hồi (m2)','Tổng DT GPMB (m2)'))).toThrow();
+    expect(()=>readFlat(flat.replace('Tiền phân bổ (đồng)','Cột khác'))).toThrow();
+    expect(()=>readFlat(flat.replace('Tổng DT GPMB (m2)','Tổng DT GPMB (ha)'))).toThrow();
+    const disbUnit=makeRows('DISB_20261015',c=>c,(r,c,v)=>r===2&&c==='A'?'Đơn vị: Tỷ đồng':v);
+    expect(()=>importDisbursementWorkbook(buildSingleSheetXlsx('Đổi đơn vị',disbUnit),'unit.xlsx')).toThrow(/Đơn vị/);
+  });
+
+  it('NOV_FIX_07: historical checks compare verified same-year scope without percent change, and gate latest on validation',()=>{
+    const ws=createEmptyWorkspace();
+    registerDatasetInWorkspace(ws,disbDataset,baselineLocalities);
+    const synthetic=(id:string,date:string,multiplier:number):Dataset=>{
+      const d=JSON.parse(JSON.stringify(disbDataset)) as Dataset;d.id=id;d.workbookSha256=id;d.sourceHash=id;d.asOfDate=date;d.asOfStatus='MANUAL_CONFIRMED';d.issues=[];
+      d.sourceValidation={...d.sourceValidation!,workbookSha256:id,status:'VERIFIED',checks:[],columns:d.sourceValidation!.columns.map(c=>({...c}))};
+      for(const r of d.records){const m=r.metrics.disbursed_total;if(m?.normalizedDecimal!==null&&m?.normalizedDecimal!==undefined)m.normalizedDecimal=String(Number(m.normalizedDecimal)*multiplier);}
+      return d;
+    };
+    const later=synthetic('later','2026-12-20',10);assessSourceHistory(later,ws);
+    expect(later.sourceValidation?.historicalDatasetId).toBe(disbDataset.id);
+    expect(later.sourceValidation?.checks.some(c=>c.code==='HISTORY_disbursed_total')).toBe(false);
+    const reverse=synthetic('reverse','2026-12-20',1);
+    const vals=reverse.records.map(r=>r.metrics.disbursed_total.normalizedDecimal).reverse();
+    reverse.records.forEach((r,i)=>{r.metrics.disbursed_total.normalizedDecimal=vals[i];});
+    assessSourceHistory(reverse,ws);
+    expect(reverse.sourceValidation?.checks.some(c=>c.code==='HISTORY_disbursed_total')).toBe(true);
+    expect(spearman([1,2,3,4],[10,20,30,40])).toBe(1);
+    expect(spearman([1,2,3,4],[40,30,20,10])).toBe(-1);
+    const invalid=synthetic('invalid','2026-12-25',1);delete invalid.sourceValidation;
+    registerDatasetInWorkspace(ws,later);registerDatasetInWorkspace(ws,invalid);
+    expect(sourceMappingProblem(invalid)).toContain('nhập lại');
+    expect(chooseLatestSources(ws).bindings.DISB).toBe(later.id);
+    const pending=synthetic('pending','2026-12-26',1);pending.sourceValidation!.status='NEEDS_REVIEW';
+    registerDatasetInWorkspace(ws,pending);expect(chooseLatestSources(ws).bindings.DISB).toBe(later.id);
+    confirmSourceValidation(pending,'Đối chiếu fixture đã kiểm tra');expect(chooseLatestSources(ws).bindings.DISB).toBe(pending.id);
   });
 
   it('1. Auto Layout Algorithm on A4 Landscape: picks Horizontal for <= 11 localities on A4 landscape', () => {
@@ -2261,7 +2339,10 @@ describe('KTXH Offline – A4 Report Studio & WYSIWYG Architecture Suite', () =>
     // Build an alternate DISB_PHAN_CAP_XA_V1 workbook with 2 communes and a different cutoff date
     const altDisbBytes = buildSingleSheetXlsx('Tong_hop', [
       [1, [['A', 'BÁO CÁO TÌNH HÌNH GIẢI NGÂN ĐẾN NGÀY 20/11/2026']]],
-      [3, [['C', 'Kế hoạch vốn'], ['G', 'Giải ngân'], ['K', 'Tỷ lệ']]],
+      [2, [['A', 'Đơn vị: Triệu đồng']]],
+      [3, [['A','STT'],['B','Chủ đầu tư'],['C', 'Kế hoạch vốn'], ['G', 'Giải ngân'], ['K', 'Tỷ lệ'],['L','Ghi chú']]],
+      [4,[['C','Tổng số'],['D','Chi tiết theo nguồn vốn'],['G','Tổng số'],['H','Chi tiết theo nguồn vốn']]],
+      [5,[['D','Nguồn thu tiền sử dụng đất'],['E','Bổ sung có mục tiêu'],['F','Nguồn tăng thu'],['H','Nguồn thu tiền sử dụng đất'],['I','Bổ sung có mục tiêu'],['J','Nguồn tăng thu']]],
       [
         7,
         [

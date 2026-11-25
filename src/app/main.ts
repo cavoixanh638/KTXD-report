@@ -32,6 +32,7 @@ import {
 } from '../core/calculationTrace';
 import { analyzeSourceCoverage } from '../core/coverage';
 import { chooseLatestSources, hasTrustedSourceDate, disbScope, LatestSourcePlan } from '../core/latestSources';
+import { assessSourceHistory, confirmSourceValidation, sourceMappingProblem, sourceFieldLabel } from '../core/sourceValidation';
 import { filterWarningsForSession } from '../core/warnings';
 import { searchLocalities } from '../core/localities';
 import { renderA4DocumentStudioHtml, computeAutoLayoutMode } from '../ui/reportStudio';
@@ -483,6 +484,21 @@ export class KtxhOfflineApp {
     }
   }
 
+  private reviewImportedSource(dataset:Dataset):boolean {
+    const existing=this.workspace.datasets.find(d=>d.id===dataset.id&&!sourceMappingProblem(d)&&d.sourceValidation?.schemaSignature===dataset.sourceValidation?.schemaSignature);
+    if(existing)return true;
+    assessSourceHistory(dataset,this.workspace);
+    const v=dataset.sourceValidation;
+    if(!v)return false;
+    if(v.status==='VERIFIED')return true;
+    const review=v.checks.filter(c=>c.severity==='REVIEW');
+    const prior=new Map((v.changedColumns||[]).map(c=>[c.field,c.before]));
+    const fields=v.columns.map(c=>sourceFieldLabel(c.field)+': '+(prior.has(c.field)?prior.get(c.field)+' → ':'')+c.column+' | '+c.header+' | '+c.unit);
+    const message=['CẦN XÁC MINH NGUỒN: '+dataset.sourceFilename,'Đã kiểm tra tiêu đề; có bất thường cần đối chiếu Excel gốc.',...review.map(c=>c.label+': '+c.detail+(c.examples?.length?'\n'+c.examples.slice(0,3).join('\n'):'')),'Ánh xạ cột (cột trước → cột mới nếu đổi):',...fields,'Chỉ chọn OK nếu đã kiểm tra đúng cột, đơn vị và số liệu. Hủy sẽ giữ nguyên nguồn phiên đang mở.'].join('\n');
+    if(typeof window==='undefined'||!window.confirm(message))return false;
+    confirmSourceValidation(dataset,'Người dùng đã đối chiếu Excel gốc và xác nhận cảnh báo khi nhập.');return true;
+  }
+
   public handleWorkbookBytesUpload(
     bytes: Uint8Array,
     filename: string,
@@ -513,6 +529,7 @@ export class KtxhOfflineApp {
             return;
           }
           const { dataset: parsed, localities } = importDisbursementWorkbook(bytes, filename);
+          if(!this.reviewImportedSource(parsed)){this.setStatus('Chưa xác minh nguồn mới; giữ nguyên nguồn phiên hiện tại.','warning');return;}
           const dataset = registerDatasetInWorkspace(this.workspace, parsed, localities);
           rebindSessionDataset(this.workspace, activeSession.id, 'DISB', dataset.id);
           this.triggerAutosave();
@@ -535,6 +552,7 @@ export class KtxhOfflineApp {
             return;
           }
           const { dataset: parsed } = importRevenueWorkbook(bytes, filename);
+          if(!this.reviewImportedSource(parsed)){this.setStatus('Chưa xác minh nguồn mới; giữ nguyên nguồn phiên hiện tại.','warning');return;}
           const dataset = registerDatasetInWorkspace(this.workspace, parsed);
           rebindSessionDataset(this.workspace, activeSession.id, 'REV', dataset.id);
           this.triggerAutosave();
@@ -553,6 +571,7 @@ export class KtxhOfflineApp {
             return;
           }
           const { dataset: parsed } = importGpmbWorkbook(bytes, filename);
+          if(!this.reviewImportedSource(parsed)){this.setStatus('Chưa xác minh nguồn mới; giữ nguyên nguồn phiên hiện tại.','warning');return;}
           const dataset = registerDatasetInWorkspace(this.workspace, parsed);
           rebindSessionDataset(this.workspace, activeSession.id, 'GPMB', dataset.id);
           this.triggerAutosave();
@@ -604,9 +623,12 @@ export class KtxhOfflineApp {
 
   private legacyImportNeedsReview(datasets:{REV?:Dataset;DISB?:Dataset;GPMB?:Dataset}):string[] {
     const warnings:string[]=[];
-    const rev=datasets.REV,disb=datasets.DISB;
-    if (rev && rev.mappingVersion==='REV_ADAPTER_V2.2' && rev.workbookSha256!=='b41227d1444c581e6f3b65d761fad8918b65aedfbd8114443e6dee9d4938356f') warnings.push('Thu NSNN: cần nhập lại Excel để kiểm tra tiêu đề cột thay vì cột R/W cũ.');
-    if (disb && disb.schemaFingerprint==='DISB_V1' && disb.unitCount===109) warnings.push('Giải ngân: cần nhập lại Excel để kiểm tra đủ 114 địa phương và cấu trúc cột.');
+    for(const ds of [datasets.REV,datasets.DISB,datasets.GPMB]){
+      if(!ds)continue;
+      const issue=sourceMappingProblem(ds);
+      if(issue)warnings.push(ds.sourceType+': '+issue);
+      else if(!hasTrustedSourceDate(ds))warnings.push(ds.sourceType+': cần xác nhận ngày chốt tại Khối 1.');
+    }
     return warnings;
   }
 
@@ -1070,6 +1092,15 @@ export class KtxhOfflineApp {
           `;
         }
 
+        const validation=ds?.sourceValidation;
+        if(ds){
+          const problem=sourceMappingProblem(ds);
+          metaHtml+=problem?'<div class="latest-source-warning">'+escapeHtmlUi(problem)+'</div>':validation?
+            '<details class="source-validation-details"><summary>Kiểm tra cột: '+(validation.reviewedAt?'Đã đối chiếu':'Đã kiểm tra')+' · '+validation.columnCount+' cột có nội dung</summary>'+
+            (validation.historicalDate?'<div>Đối chiếu lịch sử '+escapeHtmlUi(validation.historicalDate)+'</div>':'')+
+            validation.checks.map(c=>'<div class="source-validation-check '+(c.severity==='INFO'?'':'latest-source-warning')+'"><strong>'+escapeHtmlUi(c.label)+'</strong>: '+escapeHtmlUi(c.detail)+'</div>').join('')+
+            '<div class="source-validation-columns">'+validation.columns.map(c=>'<div>'+escapeHtmlUi(c.column+' · '+sourceFieldLabel(c.field)+' · '+c.unit)+'</div>').join('')+'</div></details>':'<div class="muted-xs">Workbook tham chiếu đã kiểm tra SHA gốc.</div>';
+        }
         const cardTitleTip = ds
           ? `${ds.sourceFilename} · Sheet: ${ds.sourceSheet} · SHA: ${ds.workbookSha256}`
           : `Chưa gắn nguồn ${type}`;
@@ -1349,7 +1380,7 @@ export class KtxhOfflineApp {
 
     if (!evaluatedReport) {
       const stale=this.legacyImportNeedsReview(datasets);
-      if (stale.length) return `<div class="studio-canvas-scroll"><div class="card empty-state-card"><h3>Cần nhập lại nguồn Excel trước khi xuất báo cáo</h3><p>${escapeHtmlUi(stale.join(' '))}</p><p>Dữ liệu cũ được giữ nguyên; hãy chọn lại tệp nguồn ở thanh bên trái để nhận diện đúng.</p></div></div>`;
+      if (stale.length) return `<div class="studio-canvas-scroll"><div class="card empty-state-card"><h3>Cần xác minh nguồn Excel trước khi lập báo cáo</h3><p>${escapeHtmlUi(stale.join(' '))}</p><p>Dữ liệu cũ được giữ nguyên; hãy xác nhận ngày chốt hoặc nhập lại file gốc ở Khối 1.</p></div></div>`;
       const missingList = (['DISB', 'REV', 'GPMB'] as const)
         .filter((t) => !datasets[t])
         .map((t) =>
@@ -2714,6 +2745,9 @@ export class KtxhOfflineApp {
             'info'
           );
         } else {
+          const candidate=this.workspace.datasets.find(d=>d.id===val&&d.sourceType===sourceType);
+          const problem=candidate?sourceMappingProblem(candidate):'Không tìm thấy nguồn';
+          if(problem){this.setStatus(problem+' Nguồn phiên hiện tại giữ nguyên.','warning');return;}
           rebindSessionDataset(this.workspace, activeSession.id, sourceType, val);
           this.triggerAutosave();
           this.setStatus(

@@ -271,6 +271,41 @@ export interface IdentityCheckResult {
   trace: CalculationTrace;
 }
 
+export interface SourceMappingColumn {
+  field: string;
+  column: string;
+  header: string;
+  unit: string;
+}
+export interface SourceValidationCheck {
+  code: string;
+  label: string;
+  checked: number;
+  failed: number;
+  severity: 'INFO' | 'WARNING' | 'REVIEW';
+  detail: string;
+  examples?: string[];
+}
+export interface SourceValidation {
+  version: 'SCHEMA_GUARD_V1';
+  workbookSha256: string;
+  sheet: string;
+  schemaSignature: string;
+  headerRows: number[];
+  columnCount: number;
+  headerColumnCount: number;
+  columns: SourceMappingColumn[];
+  status: 'VERIFIED' | 'NEEDS_REVIEW';
+  checks: SourceValidationCheck[];
+  checkedAt: string;
+  reviewedAt?: string;
+  reviewReason?: string;
+  historicalDatasetId?: string;
+  historicalDate?: string;
+  previousColumnCount?: number;
+  changedColumns?: Array<{field:string; before:string; after:string}>;
+}
+
 export interface Dataset {
   id: string;
   sourceType: 'REV' | 'DISB' | 'GPMB' | 'MANUAL';
@@ -285,6 +320,7 @@ export interface Dataset {
   manualSelectionReason?: string;
   mappingVersion: string;
   calculationPolicyVersion: string;
+  sourceValidation?: SourceValidation;
   unitCount: number;
   projectRowCount?: number;
   asOfDate: string; // YYYY-MM-DD

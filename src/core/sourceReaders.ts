@@ -1,6 +1,7 @@
 import { unzipSync } from 'fflate';
 import { Decimal, sha256Hex } from './decimal';
 import { dateFromReportTitle, isValidSourceDate } from './latestSources';
+import { validateDisbHeaders, validateGroupedGpmbHeaders, resolveFlatGpmbHeaders, attachSourceValidation } from './sourceValidation';
 import {
   AdjustedScenarioCandidate,
   CalculationTrace,
@@ -507,6 +508,7 @@ interface RevenueHeaderMapping {
 export function resolveRevenueHeader(sheet: ParsedWorkbookSheet): RevenueHeaderMapping | null {
   const dataRows = localityRows(sheet);
   if (!dataRows.length) return null;
+  const matches: RevenueHeaderMapping[] = [];
   for (let r=1;r<Math.min(dataRows[0],40);r++) {
     const headers = Array.from({length:100},(_,i)=>({col:colIndexToLetter(i+1), index:i+1, key:headerKey(getCellText(sheet,colIndexToLetter(i+1)+r))}));
     const pick = (pred:(x:typeof headers[number])=>boolean) => {
@@ -557,9 +559,9 @@ export function resolveRevenueHeader(sheet: ParsedWorkbookSheet): RevenueHeaderM
         result[rateNonland[i].col]='source_rate_nonland_'+suffix;
       }
     }
-    return {colMap:result,row:r};
+    matches.push({colMap:result,row:r});
   }
-  return null;
+  return matches.length===1?matches[0]:null;
 }
 
 export function detectSheetFingerprint(
@@ -589,7 +591,7 @@ export function detectSheetFingerprint(
   }
 
   // Check GPMB_FLAT (flat table in CSV or XLSX)
-  for (let r = 1; r <= Math.min(5, sheet.maxRow); r++) {
+  for (let r = 1; r <= Math.min(12, sheet.maxRow); r++) {
     const rowTexts: string[] = [];
     for (let c = 1; c <= 40; c++) {
       const col = colIndexToLetter(c);
@@ -964,13 +966,14 @@ export function importDisbursementWorkbook(
   }
 
   const profile = getDisbSchemaProfile(targetFp);
+  const headerRows = validateDisbHeaders(targetSheet,targetFp);
   const a1Text = getCellText(targetSheet, 'A1');
   const detectedDate = dateFromReportTitle(a1Text);
   const manualDate = options.confirmedAsOfDate?.trim();
   if (manualDate && !isValidSourceDate(manualDate)) throw new Error('Ngày chốt không hợp lệ.');
   const asOfDate = manualDate || detectedDate || '';
   const asOfStatus: Dataset['asOfStatus'] = manualDate ? 'MANUAL_CONFIRMED' : detectedDate ? 'DETECTED_CONFIRMED' : 'REQUIRES_USER_CONFIRMATION';
-  const datasetId = `DISB_${wb.sha256.slice(0, 12)}`;
+  const datasetId = `DISB_${wb.sha256.slice(0, 12)}__GUARD1`;
   const mappingVersion = profile.mappingVersion;
 
   const localities: Locality[] = [];
@@ -1303,6 +1306,7 @@ export function importDisbursementWorkbook(
     allSheetsMeta,
   };
 
+  attachSourceValidation(dataset,targetSheet,headerRows);
   return { dataset, localities };
 }
 
@@ -1363,9 +1367,9 @@ export function importRevenueWorkbook(
   const asOfStatus: Dataset['asOfStatus'] = hasUserConfirmedDate
     ? 'MANUAL_CONFIRMED'
     : titleDate ? 'DETECTED_CONFIRMED' : 'REQUIRES_USER_CONFIRMATION';
-  const datasetId = `REV_${wb.sha256.slice(0, 12)}`;
+  const datasetId = `REV_${wb.sha256.slice(0, 12)}__GUARD1`;
   const semanticMapping = resolveRevenueHeader(targetSheet);
-  const isOriginalReference = wb.sha256 === 'b41227d1444c581e6f3b65d761fad8918b65aedfbd8114443e6dee9d4938356f';
+  const isOriginalReference = wb.sha256 === 'b41227d1444c581e6f3b65d761fad8918b65aedfbd8114443e6dee9d4938356f' && targetSheet.name==='10T-19.10' && targetSheet.index===0;
   // Only the authorized, byte-identical original workbook is allowed to use
   // the legacy fixed map. Any other workbook must pass semantic recognition.
   if (!semanticMapping && !isOriginalReference) {
@@ -1497,6 +1501,7 @@ export function importRevenueWorkbook(
     allSheetsMeta,
   };
 
+  attachSourceValidation(dataset,targetSheet,[semanticMapping?.row??8]);
   return { dataset };
 }
 
@@ -1539,7 +1544,11 @@ export function importGpmbWorkbook(
   }
 
   const sheetFp = detectSheetFingerprint(targetSheet);
-  const isFlatTable = sheetFp === 'GPMB_FLAT';
+  if(sheetFp!=='GPMB_V1'&&sheetFp!=='GPMB_FLAT') throw new Error('BLOCKER_MAPPING_REQUIRED: Sheet GPMB không khớp cấu trúc nguồn.');
+  const flatMapping = sheetFp==='GPMB_FLAT'?resolveFlatGpmbHeaders(targetSheet):null;
+  if(sheetFp==='GPMB_FLAT'&&!flatMapping)throw new Error('BLOCKER_MAPPING_REQUIRED: Không xác minh được tiêu đề GPMB bảng phẳng.');
+  const isFlatTable = !!flatMapping;
+  const headerRows = flatMapping?[flatMapping.row]:validateGroupedGpmbHeaders(targetSheet);
 
   const a1Text = getCellText(targetSheet, 'A1');
   // Flat tables often contain only project deadlines, not a report cutoff.
@@ -1548,7 +1557,7 @@ export function importGpmbWorkbook(
   if (manualDate && !isValidSourceDate(manualDate)) throw new Error('Ngày chốt không hợp lệ.');
   const asOfDate = manualDate || detectedDate || '';
   const asOfStatus: Dataset['asOfStatus'] = manualDate ? 'MANUAL_CONFIRMED' : detectedDate ? 'DETECTED_CONFIRMED' : 'REQUIRES_USER_CONFIRMATION';
-  const datasetId = `GPMB_${wb.sha256.slice(0, 12)}`;
+  const datasetId = `GPMB_${wb.sha256.slice(0, 12)}__GUARD1`;
   const mappingVersion = isFlatTable ? 'GPMB_FLAT_ADAPTER_V2.2' : 'GPMB_ADAPTER_V2.2';
 
   const records: SourceRecord[] = [];
@@ -1564,57 +1573,15 @@ export function importGpmbWorkbook(
     { row: number; rawM: string | number | null; formulaM?: string }
   > = {};
 
-  if (isFlatTable) {
-    let headerRow = 1;
-    let colMapFlat: {
-      sttCol?: string;
-      projectCol?: string;
-      localityCol?: string;
-      capitalTypeCol?: string;
-      declaredAreaCol?: string;
-      recordedAreaCol?: string;
-      allocatedBudgetCol?: string;
-      paidAmountCol?: string;
-      declaredOrgsCol?: string;
-      declaredHouseholdsCol?: string;
-      doneOrgsCol?: string;
-      doneHouseholdsCol?: string;
-      rateCol?: string;
-      deadlineCol?: string;
-    } = {};
-
-    for (let r = 1; r <= Math.min(5, targetSheet.maxRow); r++) {
-      const found: typeof colMapFlat = {};
-      for (let c = 1; c <= 40; c++) {
-        const col = colIndexToLetter(c);
-        const txt = getCellText(targetSheet, `${col}${r}`).toLowerCase().trim();
-        if (!txt) continue;
-        if (/^stt$|^số\s*thứ\s*tự$/i.test(txt)) found.sttCol = col;
-        else if (/^dự\s*án$|^tên\s*dự\s*án$/i.test(txt)) found.projectCol = col;
-        else if (/^phường\s*xã$|^xã\s*phường$|^địa\s*bàn$|^địa\s*phương$/i.test(txt)) found.localityCol = col;
-        else if (/^nguồn\s*vốn$|^nguồn\s*ngân\s*sách$/i.test(txt)) found.capitalTypeCol = col;
-        else if (/tổng\s*dt\s*gpmb|tổng\s*diện\s*tích\s*phải\s*gpmb|dt\s*gpmb/i.test(txt)) found.declaredAreaCol = col;
-        else if (/dt\s*đã\s*thu\s*hồi|diện\s*tích\s*đã\s*gpmb|dt\s*đã\s*gpmb|đã\s*thu\s*hồi/i.test(txt)) found.recordedAreaCol = col;
-        else if (/tiền\s*phân\s*bổ|kinh\s*phí\s*phân\s*bổ/i.test(txt)) found.allocatedBudgetCol = col;
-        else if (/đã\s*chi\s*gpmb|tiền\s*đã\s*chi/i.test(txt)) found.paidAmountCol = col;
-        else if (/tổ\s*chức\s*bị\s*thu\s*hồi/i.test(txt)) found.declaredOrgsCol = col;
-        else if (/hộ\s*dân\s*bị\s*thu\s*hồi/i.test(txt)) found.declaredHouseholdsCol = col;
-        else if (/^số\s*tổ\s*chức$/i.test(txt)) found.doneOrgsCol = col;
-        else if (/^số\s*hộ\s*dân$/i.test(txt)) found.doneHouseholdsCol = col;
-        else if (/tỷ\s*lệ\s*gpmb/i.test(txt)) found.rateCol = col;
-        else if (/hạn\s*hoàn\s*thành|thời\s*hạn|tiến\s*độ\s*hoàn\s*thành/i.test(txt)) found.deadlineCol = col;
-      }
-      if (found.localityCol && (found.declaredAreaCol || found.recordedAreaCol)) {
-        headerRow = r;
-        colMapFlat = found;
-        break;
-      }
-    }
+  if (isFlatTable && flatMapping) {
+    const headerRow = flatMapping.row;
+    const colMapFlat = flatMapping.columns;
 
     for (let row = headerRow + 1; row <= targetSheet.maxRow; row++) {
       const locText = colMapFlat.localityCol ? getCellText(targetSheet, `${colMapFlat.localityCol}${row}`).trim() : '';
       const projText = colMapFlat.projectCol ? getCellText(targetSheet, `${colMapFlat.projectCol}${row}`).trim() : '';
       if (!locText && !projText) continue;
+      if (!locText || !projText || !isLocalityName(locText)) throw new Error('BLOCKER_MAPPING_REQUIRED: Dòng '+row+' GPMB thiếu/không rõ địa phương hoặc tên dự án.');
 
       const normLoc = canonicalizeLocalityName(locText);
       const locId = makeLocalityId(normLoc);
@@ -1797,6 +1764,7 @@ export function importGpmbWorkbook(
 
     let currentLocalityName = '';
     let currentLocalityId = '';
+    const seenProjects = new Set<string>();
 
     for (let row = 3; row <= targetSheet.maxRow; row++) {
       const cellA = targetSheet.cells.get(`A${row}`);
@@ -1826,10 +1794,13 @@ export function importGpmbWorkbook(
       cellA.cellType === 'n' &&
       typeof cellA.value === 'number' &&
       Number.isInteger(cellA.value) &&
-      cellA.value >= 1 &&
-      cellA.value <= 422
+      cellA.value >= 1
     ) {
       const stt = cellA.value;
+      if (!currentLocalityId || !normB) throw new Error('BLOCKER_MAPPING_REQUIRED: Dự án dòng '+row+' chưa có địa bàn/tên dự án rõ ràng.');
+      const projectKey=currentLocalityId+'|'+stt;
+      if(seenProjects.has(projectKey))throw new Error('BLOCKER_MAPPING_REQUIRED: Trùng STT dự án trong địa bàn tại dòng '+row+'.');
+      seenProjects.add(projectKey);
       const metrics: Record<string, MetricCellValue> = {};
       for (const [col, def] of Object.entries(colMap)) {
         metrics[def.fieldId] = buildMetricCell(
@@ -2039,5 +2010,6 @@ export function importGpmbWorkbook(
     allSheetsMeta,
   };
 
+  attachSourceValidation(dataset,targetSheet,headerRows);
   return { dataset };
 }

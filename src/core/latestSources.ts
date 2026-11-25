@@ -1,13 +1,10 @@
 import type { Dataset, ReportSession, Workspace } from './types';
+import { REFERENCE_SHA, sourceMappingProblem } from './sourceValidation';
+export { REFERENCE_SHA } from './sourceValidation';
 
 export const SOURCE_TYPES = ['DISB', 'REV', 'GPMB'] as const;
 export type LatestSourceType = typeof SOURCE_TYPES[number];
 export type LatestSourceMap = Partial<Record<LatestSourceType, Dataset>>;
-export const REFERENCE_SHA: Record<LatestSourceType, string> = {
-  DISB: '3ba33b3efd579499500d956c2580a170e84dd38b8d700fdfaaf9a361ea7cb38c',
-  REV: 'b41227d1444c581e6f3b65d761fad8918b65aedfbd8114443e6dee9d4938356f',
-  GPMB: 'd393c3c1f3f9c99c95cc3d0035eab3386ff3cab8e63e623eaa9c925103ef9e0f',
-};
 const REFERENCE_DATE = { DISB: '2026-10-15', REV: '2026-10-19', GPMB: '2026-10-26' };
 export function isValidSourceDate(value: string | undefined): boolean {
   if (!value || !/^\d{4}-\d{2}-\d{2}$/.test(value)) return false;
@@ -51,6 +48,7 @@ export function disbScope(ds?: Dataset): 'TOTAL' | 'ALLOCATED' | 'UNKNOWN' {
 }
 export function sourceEligibilityProblem(ds: Dataset): string | undefined {
   if (!ds.records?.length || !ds.unitCount) return 'Không có bản ghi địa phương';
+  const mappingIssue=sourceMappingProblem(ds);if(mappingIssue)return mappingIssue;
   if (ds.sourceType === 'REV' && ds.mappingVersion === 'REV_ADAPTER_V2.2' && !isReferenceSource(ds)) return 'Cần nhập lại Excel (ánh xạ REV cũ)';
   if (ds.sourceType === 'DISB' && ds.schemaFingerprint === 'DISB_V1' && ds.unitCount === 109) return 'Cần nhập lại Excel (cấu trúc DISB cũ)';
   if (!hasTrustedSourceDate(ds)) return 'Ngày chốt chưa được xác nhận';
