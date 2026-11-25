@@ -4789,7 +4789,8 @@ code {
     if (!pair) return label;
     const suffix = trimmed.match(/\s*\(đến ngày[^)]*\)$/i)?.[0] || "";
     const base = suffix ? trimmed.slice(0, -suffix.length).trimEnd() : trimmed;
-    return base === pair[0] ? pair[1] + suffix : label;
+    const isLegacyWardBudget = indicatorId === "GPMB_BUDGET" && base === "Kinh ph\xED ph\xE2n b\u1ED5 GPMB cho t\u1EEBng ph\u01B0\u1EDDng";
+    return base === pair[0] || isLegacyWardBudget ? pair[1] + suffix : label;
   }
   function formatBenchmarkReportLabel(params) {
     const prefixes = {
